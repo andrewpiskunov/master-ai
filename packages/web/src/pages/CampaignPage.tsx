@@ -8,6 +8,7 @@ import {
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
 import { WorkshopPanel } from "./WorkshopPanel.js";
+import { SearchBox } from "./SearchBox.js";
 
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -47,6 +48,8 @@ export function CampaignPage() {
     <main>
       <p><Link to="/">← Кампании</Link></p>
       <h1>{campaign?.name ?? "…"}</h1>
+
+      <SearchBox campaignId={campaignId!} />
 
       <WorkshopPanel campaignId={campaignId!} onApproved={loadDocuments} />
 

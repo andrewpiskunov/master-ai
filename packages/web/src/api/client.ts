@@ -7,6 +7,10 @@ import type {
   Proposal,
   BrainstormResponse,
   ConversationMessage,
+  SearchHit,
+  Link,
+  NewLink,
+  DocumentLinks,
 } from "@master-ai/shared";
 
 export class ApiError extends Error {
@@ -59,4 +63,14 @@ export const api = {
     request<Proposal>(`/api/proposals/${id}/reject`, { method: "POST" }),
   getConversation: (campaignId: string) =>
     request<ConversationMessage[]>(`/api/campaigns/${campaignId}/conversation`),
+  search: (campaignId: string, q: string) =>
+    request<SearchHit[]>(`/api/campaigns/${campaignId}/search?q=${encodeURIComponent(q)}`),
+  createLink: (input: NewLink) =>
+    request<Link>(`/api/campaigns/${input.campaignId}/links`, { method: "POST", body: JSON.stringify(input) }),
+  listDocumentLinks: (docId: string) =>
+    request<DocumentLinks>(`/api/documents/${docId}/links`),
+  deleteLink: (id: string) =>
+    fetch(`/api/links/${id}`, { method: "DELETE" }).then((res) => {
+      if (!res.ok) throw new ApiError(res.status, res.statusText);
+    }),
 };

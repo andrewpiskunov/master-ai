@@ -36,6 +36,7 @@ describe("CampaignPage", () => {
     ]);
     vi.mocked(api.getConversation).mockResolvedValue([]);
     vi.mocked(api.listProposals).mockResolvedValue([]);
+    vi.mocked(api.search).mockResolvedValue([]);
     renderAt("c1");
     expect(await screen.findByText("Город Солнца")).toBeInTheDocument();
     expect(screen.getByText("Барон")).toBeInTheDocument();
