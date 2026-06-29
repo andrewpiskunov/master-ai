@@ -21,10 +21,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "content-type": "application/json", ...init?.headers },
-  });
+  // content-type ставим только когда есть тело: Fastify отвергает пустое
+  // тело с content-type: application/json ошибкой 400 (например, approve/reject).
+  const headers = init?.body != null
+    ? { "content-type": "application/json", ...init?.headers }
+    : init?.headers;
+  const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
     let message = res.statusText;
     try {
