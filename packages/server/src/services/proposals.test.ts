@@ -34,6 +34,22 @@ describe("ProposalService", () => {
     expect(documents.listByCampaign("c1")).toHaveLength(0);
   });
 
+  it("reject не трогает уже одобренное предложение", () => {
+    const { proposals, documents } = setup();
+    const p = proposals.create({ campaignId: "c1", conversationId: "k1", draft: { type: "npc", title: "X", content: "Y" } });
+    proposals.approve(p.id, documents);
+    expect(proposals.reject(p.id)).toBeUndefined();
+    expect(proposals.get(p.id)?.status).toBe("approved");
+  });
+
+  it("approve повторно не создаёт второй документ", () => {
+    const { proposals, documents } = setup();
+    const p = proposals.create({ campaignId: "c1", conversationId: "k1", draft: { type: "npc", title: "X", content: "Y" } });
+    proposals.approve(p.id, documents);
+    expect(proposals.approve(p.id, documents)).toBeUndefined();
+    expect(documents.listByCampaign("c1")).toHaveLength(1);
+  });
+
   it("textToDoc делает параграфы из строк", () => {
     const doc = textToDoc("первая\nвторая") as { content: unknown[] };
     expect(doc.content).toHaveLength(2);

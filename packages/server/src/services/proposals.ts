@@ -56,20 +56,22 @@ export class ProposalService {
   approve(id: string, documents: DocumentService): Document | undefined {
     const p = this.get(id);
     if (!p || p.status !== "pending") return undefined;
-    const doc = documents.create({
-      campaignId: p.campaignId,
-      type: p.type,
-      title: p.title,
-      contentJson: textToDoc(p.content),
-      fields: p.fields,
+    return this.db.transaction(() => {
+      const doc = documents.create({
+        campaignId: p.campaignId,
+        type: p.type,
+        title: p.title,
+        contentJson: textToDoc(p.content),
+        fields: p.fields,
+      });
+      this.db.update(proposals).set({ status: "approved" }).where(eq(proposals.id, id)).run();
+      return doc;
     });
-    this.db.update(proposals).set({ status: "approved" }).where(eq(proposals.id, id)).run();
-    return doc;
   }
 
   reject(id: string): Proposal | undefined {
     const p = this.get(id);
-    if (!p) return undefined;
+    if (!p || p.status !== "pending") return undefined;
     this.db.update(proposals).set({ status: "rejected" }).where(eq(proposals.id, id)).run();
     return this.get(id);
   }

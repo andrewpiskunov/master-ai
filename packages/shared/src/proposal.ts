@@ -18,8 +18,8 @@ export type Proposal = z.infer<typeof ProposalSchema>;
 
 export const DraftProposalSchema = z.object({
   type: z.string(),
-  title: z.string(),
-  content: z.string(),
+  title: z.string().min(1),
+  content: z.string().min(1),
   fields: z.record(z.unknown()).optional(),
 });
 export type DraftProposal = z.infer<typeof DraftProposalSchema>;

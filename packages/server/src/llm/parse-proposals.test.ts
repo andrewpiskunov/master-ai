@@ -21,4 +21,9 @@ describe("parseProposals", () => {
     const text = '```json\n{"proposals":[{"type":"чепуха","title":"X","content":"Y"}]}\n```';
     expect(parseProposals(text).proposals).toHaveLength(0);
   });
+
+  it("отбрасывает предложение с пустыми title или content", () => {
+    const text = '```json\n{"proposals":[{"type":"npc","title":"","content":""}]}\n```';
+    expect(parseProposals(text).proposals).toHaveLength(0);
+  });
 });
