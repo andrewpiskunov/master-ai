@@ -53,7 +53,7 @@ export function CampaignWorkspace() {
       const doc = await api.createDocument({ campaignId, type: createType, title: newTitle.trim() });
       setCreateType(null);
       setNewTitle("");
-      navigate(`/documents/${doc.id}`);
+      navigate(`/campaigns/${campaignId}/documents/${doc.id}`);
     } catch {
       showToast("Не удалось создать документ");
     }

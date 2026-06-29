@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor } from "../editor/DocumentEditor.js";
 import { useToast } from "../ui/toast.js";
 import { LinksPanel } from "./LinksPanel.js";
+import { DocumentAssistant } from "./DocumentAssistant.js";
+import { TypeBadge } from "./campaign/shared.js";
+
+// Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
+function pmText(node: unknown): string {
+  if (!node || typeof node !== "object") return "";
+  const n = node as { text?: string; content?: unknown[]; type?: string };
+  if (typeof n.text === "string") return n.text;
+  const inner = Array.isArray(n.content) ? n.content.map(pmText).join("") : "";
+  // Блочные узлы разделяем переносом строки.
+  return n.type && n.type !== "text" ? inner + "\n" : inner;
+}
 
 export function DocumentPage() {
   const { documentId } = useParams<{ documentId: string }>();
@@ -33,39 +46,51 @@ export function DocumentPage() {
         contentJson,
       });
       setDoc(updated);
+      showToast("Сохранено");
     } catch {
       showToast("Не удалось сохранить");
     }
   }
 
-  if (!doc) return <main>…</main>;
+  if (!doc) return <div className="view"><p className="muted">…</p></div>;
 
-  const statuses = getDocumentType(doc.type)?.statuses ?? [];
+  const t = getDocumentType(doc.type);
+  const statuses = t?.statuses ?? [];
 
   return (
-    <main>
-      <p><Link to={`/campaigns/${doc.campaignId}`}>← Кампания</Link></p>
-
-      <label htmlFor="doc-title">Заголовок</label>
-      <input id="doc-title" value={title} onChange={(e) => setTitle(e.target.value)} />
-
-      {statuses.length > 0 && (
-        <>
-          <label htmlFor="doc-status">Статус</label>
-          <select id="doc-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+    <div className="view">
+      <header className="view-head doc-head">
+        <TypeBadge type={doc.type} size={40} />
+        <div className="doc-head-main">
+          <Link to={`/campaigns/${doc.campaignId}`} className="doc-back">
+            <ArrowLeft size={15} /> {t?.label ?? doc.type}
+          </Link>
+          <input
+            id="doc-title"
+            aria-label="Заголовок"
+            className="doc-title-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        {statuses.length > 0 && (
+          <select aria-label="Статус" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">—</option>
-            {statuses.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
+            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-        </>
-      )}
+        )}
+        <button type="button" onClick={save}>Сохранить</button>
+      </header>
 
-      <DocumentEditor key={documentId} content={contentJson} onChange={setContentJson} />
-
-      <button type="button" onClick={save}>Сохранить</button>
-
-      <LinksPanel campaignId={doc.campaignId} documentId={doc.id} />
-    </main>
+      <div className="doc-grid">
+        <div className="doc-main">
+          <DocumentEditor key={documentId} content={contentJson} onChange={setContentJson} />
+        </div>
+        <div className="ws-aside">
+          <DocumentAssistant title={title} typeLabel={t?.label ?? doc.type} getText={() => pmText(contentJson).trim()} />
+          <LinksPanel campaignId={doc.campaignId} documentId={doc.id} />
+        </div>
+      </div>
+    </div>
   );
 }

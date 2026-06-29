@@ -21,8 +21,8 @@ export function App() {
               <Route path="workshop" element={<WorkshopView />} />
               <Route path="knowledge" element={<KnowledgeBase />} />
               <Route path="play" element={<PlayMaterials />} />
+              <Route path="documents/:documentId" element={<DocumentPage />} />
             </Route>
-            <Route path="/documents/:documentId" element={<DocumentPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

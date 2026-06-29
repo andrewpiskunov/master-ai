@@ -88,21 +88,51 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
     onChange(editor.getJSON());
   }
 
+  const fmtDisabled = !editor || suggesting || streaming;
+  const isActive = (name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false;
+
   return (
-    <div>
+    <div className="editor">
       <div className="editor-toolbar">
-        {!suggesting && (
-          <button type="button" onClick={requestSuggestion} disabled={streaming}>
-            ✨ Продолжить
-          </button>
-        )}
-        {suggesting && !streaming && (
-          <>
-            <button type="button" onClick={acceptSuggestion}>Принять</button>
-            <button type="button" onClick={rejectSuggestion}>Отклонить</button>
-          </>
-        )}
-        {streaming && <span>ИИ печатает…</span>}
+        <div className="editor-format">
+          <button type="button" title="Жирный" disabled={fmtDisabled}
+            className={isActive("bold") ? "active" : ""}
+            onClick={() => editor?.chain().focus().toggleBold().run()}><strong>Ж</strong></button>
+          <button type="button" title="Курсив" disabled={fmtDisabled}
+            className={isActive("italic") ? "active" : ""}
+            onClick={() => editor?.chain().focus().toggleItalic().run()}><em>К</em></button>
+          <span className="editor-sep" />
+          <button type="button" title="Заголовок" disabled={fmtDisabled}
+            className={isActive("heading", { level: 2 }) ? "active" : ""}
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+          <button type="button" title="Подзаголовок" disabled={fmtDisabled}
+            className={isActive("heading", { level: 3 }) ? "active" : ""}
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+          <span className="editor-sep" />
+          <button type="button" title="Маркированный список" disabled={fmtDisabled}
+            className={isActive("bulletList") ? "active" : ""}
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}>•</button>
+          <button type="button" title="Нумерованный список" disabled={fmtDisabled}
+            className={isActive("orderedList") ? "active" : ""}
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1.</button>
+          <button type="button" title="Цитата" disabled={fmtDisabled}
+            className={isActive("blockquote") ? "active" : ""}
+            onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
+        </div>
+        <div className="editor-ai">
+          {!suggesting && (
+            <button type="button" onClick={requestSuggestion} disabled={streaming}>
+              ✨ Продолжить
+            </button>
+          )}
+          {suggesting && !streaming && (
+            <>
+              <button type="button" onClick={acceptSuggestion}>Принять</button>
+              <button type="button" onClick={rejectSuggestion}>Отклонить</button>
+            </>
+          )}
+          {streaming && <span className="muted">ИИ печатает…</span>}
+        </div>
       </div>
       <EditorContent editor={editor} />
     </div>

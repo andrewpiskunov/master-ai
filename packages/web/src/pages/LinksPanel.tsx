@@ -56,7 +56,7 @@ export function LinksPanel({ campaignId, documentId }: { campaignId: string; doc
         <ul>
           {data.outgoing.map((l) => (
             <li key={l.linkId}>
-              <Link to={`/documents/${l.document.id}`}>{l.document.title}</Link>
+              <Link to={`/campaigns/${campaignId}/documents/${l.document.id}`}>{l.document.title}</Link>
               <span> · {l.kind}</span>
               <button type="button" onClick={() => remove(l.linkId)}>удалить</button>
             </li>
@@ -68,7 +68,7 @@ export function LinksPanel({ campaignId, documentId }: { campaignId: string; doc
         <ul>
           {data.incoming.map((l) => (
             <li key={l.linkId}>
-              <Link to={`/documents/${l.document.id}`}>{l.document.title}</Link>
+              <Link to={`/campaigns/${campaignId}/documents/${l.document.id}`}>{l.document.title}</Link>
               <span> · {l.kind}</span>
             </li>
           ))}

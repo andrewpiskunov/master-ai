@@ -82,14 +82,14 @@ export function DocCard({ doc, variant = "row" }: { doc: Document; variant?: "ro
   const t = getDocumentType(doc.type);
   if (variant === "tile") {
     return (
-      <Link to={`/documents/${doc.id}`} className="doc-tile">
+      <Link to={`/campaigns/${doc.campaignId}/documents/${doc.id}`} className="doc-tile">
         <TypeBadge type={doc.type} size={40} />
         <span className="doc-tile-title">{doc.title}</span>
       </Link>
     );
   }
   return (
-    <Link to={`/documents/${doc.id}`} className="doc-card">
+    <Link to={`/campaigns/${doc.campaignId}/documents/${doc.id}`} className="doc-card">
       <TypeBadge type={doc.type} size={32} />
       <span className="doc-card-body">
         <span className="doc-card-title">{doc.title}</span>
