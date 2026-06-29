@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { HomePage } from "./HomePage.js";
 import { api } from "../api/client.js";
+import { ToastProvider } from "../ui/toast.js";
 
 vi.mock("../api/client.js");
 
@@ -11,9 +12,11 @@ beforeEach(() => vi.resetAllMocks());
 
 function renderPage() {
   return render(
-    <MemoryRouter>
-      <HomePage />
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 
@@ -24,6 +27,12 @@ describe("HomePage", () => {
     ]);
     renderPage();
     expect(await screen.findByText("Город Солнца")).toBeInTheDocument();
+  });
+
+  it("показывает тост при ошибке загрузки кампаний", async () => {
+    vi.mocked(api.listCampaigns).mockRejectedValue(new Error("сеть упала"));
+    renderPage();
+    expect(await screen.findByText(/не удалось загрузить кампании/i)).toBeInTheDocument();
   });
 
   it("создаёт кампанию по сабмиту формы", async () => {

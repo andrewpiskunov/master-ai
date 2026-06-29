@@ -6,24 +6,30 @@ import {
   type Document,
 } from "@master-ai/shared";
 import { api } from "../api/client.js";
+import { useToast } from "../ui/toast.js";
 
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [type, setType] = useState(DOCUMENT_TYPES[0].key);
 
   useEffect(() => {
     if (!campaignId) return;
-    api.getCampaign(campaignId).then(setCampaign);
-    api.listCampaignDocuments(campaignId).then(setDocuments);
-  }, [campaignId]);
+    api.getCampaign(campaignId).then(setCampaign).catch(() => showToast("Не удалось загрузить кампанию"));
+    api.listCampaignDocuments(campaignId).then(setDocuments).catch(() => showToast("Не удалось загрузить документы"));
+  }, [campaignId, showToast]);
 
   async function createDocument() {
     if (!campaignId) return;
-    const doc = await api.createDocument({ campaignId, type, title: "Без названия" });
-    navigate(`/documents/${doc.id}`);
+    try {
+      const doc = await api.createDocument({ campaignId, type, title: "Без названия" });
+      navigate(`/documents/${doc.id}`);
+    } catch {
+      showToast("Не удалось создать документ");
+    }
   }
 
   const byType = DOCUMENT_TYPES.map((t) => ({

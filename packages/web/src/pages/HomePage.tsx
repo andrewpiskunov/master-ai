@@ -2,21 +2,27 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import type { Campaign } from "@master-ai/shared";
 import { api } from "../api/client.js";
+import { useToast } from "../ui/toast.js";
 
 export function HomePage() {
+  const { showToast } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [name, setName] = useState("");
 
   useEffect(() => {
-    api.listCampaigns().then(setCampaigns);
-  }, []);
+    api.listCampaigns().then(setCampaigns).catch(() => showToast("Не удалось загрузить кампании"));
+  }, [showToast]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    const created = await api.createCampaign({ name: name.trim() });
-    setCampaigns((prev) => [...prev, created]);
-    setName("");
+    try {
+      const created = await api.createCampaign({ name: name.trim() });
+      setCampaigns((prev) => [...prev, created]);
+      setName("");
+    } catch {
+      showToast("Не удалось создать кампанию");
+    }
   }
 
   return (

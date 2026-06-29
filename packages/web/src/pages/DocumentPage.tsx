@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor } from "../editor/DocumentEditor.js";
+import { useToast } from "../ui/toast.js";
 
 export function DocumentPage() {
   const { documentId } = useParams<{ documentId: string }>();
+  const { showToast } = useToast();
   const [doc, setDoc] = useState<Document | null>(null);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<string>("");
@@ -18,17 +20,21 @@ export function DocumentPage() {
       setTitle(d.title);
       setStatus(d.status ?? "");
       setContentJson(d.contentJson);
-    });
-  }, [documentId]);
+    }).catch(() => showToast("Не удалось загрузить документ"));
+  }, [documentId, showToast]);
 
   async function save() {
     if (!documentId) return;
-    const updated = await api.updateDocument(documentId, {
-      title,
-      status: status === "" ? null : status,
-      contentJson,
-    });
-    setDoc(updated);
+    try {
+      const updated = await api.updateDocument(documentId, {
+        title,
+        status: status === "" ? null : status,
+        contentJson,
+      });
+      setDoc(updated);
+    } catch {
+      showToast("Не удалось сохранить");
+    }
   }
 
   if (!doc) return <main>…</main>;

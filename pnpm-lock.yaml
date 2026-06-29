@@ -60,6 +60,9 @@ importers:
       '@master-ai/shared':
         specifier: workspace:*
         version: link:../shared
+      '@tiptap/core':
+        specifier: ^2.6.0
+        version: 2.27.2(@tiptap/pm@2.27.2)
       '@tiptap/pm':
         specifier: ^2.6.0
         version: 2.27.2
@@ -103,6 +106,9 @@ importers:
       vite:
         specifier: ^5.4.0
         version: 5.4.21(@types/node@26.0.1)
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@26.0.1)(jsdom@25.0.1)
 
 packages:
 

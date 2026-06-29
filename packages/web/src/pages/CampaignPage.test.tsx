@@ -3,6 +3,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CampaignPage } from "./CampaignPage.js";
 import { api } from "../api/client.js";
+import { ToastProvider } from "../ui/toast.js";
 
 vi.mock("../api/client.js");
 const navigateMock = vi.fn();
@@ -15,11 +16,13 @@ beforeEach(() => vi.resetAllMocks());
 
 function renderAt(id: string) {
   return render(
-    <MemoryRouter initialEntries={[`/campaigns/${id}`]}>
-      <Routes>
-        <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={[`/campaigns/${id}`]}>
+        <Routes>
+          <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 
