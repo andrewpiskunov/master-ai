@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { ConversationMessage, Proposal } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
@@ -10,13 +10,23 @@ export function WorkshopPanel({ campaignId, onApproved }: { campaignId: string; 
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Подгоняем высоту поля под содержимое (до max-height из CSS).
+  function autoGrow() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }
+  useEffect(autoGrow, [input]);
 
   useEffect(() => {
     api.getConversation(campaignId).then(setMessages).catch(() => showToast("Не удалось загрузить беседу"));
     api.listProposals(campaignId, "pending").then(setProposals).catch(() => showToast("Не удалось загрузить предложения"));
   }, [campaignId, showToast]);
 
-  async function send(e: FormEvent) {
+  async function send(e: { preventDefault: () => void }) {
     e.preventDefault();
     const text = input.trim();
     if (!text || busy) return;
@@ -84,11 +94,19 @@ export function WorkshopPanel({ campaignId, onApproved }: { campaignId: string; 
 
       <form className="chat-form" onSubmit={send}>
         <label htmlFor="brainstorm-input" className="sr-only">Сообщение</label>
-        <input
+        <textarea
           id="brainstorm-input"
+          ref={textareaRef}
+          rows={1}
           placeholder="Напишите сообщение…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send(e);
+            }
+          }}
           disabled={busy}
         />
         <button type="submit" disabled={busy}>Отправить</button>
