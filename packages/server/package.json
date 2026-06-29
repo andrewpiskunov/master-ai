@@ -1,0 +1,20 @@
+{
+  "name": "@master-ai/server",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "node --experimental-strip-types --watch src/main.ts"
+  },
+  "dependencies": {
+    "@master-ai/shared": "workspace:*",
+    "better-sqlite3": "^11.0.0",
+    "drizzle-orm": "^0.33.0",
+    "fastify": "^5.0.0",
+    "@fastify/cors": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "drizzle-kit": "^0.24.0"
+  }
+}
