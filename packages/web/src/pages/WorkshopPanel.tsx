@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Markdown } from "../ui/Markdown.js";
+import type { MentionItem } from "../mentions.js";
 import { useWorkshopChat } from "./campaign/WorkshopChatContext.js";
 import { TypeTag } from "./campaign/shared.js";
 
-export function WorkshopPanel() {
+export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
   const { messages, busy, send } = useWorkshopChat();
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -43,7 +44,7 @@ export function WorkshopPanel() {
         {messages.map((m) => (
           <div key={m.id} className={`msg msg-${m.role}`}>
             <div className="msg-role">{m.role === "user" ? "Вы" : "ИИ"}</div>
-            <Markdown>{m.content}</Markdown>
+            <Markdown mentions={mentions}>{m.content}</Markdown>
           </div>
         ))}
         {busy && (

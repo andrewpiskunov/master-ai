@@ -1,9 +1,14 @@
+import { useMemo } from "react";
 import { Lightbulb } from "lucide-react";
 import { WorkshopPanel, WorkshopProposals } from "../WorkshopPanel.js";
 import { RecentlyCreated, useCampaign } from "./shared.js";
 
 export function WorkshopView() {
   const { documents } = useCampaign();
+  const mentions = useMemo(
+    () => documents.map((d) => ({ title: d.title, type: d.type })),
+    [documents],
+  );
   return (
     <div className="view">
       <header className="view-head">
@@ -14,7 +19,7 @@ export function WorkshopView() {
         </div>
       </header>
       <div className="ws-grid">
-        <WorkshopPanel />
+        <WorkshopPanel mentions={mentions} />
         <div className="ws-aside">
           <WorkshopProposals />
           <RecentlyCreated documents={documents} />
