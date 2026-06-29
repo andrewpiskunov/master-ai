@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
@@ -8,7 +8,7 @@ import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
 import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant } from "./DocumentAssistant.js";
-import { TypeBadge, typeColor } from "./campaign/shared.js";
+import { TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
 
 // Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
 function pmText(node: unknown): string {
@@ -23,6 +23,12 @@ function pmText(node: unknown): string {
 export function DocumentPage() {
   const { documentId } = useParams<{ documentId: string }>();
   const { showToast } = useToast();
+  const campaignCtx = useCampaign();
+  const allDocuments = campaignCtx?.documents ?? [];
+  const mentions = useMemo(
+    () => allDocuments.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type })),
+    [allDocuments, documentId],
+  );
   const [doc, setDoc] = useState<Document | null>(null);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<string>("");
@@ -89,7 +95,13 @@ export function DocumentPage() {
 
       <div className="doc-grid">
         <div className="doc-main">
-          <DocumentEditor ref={editorRef} key={documentId} content={contentJson} onChange={setContentJson} />
+          <DocumentEditor
+            ref={editorRef}
+            key={documentId}
+            content={contentJson}
+            onChange={setContentJson}
+            mentions={mentions}
+          />
         </div>
         <div className="ws-aside">
           <DocumentAssistant

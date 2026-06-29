@@ -512,6 +512,19 @@ form button { align-self: flex-start; }
 .ProseMirror blockquote { margin: 0 0 0.7em; padding-left: 14px; border-left: 3px solid var(--accent); color: var(--muted); }
 .ProseMirror:focus { outline: none; }
 .suggestion, [data-suggestion] { background: var(--accent-soft); border-bottom: 1px dashed var(--accent); border-radius: 3px; }
+
+/* Подсветка упоминаний других сущностей цветом их типа */
+.mention { border-radius: 4px; padding: 0 4px; }
+.mention-npc { background: #14532d; color: #bbf7d0; }
+.mention-location { background: #422006; color: #fde68a; }
+.mention-faction { background: #3b1764; color: #e9d5ff; }
+.mention-secret { background: #4c0519; color: #fecdd3; }
+.mention-scene { background: #082f49; color: #bae6fd; }
+.mention-session { background: #1e1b4b; color: #c7d2fe; }
+.mention-item { background: #431407; color: #fed7aa; }
+.mention-lore { background: #042f2e; color: #99f6e4; }
+.mention-reference { background: #172554; color: #bfdbfe; }
+.mention-note { background: #1e293b; color: #cbd5e1; }
 .editor-hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
 
 /* ---------- Меню команд «/» ---------- */

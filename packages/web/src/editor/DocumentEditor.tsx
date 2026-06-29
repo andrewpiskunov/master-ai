@@ -4,10 +4,12 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { streamComplete } from "../api/stream.js";
 import { useToast } from "../ui/toast.js";
 import { SuggestionMark } from "./SuggestionMark.js";
+import { MentionHighlight, mentionKey, type MentionItem } from "./MentionHighlight.js";
 
 interface DocumentEditorProps {
   content: unknown;
   onChange: (json: unknown) => void;
+  mentions?: MentionItem[];
 }
 
 export interface DocumentEditorHandle {
@@ -52,7 +54,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
 interface SlashState { items: SlashCommand[]; index: number; top: number; left: number; queryLen: number }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { content, onChange },
+  { content, onChange, mentions },
   ref,
 ) {
   const { showToast } = useToast();
@@ -85,7 +87,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   }
 
   const editor = useEditor({
-    extensions: [StarterKit, SuggestionMark],
+    extensions: [StarterKit, SuggestionMark, MentionHighlight],
     content: (content as object) ?? "",
     onUpdate: ({ editor }) => {
       if (!streamingRef.current) onChange(editor.getJSON());
@@ -102,6 +104,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       onChange(editor.getJSON());
     },
   }), [editor, onChange]);
+
+  // Передаём список сущностей в плагин подсветки упоминаний.
+  useEffect(() => {
+    if (!editor) return;
+    editor.view.dispatch(editor.state.tr.setMeta(mentionKey, { mentions: mentions ?? [] }));
+  }, [editor, mentions]);
 
   function applySlash(cmd: SlashCommand) {
     if (!editor) return;
