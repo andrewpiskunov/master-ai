@@ -9,7 +9,7 @@ export function Layout() {
         <div className="app-header-inner">
           <Link to="/" className="brand">
             <Logo size={28} />
-            <span className="brand-name">master-ai</span>
+            <span className="brand-name">MasterAI</span>
           </Link>
         </div>
       </header>

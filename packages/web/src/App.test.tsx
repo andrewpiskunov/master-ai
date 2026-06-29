@@ -10,6 +10,6 @@ vi.mock("./api/client.js", () => ({
 describe("App", () => {
   it("рендерит заголовок приложения на главной", async () => {
     render(<App />);
-    expect(await screen.findByText("master-ai")).toBeInTheDocument();
+    expect(await screen.findByText("MasterAI")).toBeInTheDocument();
   });
 });
