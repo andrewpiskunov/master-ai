@@ -8,6 +8,7 @@ import {
   DOCUMENT_TYPES,
   getDocumentType,
   CompleteInputSchema,
+  NewLinkSchema,
 } from "@master-ai/shared";
 import { z } from "zod";
 import { CampaignService } from "./services/campaigns.js";
@@ -15,6 +16,8 @@ import { DocumentService } from "./services/documents.js";
 import { ConversationService } from "./services/conversations.js";
 import { ProposalService } from "./services/proposals.js";
 import { BrainstormService } from "./services/brainstorm.js";
+import { LinkService } from "./services/links.js";
+import { SearchService } from "./services/search.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { loadProvider } from "./llm/config.js";
 
@@ -37,6 +40,8 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   const conversationsSvc = new ConversationService(deps.db);
   const proposalsSvc = new ProposalService(deps.db);
   const brainstormSvc = new BrainstormService({ llm, conversations: conversationsSvc, proposals: proposalsSvc });
+  const linksSvc = new LinkService(deps.db);
+  const searchSvc = new SearchService(deps.db);
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });
 
   app.get("/api/document-types", () => DOCUMENT_TYPES);
@@ -105,6 +110,29 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
     const updated = documentsSvc.update(id, parsed.data);
     if (!updated) return reply.code(404).send({ error: "not found" });
     return updated;
+  });
+
+  app.get("/api/campaigns/:id/search", (req) => {
+    const { id } = req.params as { id: string };
+    const { q } = req.query as { q?: string };
+    return searchSvc.search(id, q ?? "");
+  });
+
+  app.post("/api/campaigns/:id/links", (req, reply) => {
+    const parsed = NewLinkSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    return reply.code(201).send(linksSvc.create(parsed.data));
+  });
+
+  app.get<IdParams>("/api/documents/:id/links", (req) => {
+    const { id } = req.params;
+    return linksSvc.listForDocument(id);
+  });
+
+  app.delete<IdParams>("/api/links/:id", (req, reply) => {
+    const { id } = req.params;
+    if (!linksSvc.delete(id)) return reply.code(404).send({ error: "связь не найдена" });
+    return reply.code(204).send();
   });
 
   app.post("/api/campaigns/:id/brainstorm", async (req, reply) => {

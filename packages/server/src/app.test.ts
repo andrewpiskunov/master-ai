@@ -189,6 +189,64 @@ describe("brainstorm & proposals API", () => {
   });
 });
 
+describe("поиск и связи", () => {
+  it("search находит документ по контенту", async () => {
+    const app = makeApp();
+    const c = await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } });
+    const campaignId = c.json().id;
+    await app.inject({
+      method: "POST",
+      url: "/api/documents",
+      payload: {
+        campaignId,
+        type: "npc",
+        title: "Барон",
+        contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "аристократ из замка" }] }] },
+      },
+    });
+    const res = await app.inject({ method: "GET", url: `/api/campaigns/${campaignId}/search?q=${encodeURIComponent("аристократ")}` });
+    expect(res.statusCode).toBe(200);
+    const hits = res.json();
+    expect(hits).toHaveLength(1);
+    expect(hits[0].title).toBe("Барон");
+  });
+
+  it("создаёт и перечисляет связи, отдаёт обратные ссылки", async () => {
+    const app = makeApp();
+    const campaignId = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json().id;
+    const mk = async (title: string, type: string) =>
+      (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId, type, title } })).json().id;
+    const a = await mk("Барон", "npc");
+    const b = await mk("Замок", "location");
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/campaigns/${campaignId}/links`,
+      payload: { campaignId, fromDocId: a, toDocId: b, kind: "обитает в" },
+    });
+    expect(created.statusCode).toBe(201);
+    const linksB = await app.inject({ method: "GET", url: `/api/documents/${b}/links` });
+    expect(linksB.json().incoming).toHaveLength(1);
+    expect(linksB.json().incoming[0].document.title).toBe("Барон");
+  });
+
+  it("POST link с пустым kind → 400", async () => {
+    const app = makeApp();
+    const campaignId = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json().id;
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/campaigns/${campaignId}/links`,
+      payload: { campaignId, fromDocId: "a", toDocId: "b", kind: "" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("DELETE несуществующей связи → 404", async () => {
+    const app = makeApp();
+    const res = await app.inject({ method: "DELETE", url: "/api/links/нет-такой" });
+    expect(res.statusCode).toBe(404);
+  });
+});
+
 describe("LLM endpoint", () => {
   function makeAppWithLlm(chunks: string[]) {
     const { db } = createDb(":memory:");
