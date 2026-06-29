@@ -6,3 +6,6 @@ dist/
 
 # Process scratch (subagent-driven-development)
 .superpowers/
+*.sqlite-wal
+*.sqlite-shm
+packages/server/data/
