@@ -16,11 +16,15 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
   const [streaming, setStreaming] = useState(false);
   // диапазон вставленного предложения в позициях ProseMirror
   const range = useRef<{ from: number; to: number }>({ from: 0, to: 0 });
+  // Fix 1: не вызывать onChange во время стриминга
+  const streamingRef = useRef(false);
 
   const editor = useEditor({
     extensions: [StarterKit, SuggestionMark],
     content: (content as object) ?? "",
-    onUpdate: ({ editor }) => onChange(editor.getJSON()),
+    onUpdate: ({ editor }) => {
+      if (!streamingRef.current) onChange(editor.getJSON());
+    },
   });
 
   async function requestSuggestion() {
@@ -28,6 +32,7 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
     const docText = editor.getText();
     const from = editor.state.selection.to;
     range.current = { from, to: from };
+    streamingRef.current = true;
     setStreaming(true);
     setSuggesting(true);
     editor.setEditable(false);
@@ -47,13 +52,18 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
         },
       );
     } catch (err) {
-      // убрать частично вставленное и сообщить
+      // Fix 2: сохранить частичный стрим как предложение; удалять только если ничего не вставлено
       const { from, to } = range.current;
-      if (to > from) editor.chain().deleteRange({ from, to }).run();
-      setSuggesting(false);
       editor.setEditable(true);
-      showToast(err instanceof Error ? `Ошибка ИИ: ${err.message}` : "Ошибка ИИ");
+      if (to > from) {
+        // частичный стрим — оставить как предложение, Принять/Отклонить остаются доступны
+        showToast("ИИ прервался — можно принять или отклонить начатое");
+      } else {
+        setSuggesting(false);
+        showToast(err instanceof Error ? `Ошибка ИИ: ${err.message}` : "Ошибка ИИ");
+      }
     } finally {
+      streamingRef.current = false;
       setStreaming(false);
     }
   }
@@ -64,6 +74,7 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
     editor.chain().setTextSelection({ from, to }).unsetMark("suggestion").setTextSelection(to).run();
     editor.setEditable(true);
     setSuggesting(false);
+    // Fix 5: явный вызов onChange оставлен — onUpdate в jsdom не гарантирует вызов от chain().run()
     onChange(editor.getJSON());
   }
 
@@ -73,6 +84,7 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
     if (to > from) editor.chain().deleteRange({ from, to }).run();
     editor.setEditable(true);
     setSuggesting(false);
+    // Fix 5: явный вызов onChange оставлен — onUpdate в jsdom не гарантирует вызов от chain().run()
     onChange(editor.getJSON());
   }
 
