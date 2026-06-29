@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "dev": "node --experimental-strip-types --watch src/main.ts"
+    "dev": "tsx --watch src/main.ts"
   },
   "dependencies": {
     "@master-ai/shared": "workspace:*",
@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
-    "drizzle-kit": "^0.24.0"
+    "drizzle-kit": "^0.24.0",
+    "tsx": "^4.0.0"
   }
 }
