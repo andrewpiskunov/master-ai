@@ -1,0 +1,12 @@
+import { mkdirSync } from "node:fs";
+import { createDb } from "./db/client.js";
+import { buildApp } from "./app.js";
+
+mkdirSync("./data", { recursive: true });
+const { db } = createDb("./data/master-ai.sqlite");
+const app = buildApp({ db });
+
+const port = 5174;
+app.listen({ port, host: "127.0.0.1" }).then(() => {
+  console.log(`master-ai server on http://127.0.0.1:${port}`);
+});
