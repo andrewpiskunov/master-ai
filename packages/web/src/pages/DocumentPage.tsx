@@ -4,6 +4,7 @@ import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor } from "../editor/DocumentEditor.js";
 import { useToast } from "../ui/toast.js";
+import { LinksPanel } from "./LinksPanel.js";
 
 export function DocumentPage() {
   const { documentId } = useParams<{ documentId: string }>();
@@ -63,6 +64,8 @@ export function DocumentPage() {
       <DocumentEditor key={documentId} content={contentJson} onChange={setContentJson} />
 
       <button type="button" onClick={save}>Сохранить</button>
+
+      <LinksPanel campaignId={doc.campaignId} documentId={doc.id} />
     </main>
   );
 }

@@ -9,6 +9,10 @@ import { ToastProvider } from "../ui/toast.js";
 vi.mock("../api/client.js");
 vi.mock("../api/stream.js");
 beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.mocked(api.listDocumentLinks).mockResolvedValue({ outgoing: [], incoming: [] });
+  vi.mocked(api.listCampaignDocuments).mockResolvedValue([]);
+});
 
 function renderAt(id: string) {
   return render(
