@@ -23,10 +23,13 @@ export function rehypeMentions(mentions: MentionItem[]) {
     let cursor = 0;
     for (const s of spans) {
       if (s.start > cursor) out.push({ type: "text", value: value.slice(cursor, s.start) });
+      // С href — кликабельная ссылка (<a>), иначе просто подсветка (<span>).
       out.push({
         type: "element",
-        tagName: "span",
-        properties: { className: ["mention", `mention-${s.type}`] },
+        tagName: s.href ? "a" : "span",
+        properties: s.href
+          ? { className: ["mention", `mention-${s.type}`], href: s.href }
+          : { className: ["mention", `mention-${s.type}`] },
         children: [{ type: "text", value: value.slice(s.start, s.end) }],
       });
       cursor = s.end;

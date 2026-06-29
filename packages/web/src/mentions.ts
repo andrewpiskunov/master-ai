@@ -1,7 +1,8 @@
 // Поиск упоминаний сущностей кампании в произвольном тексте — общий для
 // редактора (ProseMirror-декорации) и чатов (markdown-рендер).
-export interface MentionItem { title: string; type: string }
-export interface MentionSpan { start: number; end: number; type: string }
+// href задаётся там, где упоминание должно быть кликабельной ссылкой (чаты).
+export interface MentionItem { title: string; type: string; href?: string }
+export interface MentionSpan { start: number; end: number; type: string; href?: string }
 
 const isWordChar = (ch: string) => /[\p{L}\p{N}]/u.test(ch);
 
@@ -29,7 +30,7 @@ export function matchMentions(text: string, prepared: MentionItem[]): MentionSpa
       let free = true;
       for (let i = idx; i < end; i++) if (taken[i]) { free = false; break; }
       if (free && !isWordChar(before) && !isWordChar(after)) {
-        spans.push({ start: idx, end, type: m.type });
+        spans.push({ start: idx, end, type: m.type, href: m.href });
         for (let i = idx; i < end; i++) taken[i] = true;
       }
       idx = lower.indexOf(needle, end);

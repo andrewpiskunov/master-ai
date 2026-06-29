@@ -4,10 +4,14 @@ import { WorkshopPanel, WorkshopProposals } from "../WorkshopPanel.js";
 import { RecentlyCreated, useCampaign } from "./shared.js";
 
 export function WorkshopView() {
-  const { documents } = useCampaign();
+  const { campaignId, documents } = useCampaign();
   const mentions = useMemo(
-    () => documents.map((d) => ({ title: d.title, type: d.type })),
-    [documents],
+    () => documents.map((d) => ({
+      title: d.title,
+      type: d.type,
+      href: `/campaigns/${campaignId}/documents/${d.id}`,
+    })),
+    [campaignId, documents],
   );
   return (
     <div className="view">

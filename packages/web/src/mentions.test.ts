@@ -38,6 +38,12 @@ describe("matchMentions", () => {
     expect(spans[0].type).toBe("npc");
   });
 
+  it("переносит href в найденный спан (для кликабельных ссылок)", () => {
+    const prepared = prepareMentions([{ title: "Крысолов", type: "npc", href: "/campaigns/c1/documents/d1" }]);
+    const spans = matchMentions("Зовите Крысолов", prepared);
+    expect(spans[0].href).toBe("/campaigns/c1/documents/d1");
+  });
+
   it("находит несколько разных сущностей и сортирует по позиции", () => {
     const prepared = prepareMentions([
       { title: "Крысолов", type: "npc" },
