@@ -13,7 +13,8 @@ export const DOCUMENT_TYPES: DocumentTypeDef[] = [
   { key: "scene", label: "Сцена", icon: "clapperboard", statuses: ["planned", "used"] },
   { key: "session", label: "Сессия", icon: "calendar", statuses: ["planned", "played"] },
   { key: "item", label: "Предмет", icon: "package", statuses: [] },
-  { key: "lore", label: "Лор/Референс", icon: "book", statuses: [] },
+  { key: "lore", label: "Лор", icon: "book", statuses: [] },
+  { key: "reference", label: "Референс", icon: "library", statuses: [] },
   { key: "note", label: "Заметка", icon: "file", statuses: [] },
 ];
 
