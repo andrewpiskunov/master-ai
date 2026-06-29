@@ -68,4 +68,75 @@ describe("REST API", () => {
     const res = await app.inject({ method: "GET", url: "/api/document-types" });
     expect(res.json().map((t: { key: string }) => t.key)).toContain("npc");
   });
+
+  describe("валидация типа и статуса документа", () => {
+    it("POST /api/documents с неизвестным type → 400", async () => {
+      const app = makeApp();
+      const c = (
+        await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })
+      ).json();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/documents",
+        payload: { campaignId: c.id, type: "unknown_type", title: "X" },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("POST /api/documents с недопустимым status → 400", async () => {
+      const app = makeApp();
+      const c = (
+        await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })
+      ).json();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/documents",
+        payload: { campaignId: c.id, type: "npc", title: "X", status: "flying" },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("POST /api/documents с несуществующим campaignId → 404", async () => {
+      const app = makeApp();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/documents",
+        payload: { campaignId: "no-such-campaign", type: "npc", title: "X" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("PATCH /api/documents/:id с недопустимым status → 400", async () => {
+      const app = makeApp();
+      const c = (
+        await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })
+      ).json();
+      const doc = (
+        await app.inject({
+          method: "POST",
+          url: "/api/documents",
+          payload: { campaignId: c.id, type: "npc", title: "X" },
+        })
+      ).json();
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/documents/${doc.id}`,
+        payload: { status: "flying" },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("POST /api/documents: допустимый type и status проходят", async () => {
+      const app = makeApp();
+      const c = (
+        await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })
+      ).json();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/documents",
+        payload: { campaignId: c.id, type: "npc", title: "X", status: "alive" },
+      });
+      expect(res.statusCode).toBe(201);
+    });
+  });
 });
