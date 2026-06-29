@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { Document, NewDocument } from "@master-ai/shared";
 import { documents } from "../db/schema.js";
+import { proseMirrorToText } from "./prosemirror-text.js";
 
 type DocumentRow = typeof documents.$inferSelect;
 
@@ -16,6 +18,14 @@ function toDocument(row: DocumentRow): Document {
 
 export class DocumentService {
   constructor(private db: BetterSQLite3Database) {}
+
+  private indexFts(row: { id: string; campaignId: string; type: string; title: string; contentJson: string }): void {
+    const body = proseMirrorToText(JSON.parse(row.contentJson));
+    this.db.run(sql`DELETE FROM documents_fts WHERE doc_id = ${row.id}`);
+    this.db.run(
+      sql`INSERT INTO documents_fts (doc_id, campaign_id, type, title, body) VALUES (${row.id}, ${row.campaignId}, ${row.type}, ${row.title}, ${body})`,
+    );
+  }
 
   create(input: NewDocument): Document {
     const now = new Date().toISOString();
@@ -31,6 +41,7 @@ export class DocumentService {
       updatedAt: now,
     };
     this.db.insert(documents).values(row).run();
+    this.indexFts(row);
     return toDocument(row);
   }
 
@@ -64,6 +75,16 @@ export class DocumentService {
     if (patch.contentJson !== undefined) updates.contentJson = JSON.stringify(patch.contentJson);
     if (patch.fields !== undefined) updates.fields = JSON.stringify(patch.fields);
     this.db.update(documents).set(updates).where(eq(documents.id, id)).run();
-    return this.get(id);
+    const updated = this.get(id);
+    if (updated) {
+      this.indexFts({
+        id: updated.id,
+        campaignId: updated.campaignId,
+        type: updated.type,
+        title: updated.title,
+        contentJson: JSON.stringify(updated.contentJson),
+      });
+    }
+    return updated;
   }
 }
