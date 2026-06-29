@@ -472,7 +472,7 @@ form button { align-self: flex-start; }
 .md a { color: var(--accent-hover); }
 
 /* ---------- Страница документа ---------- */
-.doc-head { align-items: center; gap: 14px; }
+.doc-head { align-items: center; gap: 14px; border-left: 3px solid var(--doc-accent, var(--accent)); padding-left: 14px; }
 .doc-head-main { flex: 1 1 auto; min-width: 0; }
 .doc-back { display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--muted); }
 .doc-back:hover { color: var(--accent-hover); }
@@ -497,11 +497,12 @@ form button { align-self: flex-start; }
 .editor-format button { min-width: 34px; padding: 6px 8px; }
 .editor-format button.active { border-color: var(--accent); color: var(--accent-hover); background: var(--accent-soft); }
 .editor-sep { width: 1px; align-self: stretch; background: var(--border-soft); margin: 2px 4px; }
-.ProseMirror { min-height: 340px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); line-height: 1.6; }
+.ProseMirror { min-height: 62vh; padding: 26px 30px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); line-height: 1.65; font-size: 1.02rem; }
 .ProseMirror:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
 .ProseMirror p { margin: 0 0 0.7em; }
-.ProseMirror h2 { font-size: 1.3rem; color: var(--text-strong); margin: 1em 0 0.4em; }
-.ProseMirror h3 { font-size: 1.08rem; color: var(--text-strong); margin: 0.9em 0 0.35em; }
+.ProseMirror h2 { font-size: 1.32rem; color: var(--text-strong); margin: 1.1em 0 0.5em; padding-bottom: 6px; }
+.ProseMirror h3 { font-size: 1.1rem; color: var(--text-strong); margin: 0.9em 0 0.4em; }
+.ProseMirror h2::after { content: ""; display: block; width: 44px; height: 3px; margin-top: 6px; border-radius: 2px; background: var(--doc-accent, var(--accent)); }
 .ProseMirror ul, .ProseMirror ol { margin: 0 0 0.7em; padding-left: 1.4em; }
 .ProseMirror li { margin: 0.2em 0; }
 .ProseMirror li > p { margin: 0; }
@@ -509,6 +510,19 @@ form button { align-self: flex-start; }
 .ProseMirror blockquote { margin: 0 0 0.7em; padding-left: 14px; border-left: 3px solid var(--accent); color: var(--muted); }
 .ProseMirror:focus { outline: none; }
 .suggestion, [data-suggestion] { background: var(--accent-soft); border-bottom: 1px dashed var(--accent); border-radius: 3px; }
+.editor-hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
+
+/* ---------- Меню команд «/» ---------- */
+.slash-menu {
+  position: fixed; z-index: 70; min-width: 244px;
+  list-style: none; margin: 0; padding: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55); max-height: 280px; overflow-y: auto;
+}
+.slash-option { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.slash-option:hover, .slash-option.active { background: var(--surface-2); }
+.slash-title { color: var(--text-strong); font-weight: 600; font-size: 0.92rem; }
+.slash-hint { color: var(--muted); font-size: 0.78rem; }
 
 /* ---------- Помощник по документу ---------- */
 .doc-assistant .doc-chat { max-height: 320px; margin: 6px 0 12px; }

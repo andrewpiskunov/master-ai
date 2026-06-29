@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
@@ -8,7 +8,7 @@ import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
 import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant } from "./DocumentAssistant.js";
-import { TypeBadge } from "./campaign/shared.js";
+import { TypeBadge, typeColor } from "./campaign/shared.js";
 
 // Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
 function pmText(node: unknown): string {
@@ -59,7 +59,7 @@ export function DocumentPage() {
   const statuses = t?.statuses ?? [];
 
   return (
-    <div className="view">
+    <div className="view doc-view" style={{ "--doc-accent": typeColor(doc.type) } as CSSProperties}>
       <header className="view-head doc-head">
         <TypeBadge type={doc.type} size={40} />
         <div className="doc-head-main">

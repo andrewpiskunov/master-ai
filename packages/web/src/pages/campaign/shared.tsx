@@ -53,6 +53,11 @@ function DocIcon({ name, size }: { name: string; size: number }) {
   return <Cmp size={size} strokeWidth={1.8} />;
 }
 
+// Акцентный цвет типа — для подсветки заголовков/полос на странице документа.
+export function typeColor(type: string): string {
+  return TYPE_COLORS[type]?.fg ?? "var(--accent)";
+}
+
 export function TypeBadge({ type, size = 40 }: { type: string; size?: number }) {
   const t = getDocumentType(type);
   const c = TYPE_COLORS[type] ?? { fg: "var(--muted)", bg: "var(--surface-3)" };
