@@ -1,6 +1,6 @@
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { streamComplete } from "../api/stream.js";
 import { useToast } from "../ui/toast.js";
 import { SuggestionMark } from "./SuggestionMark.js";
@@ -10,6 +10,20 @@ interface DocumentEditorProps {
   onChange: (json: unknown) => void;
 }
 
+interface SlashCommand { title: string; hint: string; keywords: string[]; run: (e: Editor) => void }
+
+// Команды по «/» — как в Campaign Arks: вставка блоков разметки.
+const SLASH_COMMANDS: SlashCommand[] = [
+  { title: "Текст", hint: "Обычный абзац", keywords: ["текст", "параграф", "paragraph", "text"], run: (e) => e.chain().focus().setParagraph().run() },
+  { title: "Заголовок", hint: "Крупный заголовок", keywords: ["заголовок", "heading", "h2"], run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
+  { title: "Подзаголовок", hint: "Заголовок раздела", keywords: ["подзаголовок", "heading", "h3"], run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run() },
+  { title: "Маркированный список", hint: "Список с точками", keywords: ["список", "маркированный", "bullet", "ul"], run: (e) => e.chain().focus().toggleBulletList().run() },
+  { title: "Нумерованный список", hint: "Список по порядку", keywords: ["список", "нумерованный", "ordered", "ol"], run: (e) => e.chain().focus().toggleOrderedList().run() },
+  { title: "Цитата", hint: "Выделенная цитата", keywords: ["цитата", "quote", "blockquote"], run: (e) => e.chain().focus().toggleBlockquote().run() },
+];
+
+interface SlashState { items: SlashCommand[]; index: number; top: number; left: number; queryLen: number }
+
 export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
   const { showToast } = useToast();
   const [suggesting, setSuggesting] = useState(false);
@@ -18,14 +32,58 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
   const range = useRef<{ from: number; to: number }>({ from: 0, to: 0 });
   // Fix 1: не вызывать onChange во время стриминга
   const streamingRef = useRef(false);
+  const [slash, setSlash] = useState<SlashState | null>(null);
+
+  // Показ/скрытие меню «/» по тексту перед курсором.
+  function detectSlash(ed: Editor) {
+    if (streamingRef.current) { setSlash(null); return; }
+    const sel = ed.state.selection;
+    if (!sel.empty) { setSlash(null); return; }
+    const $from = sel.$from;
+    const textBefore = $from.parent.textBetween(0, $from.parentOffset, "\n", "￼");
+    const m = /(?:^|\s)\/([^/\s]*)$/.exec(textBefore);
+    if (!m) { setSlash(null); return; }
+    const query = m[1].toLowerCase();
+    const items = SLASH_COMMANDS.filter(
+      (c) => !query || c.title.toLowerCase().includes(query) || c.keywords.some((k) => k.includes(query)),
+    );
+    if (items.length === 0) { setSlash(null); return; }
+    const coords = ed.view.coordsAtPos($from.pos);
+    setSlash({ items, index: 0, top: coords.bottom + 4, left: coords.left, queryLen: m[1].length });
+  }
 
   const editor = useEditor({
     extensions: [StarterKit, SuggestionMark],
     content: (content as object) ?? "",
     onUpdate: ({ editor }) => {
       if (!streamingRef.current) onChange(editor.getJSON());
+      detectSlash(editor);
     },
+    onSelectionUpdate: ({ editor }) => detectSlash(editor),
   });
+
+  function applySlash(cmd: SlashCommand) {
+    if (!editor) return;
+    const to = editor.state.selection.$from.pos;
+    const from = to - ((slash?.queryLen ?? 0) + 1); // «/» + запрос
+    editor.chain().focus().deleteRange({ from, to }).run();
+    cmd.run(editor);
+    setSlash(null);
+  }
+
+  // Навигация по меню «/» с клавиатуры (перехватываем до ProseMirror).
+  useEffect(() => {
+    if (!slash) return;
+    const { items, index } = slash;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setSlash((p) => p && { ...p, index: (p.index + 1) % p.items.length }); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setSlash((p) => p && { ...p, index: (p.index - 1 + p.items.length) % p.items.length }); }
+      else if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); applySlash(items[index]); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setSlash(null); }
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [slash]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function requestSuggestion() {
     if (!editor) return;
@@ -135,6 +193,23 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
         </div>
       </div>
       <EditorContent editor={editor} />
+      <p className="editor-hint">Введите «/» для команд форматирования</p>
+      {slash && (
+        <ul className="slash-menu" role="listbox" style={{ top: slash.top, left: slash.left }}>
+          {slash.items.map((c, i) => (
+            <li
+              key={c.title}
+              role="option"
+              aria-selected={i === slash.index}
+              className={`slash-option${i === slash.index ? " active" : ""}`}
+              onMouseDown={(e) => { e.preventDefault(); applySlash(c); }}
+            >
+              <span className="slash-title">{c.title}</span>
+              <span className="slash-hint">{c.hint}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
