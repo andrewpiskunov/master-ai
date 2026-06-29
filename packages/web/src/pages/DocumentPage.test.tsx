@@ -4,17 +4,21 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DocumentPage } from "./DocumentPage.js";
 import { api } from "../api/client.js";
+import { ToastProvider } from "../ui/toast.js";
 
 vi.mock("../api/client.js");
+vi.mock("../api/stream.js");
 beforeEach(() => vi.resetAllMocks());
 
 function renderAt(id: string) {
   return render(
-    <MemoryRouter initialEntries={[`/documents/${id}`]}>
-      <Routes>
-        <Route path="/documents/:documentId" element={<DocumentPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={[`/documents/${id}`]}>
+        <Routes>
+          <Route path="/documents/:documentId" element={<DocumentPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 
