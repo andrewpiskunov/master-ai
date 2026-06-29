@@ -1,4 +1,5 @@
 import { Layers } from "lucide-react";
+import { plural } from "../../format.js";
 import { PLAY_TYPES, TypeCards, TypeSection, useCampaign } from "./shared.js";
 
 export function PlayMaterials() {
@@ -10,7 +11,7 @@ export function PlayMaterials() {
         <Layers size={24} strokeWidth={1.8} className="view-head-icon" />
         <div>
           <h1 className="page-title">Игровые материалы</h1>
-          <p className="view-sub">{docs.length} материалов: сцены, сессии, секреты, предметы</p>
+          <p className="view-sub">{docs.length} {plural(docs.length, ["материал", "материала", "материалов"])}: сцены, сессии, секреты, предметы</p>
         </div>
       </header>
 

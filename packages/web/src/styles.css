@@ -244,7 +244,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* ---------- Карточки документов ---------- */
 .doc-cards { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.doc-cards.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.doc-cards.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 10px; }
 .doc-card {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px;
@@ -264,16 +264,16 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* Карточка документа: иконка-плитка сверху, название по центру */
 .doc-tile {
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
   text-align: center;
-  padding: 22px 14px;
+  padding: 16px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
 }
 .doc-tile:hover { text-decoration: none; border-color: var(--accent); background: var(--surface-2); }
-.doc-tile-title { color: var(--text-strong); font-weight: 600; }
+.doc-tile-title { color: var(--text-strong); font-weight: 600; font-size: 0.95rem; line-height: 1.35; }
 
 /* Раздел типа: заголовок с цветной иконкой + счётчик */
 .type-section { margin-top: 6px; }
