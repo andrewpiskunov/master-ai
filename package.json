@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "concurrently -n server,web \"pnpm --filter @master-ai/server dev\" \"pnpm --filter @master-ai/web dev\"",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
+    "concurrently": "^9.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },
