@@ -4,6 +4,9 @@ import type {
   Document,
   NewDocument,
   DocumentTypeDef,
+  Proposal,
+  BrainstormResponse,
+  ConversationMessage,
 } from "@master-ai/shared";
 
 export class ApiError extends Error {
@@ -46,4 +49,14 @@ export const api = {
   getDocument: (id: string) => request<Document>(`/api/documents/${id}`),
   updateDocument: (id: string, patch: DocumentPatch) =>
     request<Document>(`/api/documents/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  brainstorm: (campaignId: string, message: string) =>
+    request<BrainstormResponse>(`/api/campaigns/${campaignId}/brainstorm`, { method: "POST", body: JSON.stringify({ message }) }),
+  listProposals: (campaignId: string, status?: string) =>
+    request<Proposal[]>(`/api/campaigns/${campaignId}/proposals${status ? `?status=${status}` : ""}`),
+  approveProposal: (id: string) =>
+    request<Document>(`/api/proposals/${id}/approve`, { method: "POST" }),
+  rejectProposal: (id: string) =>
+    request<Proposal>(`/api/proposals/${id}/reject`, { method: "POST" }),
+  getConversation: (campaignId: string) =>
+    request<ConversationMessage[]>(`/api/campaigns/${campaignId}/conversation`),
 };

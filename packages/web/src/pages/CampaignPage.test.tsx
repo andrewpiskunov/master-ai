@@ -34,6 +34,8 @@ describe("CampaignPage", () => {
     vi.mocked(api.listCampaignDocuments).mockResolvedValue([
       { id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: null, contentJson: null, fields: {}, createdAt: "x", updatedAt: "x" },
     ]);
+    vi.mocked(api.getConversation).mockResolvedValue([]);
+    vi.mocked(api.listProposals).mockResolvedValue([]);
     renderAt("c1");
     expect(await screen.findByText("Город Солнца")).toBeInTheDocument();
     expect(screen.getByText("Барон")).toBeInTheDocument();
