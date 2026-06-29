@@ -1,5 +1,5 @@
 import { BookOpen } from "lucide-react";
-import { DocCard, KNOWLEDGE_TYPES, TypeCards, useCampaign } from "./shared.js";
+import { KNOWLEDGE_TYPES, TypeCards, TypeSection, useCampaign } from "./shared.js";
 
 export function KnowledgeBase() {
   const { documents, createDocument } = useCampaign();
@@ -14,16 +14,12 @@ export function KnowledgeBase() {
         </div>
       </header>
 
-      <h2>По типам</h2>
       <TypeCards typeKeys={KNOWLEDGE_TYPES} documents={documents} onCreate={createDocument} />
 
-      <h2>Документы</h2>
       {docs.length === 0 ? (
         <p className="muted">Пока пусто. Создайте документ или примите предложение ИИ в Мастерской.</p>
       ) : (
-        <ul className="doc-cards grid">
-          {docs.map((d) => <li key={d.id}><DocCard doc={d} /></li>)}
-        </ul>
+        KNOWLEDGE_TYPES.map((type) => <TypeSection key={type} type={type} documents={documents} />)
       )}
     </div>
   );

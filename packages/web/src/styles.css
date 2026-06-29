@@ -199,7 +199,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* ---------- Карточки документов ---------- */
 .doc-cards { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.doc-cards.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.doc-cards.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .doc-card {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 14px;
@@ -213,6 +213,37 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .doc-card-body { display: flex; flex-direction: column; min-width: 0; }
 .doc-card-title { color: var(--text-strong); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doc-card-type { color: var(--muted); font-size: 0.78rem; }
+
+/* Цветная плитка-иконка типа */
+.type-tile { display: inline-flex; align-items: center; justify-content: center; flex: none; }
+
+/* Карточка документа: иконка-плитка сверху, название по центру */
+.doc-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  text-align: center;
+  padding: 22px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+.doc-tile:hover { text-decoration: none; border-color: var(--accent); background: var(--surface-2); }
+.doc-tile-title { color: var(--text-strong); font-weight: 600; }
+
+/* Раздел типа: заголовок с цветной иконкой + счётчик */
+.type-section { margin-top: 6px; }
+.type-section-head {
+  display: flex; align-items: center; gap: 10px;
+  margin: 24px 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.type-section-head h2 { margin: 0; font-size: 1.05rem; }
+.count-badge {
+  background: var(--surface-3); color: var(--muted);
+  font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 9px; border-radius: 999px; font-weight: 700;
+}
 
 /* ---------- Главная: выбор кампании ---------- */
 .campaign-list { list-style: none; padding: 0; margin: 8px 0 24px; display: flex; flex-direction: column; gap: 12px; }

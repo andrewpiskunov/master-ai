@@ -33,16 +33,50 @@ const ICONS: Record<string, LucideIcon> = {
   file: File,
 };
 
-export function DocIcon({ name, size = 18 }: { name: string; size?: number }) {
+// Цвет иконки (fg) + фон плитки (bg) для каждого типа.
+const TYPE_COLORS: Record<string, { fg: string; bg: string }> = {
+  npc: { fg: "#34d399", bg: "#0e2a20" },
+  location: { fg: "#f59e0b", bg: "#2a1e06" },
+  faction: { fg: "#c084fc", bg: "#221036" },
+  secret: { fg: "#fb7185", bg: "#2a0f17" },
+  scene: { fg: "#38bdf8", bg: "#06283b" },
+  session: { fg: "#818cf8", bg: "#14173a" },
+  item: { fg: "#fb923c", bg: "#2a1608" },
+  lore: { fg: "#2dd4bf", bg: "#07292a" },
+  note: { fg: "#94a3b8", bg: "#1b2433" },
+};
+
+function DocIcon({ name, size }: { name: string; size: number }) {
   const Cmp = ICONS[name] ?? File;
   return <Cmp size={size} strokeWidth={1.8} />;
 }
 
-export function DocCard({ doc }: { doc: Document }) {
+export function TypeBadge({ type, size = 40 }: { type: string; size?: number }) {
+  const t = getDocumentType(type);
+  const c = TYPE_COLORS[type] ?? { fg: "var(--muted)", bg: "var(--surface-3)" };
+  return (
+    <span
+      className="type-tile"
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.26), color: c.fg, background: c.bg }}
+    >
+      <DocIcon name={t?.icon ?? "file"} size={Math.round(size * 0.5)} />
+    </span>
+  );
+}
+
+export function DocCard({ doc, variant = "row" }: { doc: Document; variant?: "row" | "tile" }) {
   const t = getDocumentType(doc.type);
+  if (variant === "tile") {
+    return (
+      <Link to={`/documents/${doc.id}`} className="doc-tile">
+        <TypeBadge type={doc.type} size={40} />
+        <span className="doc-tile-title">{doc.title}</span>
+      </Link>
+    );
+  }
   return (
     <Link to={`/documents/${doc.id}`} className="doc-card">
-      <span className="doc-card-icon"><DocIcon name={t?.icon ?? "file"} /></span>
+      <TypeBadge type={doc.type} size={32} />
       <span className="doc-card-body">
         <span className="doc-card-title">{doc.title}</span>
         <span className="doc-card-type">{t?.label ?? doc.type}</span>
@@ -86,7 +120,7 @@ export function TypeCards({
         const count = documents.filter((d) => d.type === key).length;
         return (
           <button key={key} type="button" className="type-card" onClick={() => onCreate(key)}>
-            <span className="type-card-icon"><DocIcon name={t.icon} size={20} /></span>
+            <span className="type-card-icon"><TypeBadge type={key} size={38} /></span>
             <span className="type-card-count">{count}</span>
             <span className="type-card-label">{t.label}</span>
             <span className="type-card-add">+ создать</span>
@@ -94,5 +128,24 @@ export function TypeCards({
         );
       })}
     </div>
+  );
+}
+
+// Раздел документов одного типа: заголовок с цветной иконкой + счётчик + сетка карточек.
+export function TypeSection({ type, documents }: { type: string; documents: Document[] }) {
+  const t = getDocumentType(type);
+  const docs = documents.filter((d) => d.type === type);
+  if (docs.length === 0) return null;
+  return (
+    <section className="type-section">
+      <div className="type-section-head">
+        <TypeBadge type={type} size={24} />
+        <h2>{t?.label ?? type}</h2>
+        <span className="count-badge">{docs.length}</span>
+      </div>
+      <ul className="doc-cards grid">
+        {docs.map((d) => <li key={d.id}><DocCard doc={d} variant="tile" /></li>)}
+      </ul>
+    </section>
   );
 }
