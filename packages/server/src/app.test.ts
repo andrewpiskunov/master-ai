@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createDb } from "./db/client.js";
 import { buildApp } from "./app.js";
+import { FakeProvider } from "./llm/fake.js";
 
 function makeApp() {
   const { db } = createDb(":memory:");
@@ -138,5 +139,33 @@ describe("REST API", () => {
       });
       expect(res.statusCode).toBe(201);
     });
+  });
+});
+
+describe("LLM endpoint", () => {
+  function makeAppWithLlm(chunks: string[]) {
+    const { db } = createDb(":memory:");
+    return buildApp({ db, llm: new FakeProvider(chunks) });
+  }
+
+  it("стримит склеенный ответ провайдера", async () => {
+    const app = makeAppWithLlm(["Привет", ", ", "мир"]);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/llm/complete",
+      payload: { messages: [{ role: "user", content: "привет" }] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBe("Привет, мир");
+  });
+
+  it("400 на невалидном теле (пустой messages)", async () => {
+    const app = makeAppWithLlm(["x"]);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/llm/complete",
+      payload: { messages: [] },
+    });
+    expect(res.statusCode).toBe(400);
   });
 });

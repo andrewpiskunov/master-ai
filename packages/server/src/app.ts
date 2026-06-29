@@ -1,15 +1,19 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import { Readable } from "node:stream";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import {
   NewCampaignSchema,
   NewDocumentSchema,
   DOCUMENT_TYPES,
   getDocumentType,
+  CompleteInputSchema,
 } from "@master-ai/shared";
 import { z } from "zod";
 import { CampaignService } from "./services/campaigns.js";
 import { DocumentService } from "./services/documents.js";
+import type { LLMProvider } from "./llm/provider.js";
+import { loadProvider } from "./llm/config.js";
 
 type IdParams = { Params: { id: string } };
 
@@ -20,10 +24,11 @@ const DocumentPatchSchema = z.object({
   fields: z.record(z.unknown()).optional(),
 });
 
-export function buildApp(deps: { db: BetterSQLite3Database }): FastifyInstance {
+export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider }): FastifyInstance {
   const app = Fastify();
   app.register(cors, { origin: true });
 
+  const llm = deps.llm ?? loadProvider();
   const campaignsSvc = new CampaignService(deps.db);
   const documentsSvc = new DocumentService(deps.db);
 
@@ -93,6 +98,13 @@ export function buildApp(deps: { db: BetterSQLite3Database }): FastifyInstance {
     const updated = documentsSvc.update(id, parsed.data);
     if (!updated) return reply.code(404).send({ error: "not found" });
     return updated;
+  });
+
+  app.post("/api/llm/complete", (req, reply) => {
+    const parsed = CompleteInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    reply.type("text/plain; charset=utf-8");
+    return Readable.from(llm.complete(parsed.data));
   });
 
   return app;
