@@ -4,17 +4,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { Document, NewDocument } from "@master-ai/shared";
 import { documents } from "../db/schema.js";
 
-interface DocumentRow {
-  id: string;
-  campaignId: string;
-  type: string;
-  title: string;
-  status: string | null;
-  contentJson: string;
-  fields: string;
-  createdAt: string;
-  updatedAt: string;
-}
+type DocumentRow = typeof documents.$inferSelect;
 
 function toDocument(row: DocumentRow): Document {
   return {
@@ -49,7 +39,7 @@ export class DocumentService {
       .select()
       .from(documents)
       .where(eq(documents.campaignId, campaignId))
-      .all() as DocumentRow[];
+      .all();
     return rows.map(toDocument);
   }
 
@@ -58,7 +48,7 @@ export class DocumentService {
       .select()
       .from(documents)
       .where(eq(documents.id, id))
-      .get() as DocumentRow | undefined;
+      .get();
     return row ? toDocument(row) : undefined;
   }
 
