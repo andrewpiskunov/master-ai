@@ -24,8 +24,8 @@ export function LinksPanel({ campaignId, documentId }: { campaignId: string; doc
     api
       .listCampaignDocuments(campaignId)
       .then((docs) => setCandidates(docs.filter((d) => d.id !== documentId)))
-      .catch(() => {});
-  }, [campaignId, documentId, load]);
+      .catch((e) => showToast(e instanceof Error ? e.message : "Ошибка загрузки документов"));
+  }, [campaignId, documentId, load, showToast]);
 
   async function addLink() {
     if (!targetId || !kind.trim()) return;
