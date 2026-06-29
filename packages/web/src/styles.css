@@ -347,6 +347,33 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
 label { display: block; margin: 14px 0 5px; color: var(--muted); font-size: 0.85rem; }
 
+/* ---------- Кастомная выпадашка ---------- */
+.select { position: relative; }
+.select-trigger {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; text-align: left; font-weight: 500;
+  padding: 10px 12px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text);
+}
+.select-trigger:hover { filter: none; border-color: var(--accent); }
+.select-trigger:active { transform: none; }
+.select-trigger[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+.select-caret { color: var(--muted); flex: none; }
+.select-placeholder { color: var(--muted); }
+.select-menu {
+  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; right: 0;
+  list-style: none; margin: 0; padding: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); max-height: 280px; overflow-y: auto;
+}
+.select-option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--text);
+}
+.select-option:hover { background: var(--surface-2); }
+.select-option.selected { color: var(--accent-hover); }
+.select-check { width: 16px; flex: none; display: inline-flex; color: var(--accent-hover); }
+
 button {
   padding: 10px 16px;
   border: 1px solid transparent;
@@ -455,7 +482,7 @@ form button { align-self: flex-start; }
   padding: 2px 6px; margin: 2px -6px 0;
 }
 .doc-title-input:hover { border-color: var(--border-soft); }
-.doc-head select { width: auto; flex: none; }
+.doc-head .select { flex: none; min-width: 150px; }
 .doc-head button { flex: none; }
 .doc-grid { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; margin-top: 12px; }
 @media (max-width: 980px) { .doc-grid { grid-template-columns: 1fr; } }
@@ -499,7 +526,7 @@ form button { align-self: flex-start; }
 .links-panel li button { background: transparent; border-color: var(--border); color: var(--muted); font-weight: 500; padding: 6px 10px; font-size: 0.85rem; }
 .links-panel li button:hover { filter: none; color: var(--text-strong); border-color: var(--accent); }
 .links-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
-.links-add select, .links-add input { width: auto; flex: 1 1 160px; }
+.links-add .select, .links-add input { width: auto; flex: 1 1 160px; }
 .links-add button { flex: none; }
 
 /* ---------- Тосты ---------- */

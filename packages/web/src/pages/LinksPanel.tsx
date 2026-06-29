@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { DocumentLinks, Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
+import { Select } from "../ui/Select.js";
 
 export function LinksPanel({ campaignId, documentId }: { campaignId: string; documentId: string }) {
   const [data, setData] = useState<DocumentLinks>({ outgoing: [], incoming: [] });
@@ -75,12 +76,12 @@ export function LinksPanel({ campaignId, documentId }: { campaignId: string; doc
         </ul>
       </section>
       <section className="links-add">
-        <select value={targetId} onChange={(e) => setTargetId(e.target.value)}>
-          <option value="">— документ —</option>
-          {candidates.map((d) => (
-            <option key={d.id} value={d.id}>{d.title}</option>
-          ))}
-        </select>
+        <Select
+          ariaLabel="Документ для связи"
+          value={targetId}
+          onChange={setTargetId}
+          options={[{ value: "", label: "— документ —" }, ...candidates.map((d) => ({ value: d.id, label: d.title }))]}
+        />
         <input placeholder="тип связи" value={kind} onChange={(e) => setKind(e.target.value)} />
         <button type="button" onClick={addLink}>Связать</button>
       </section>

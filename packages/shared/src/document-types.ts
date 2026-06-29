@@ -21,3 +21,19 @@ export const DOCUMENT_TYPES: DocumentTypeDef[] = [
 export function getDocumentType(key: string): DocumentTypeDef | undefined {
   return DOCUMENT_TYPES.find((t) => t.key === key);
 }
+
+// Русские подписи статусов (значение в БД остаётся англоязычным ключом).
+export const STATUS_LABELS: Record<string, string> = {
+  alive: "Жив",
+  dead: "Мёртв",
+  unknown: "Неизвестно",
+  hidden: "Скрыт",
+  revealed: "Раскрыт",
+  planned: "Запланировано",
+  used: "Использовано",
+  played: "Сыграно",
+};
+
+export function statusLabel(value: string): string {
+  return STATUS_LABELS[value] ?? value;
+}

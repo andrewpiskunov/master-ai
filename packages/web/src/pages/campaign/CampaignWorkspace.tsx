@@ -5,6 +5,7 @@ import { DOCUMENT_TYPES, type Campaign, type Document } from "@master-ai/shared"
 import { api } from "../../api/client.js";
 import { useToast } from "../../ui/toast.js";
 import { Modal } from "../../ui/Modal.js";
+import { Select } from "../../ui/Select.js";
 import { SearchBox } from "../SearchBox.js";
 import type { CampaignContext } from "./shared.js";
 import { WorkshopChatProvider } from "./WorkshopChatContext.js";
@@ -127,9 +128,13 @@ export function CampaignWorkspace() {
               autoFocus
             />
             <label htmlFor="new-doc-type">Тип</label>
-            <select id="new-doc-type" value={createType} onChange={(e) => setCreateType(e.target.value)}>
-              {DOCUMENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-            </select>
+            <Select
+              id="new-doc-type"
+              ariaLabel="Тип"
+              value={createType ?? ""}
+              onChange={setCreateType}
+              options={DOCUMENT_TYPES.map((t) => ({ value: t.key, label: t.label }))}
+            />
             <div className="modal-actions">
               <button type="submit" disabled={!newTitle.trim()}>Создать</button>
               <button type="button" className="btn-ghost" onClick={() => setCreateType(null)}>Отмена</button>

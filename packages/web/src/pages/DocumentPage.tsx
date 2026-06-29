@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { getDocumentType, type Document } from "@master-ai/shared";
+import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor } from "../editor/DocumentEditor.js";
 import { useToast } from "../ui/toast.js";
+import { Select } from "../ui/Select.js";
 import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant } from "./DocumentAssistant.js";
 import { TypeBadge } from "./campaign/shared.js";
@@ -74,10 +75,12 @@ export function DocumentPage() {
           />
         </div>
         {statuses.length > 0 && (
-          <select aria-label="Статус" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">—</option>
-            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <Select
+            ariaLabel="Статус"
+            value={status}
+            onChange={setStatus}
+            options={[{ value: "", label: "—" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
+          />
         )}
         <button type="button" onClick={save}>Сохранить</button>
       </header>
