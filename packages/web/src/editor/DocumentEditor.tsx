@@ -17,7 +17,7 @@ export interface DocumentEditorHandle {
 }
 
 // Лёгкая конвертация текста (с базовой разметкой) в HTML для вставки в редактор.
-function textToHtml(text: string): string {
+export function textToHtml(text: string): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const inline = (s: string) =>
     esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");

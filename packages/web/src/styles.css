@@ -486,8 +486,16 @@ form button { align-self: flex-start; }
 .doc-title-input:hover { border-color: var(--border-soft); }
 .doc-head .select { flex: none; min-width: 150px; }
 .doc-head button { flex: none; }
-.doc-grid { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; margin-top: 12px; }
-@media (max-width: 980px) { .doc-grid { grid-template-columns: 1fr; } }
+.doc-view { max-width: none; }
+.doc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
+.doc-main { min-width: 0; }
+.doc-main .links-panel { margin-top: 18px; }
+/* Помощник — полноэкранная панель справа на всю высоту окна. */
+.doc-side { position: sticky; top: var(--header-h); height: calc(100vh - var(--header-h) - 28px); }
+@media (max-width: 980px) {
+  .doc-grid { grid-template-columns: 1fr; }
+  .doc-side { position: static; height: auto; }
+}
 
 /* ---------- Редактор ---------- */
 .editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
@@ -541,18 +549,25 @@ form button { align-self: flex-start; }
 .slash-hint { color: var(--muted); font-size: 0.78rem; }
 
 /* ---------- Помощник по документу ---------- */
+.doc-assistant { display: flex; flex-direction: column; height: 100%; }
 .doc-assistant .doc-chat {
-  min-height: 220px; max-height: 460px; margin: 6px 0 12px; padding: 12px;
+  flex: 1 1 auto; min-height: 0; margin: 6px 0 12px; padding: 12px;
   background: var(--bg-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
 }
 .doc-assistant .doc-chat .chat-empty { margin: auto; text-align: center; }
 .doc-assistant .chat-form { display: flex; }
+@media (max-width: 980px) {
+  .doc-assistant { height: auto; }
+  .doc-assistant .doc-chat { flex: none; height: 420px; }
+}
 /* Карточка «применить текст ИИ к документу» */
 .apply-card { margin-top: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .apply-preview {
   padding: 10px 12px; max-height: 160px; overflow-y: auto;
   background: var(--surface); color: var(--muted); font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap;
 }
+.apply-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.apply-new-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
 .apply-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; border-radius: 0; }
 
 /* ---------- Панель связей ---------- */
