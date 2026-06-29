@@ -1,26 +1,44 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Check } from "lucide-react";
 import { streamComplete } from "../api/stream.js";
 import { Markdown } from "../ui/Markdown.js";
 import { useToast } from "../ui/toast.js";
 
 interface Msg { role: "user" | "assistant"; content: string }
 
-// Эфемерный чат-помощник по конкретному документу: подсказывает правки и дополнения.
+// Беседы по документам переживают переключение между карточками в рамках сессии.
+const chatCache = new Map<string, Msg[]>();
+
+// Выделяет предлагаемый ИИ полный текст документа из блока ```doc … ```.
+function parseAssistant(content: string): { intro: string; doc: string | null } {
+  const closed = /```doc\s*\n([\s\S]*?)```/.exec(content);
+  if (closed) return { intro: content.replace(closed[0], "").trim(), doc: closed[1].trim() };
+  const open = content.indexOf("```doc");
+  if (open >= 0) return { intro: content.slice(0, open).trim(), doc: null };
+  return { intro: content, doc: null };
+}
+
 export function DocumentAssistant({
+  docId,
   title,
   typeLabel,
   getText,
+  onApply,
 }: {
+  docId: string;
   title: string;
   typeLabel: string;
   getText: () => string;
+  onApply: (text: string) => void;
 }) {
   const { showToast } = useToast();
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(() => chatCache.get(docId) ?? []);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { chatCache.set(docId, messages); }, [docId, messages]);
 
   function autoGrow() {
     const el = textareaRef.current;
@@ -51,7 +69,9 @@ export function DocumentAssistant({
           system:
             `Ты — соавтор мастера настольных ролевых игр. Помогаешь дорабатывать документ кампании ` +
             `(тип: ${typeLabel}, название: «${title}»). Текущий текст документа:\n${getText() || "(пусто)"}\n\n` +
-            `Отвечай по-русски, кратко и по делу: предлагай конкретные правки, идеи и дополнения.`,
+            `Когда пользователь просит изменить, переписать или дополнить документ — верни ПОЛНУЮ новую версию ` +
+            `текста документа внутри блока \`\`\`doc и \`\`\` (обычный текст; при необходимости «## Заголовок», списки «- »). ` +
+            `Вне блока коротко, по-русски, поясни, что изменил. Если правка документа не нужна — отвечай обычным текстом без блока.`,
           messages: history,
         },
         (chunk) => {
@@ -76,16 +96,41 @@ export function DocumentAssistant({
       <h3>Помощник по документу</h3>
       <div className="chat doc-chat" ref={chatRef}>
         {messages.length === 0 && !busy && (
-          <p className="chat-empty">Спросите ИИ, как улучшить или дополнить этот документ.</p>
+          <p className="chat-empty">Спросите ИИ, как улучшить или дополнить этот документ — и применяйте правки одной кнопкой.</p>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={`msg msg-${m.role}`}>
-            <div className="msg-role">{m.role === "user" ? "Вы" : "ИИ"}</div>
-            {m.content ? <Markdown>{m.content}</Markdown> : (
-              <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
-            )}
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          if (m.role === "user") {
+            return (
+              <div key={i} className="msg msg-user">
+                <div className="msg-role">Вы</div>
+                <Markdown>{m.content}</Markdown>
+              </div>
+            );
+          }
+          const { intro, doc } = parseAssistant(m.content);
+          return (
+            <div key={i} className="msg msg-assistant">
+              <div className="msg-role">ИИ</div>
+              {m.content
+                ? (
+                  <>
+                    {intro && <Markdown>{intro}</Markdown>}
+                    {doc && (
+                      <div className="apply-card">
+                        <div className="apply-preview">{doc}</div>
+                        <button type="button" className="apply-btn" onClick={() => { onApply(doc); showToast("Текст применён — не забудьте сохранить"); }}>
+                          <Check size={15} /> Применить к документу
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )
+                : (
+                  <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
+                )}
+            </div>
+          );
+        })}
       </div>
       <form className="chat-form" onSubmit={send}>
         <label htmlFor="doc-assistant-input" className="sr-only">Сообщение помощнику</label>

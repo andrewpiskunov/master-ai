@@ -1,6 +1,6 @@
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { streamComplete } from "../api/stream.js";
 import { useToast } from "../ui/toast.js";
 import { SuggestionMark } from "./SuggestionMark.js";
@@ -8,6 +8,33 @@ import { SuggestionMark } from "./SuggestionMark.js";
 interface DocumentEditorProps {
   content: unknown;
   onChange: (json: unknown) => void;
+}
+
+export interface DocumentEditorHandle {
+  applyText: (text: string) => void;
+}
+
+// Лёгкая конвертация текста (с базовой разметкой) в HTML для вставки в редактор.
+function textToHtml(text: string): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (s: string) =>
+    esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+  return text
+    .split(/\n\s*\n/)
+    .map((block) => {
+      const t = block.trim();
+      if (!t) return "";
+      if (t.startsWith("### ")) return `<h3>${inline(t.slice(4))}</h3>`;
+      if (t.startsWith("## ")) return `<h2>${inline(t.slice(3))}</h2>`;
+      if (t.startsWith("# ")) return `<h2>${inline(t.slice(2))}</h2>`;
+      const lines = t.split("\n");
+      if (lines.every((l) => /^[-*]\s+/.test(l)))
+        return `<ul>${lines.map((l) => `<li>${inline(l.replace(/^[-*]\s+/, ""))}</li>`).join("")}</ul>`;
+      if (lines.every((l) => /^\d+\.\s+/.test(l)))
+        return `<ol>${lines.map((l) => `<li>${inline(l.replace(/^\d+\.\s+/, ""))}</li>`).join("")}</ol>`;
+      return `<p>${lines.map(inline).join("<br>")}</p>`;
+    })
+    .join("");
 }
 
 interface SlashCommand { title: string; hint: string; keywords: string[]; run: (e: Editor) => void }
@@ -24,7 +51,10 @@ const SLASH_COMMANDS: SlashCommand[] = [
 
 interface SlashState { items: SlashCommand[]; index: number; top: number; left: number; queryLen: number }
 
-export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
+export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
+  { content, onChange },
+  ref,
+) {
   const { showToast } = useToast();
   const [suggesting, setSuggesting] = useState(false);
   const [streaming, setStreaming] = useState(false);
@@ -33,6 +63,8 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
   // Fix 1: не вызывать onChange во время стриминга
   const streamingRef = useRef(false);
   const [slash, setSlash] = useState<SlashState | null>(null);
+  const activeSlashRef = useRef<HTMLLIElement>(null);
+  useEffect(() => { activeSlashRef.current?.scrollIntoView({ block: "nearest" }); }, [slash?.index]);
 
   // Показ/скрытие меню «/» по тексту перед курсором.
   function detectSlash(ed: Editor) {
@@ -61,6 +93,15 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
     },
     onSelectionUpdate: ({ editor }) => detectSlash(editor),
   });
+
+  // Позволяет ИИ-помощнику применять новый текст прямо в документ.
+  useImperativeHandle(ref, () => ({
+    applyText(text: string) {
+      if (!editor) return;
+      editor.commands.setContent(textToHtml(text), true);
+      onChange(editor.getJSON());
+    },
+  }), [editor, onChange]);
 
   function applySlash(cmd: SlashCommand) {
     if (!editor) return;
@@ -129,7 +170,9 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
   function acceptSuggestion() {
     if (!editor) return;
     const { from, to } = range.current;
-    editor.chain().setTextSelection({ from, to }).unsetMark("suggestion").setTextSelection(to).run();
+    // Превращаем markdown-разметку из ответа ИИ в оформленный текст, а не оставляем «**» и «-».
+    const raw = editor.state.doc.textBetween(from, to, "\n").trim();
+    editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, textToHtml(raw)).run();
     editor.setEditable(true);
     setSuggesting(false);
     // Fix 5: явный вызов onChange оставлен — onUpdate в jsdom не гарантирует вызов от chain().run()
@@ -179,8 +222,9 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
         </div>
         <div className="editor-ai">
           {!suggesting && (
-            <button type="button" onClick={requestSuggestion} disabled={streaming}>
-              ✨ Продолжить
+            <button type="button" onClick={requestSuggestion} disabled={streaming}
+              title="ИИ продолжит документ с места курсора и оформит разметку">
+              ✨ Дописать ИИ
             </button>
           )}
           {suggesting && !streaming && (
@@ -199,6 +243,7 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
           {slash.items.map((c, i) => (
             <li
               key={c.title}
+              ref={i === slash.index ? activeSlashRef : undefined}
               role="option"
               aria-selected={i === slash.index}
               className={`slash-option${i === slash.index ? " active" : ""}`}
@@ -212,4 +257,4 @@ export function DocumentEditor({ content, onChange }: DocumentEditorProps) {
       )}
     </div>
   );
-}
+});

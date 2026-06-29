@@ -1,0 +1,124 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "master-ai master-ai" [ref=e5] [cursor=pointer]:
+      - /url: /
+      - img "master-ai" [ref=e6]:
+        - generic [ref=e14]: "20"
+      - generic [ref=e15]: master-ai
+  - generic [ref=e16]:
+    - complementary [ref=e17]:
+      - button "Свернуть меню" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+      - link "Тени Невервинтера Кампания" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e23]: Тени Невервинтера
+        - generic [ref=e24]: Кампания
+      - navigation [ref=e25]:
+        - link "Обзор" [ref=e26] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3
+          - img [ref=e27]
+          - generic [ref=e30]: Обзор
+        - link "Мастерская" [active] [ref=e31] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/workshop
+          - img [ref=e32]
+          - generic [ref=e34]: Мастерская
+        - link "База знаний" [ref=e35] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/knowledge
+          - img [ref=e36]
+          - generic [ref=e38]: База знаний
+        - link "Игровые материалы" [ref=e39] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/play
+          - img [ref=e40]
+          - generic [ref=e44]: Игровые материалы
+      - searchbox "Поиск по кампании…" [ref=e47]
+      - generic [ref=e48]:
+        - button "Новый документ" [ref=e49] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e51]: Новый документ
+        - button "Удалить кампанию" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e56]: Удалить кампанию
+    - generic [ref=e356]:
+      - banner [ref=e357]:
+        - img [ref=e359]
+        - generic [ref=e362]:
+          - link "NPC" [ref=e363] [cursor=pointer]:
+            - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3
+            - img [ref=e364]
+            - text: NPC
+          - textbox "Заголовок" [ref=e366]: Лорд-камергер Вессел, куратор
+        - button "Статус" [ref=e368] [cursor=pointer]:
+          - generic [ref=e369]: Без статуса
+          - img [ref=e370]
+        - button "Сохранить" [ref=e372] [cursor=pointer]
+      - generic [ref=e373]:
+        - generic [ref=e375]:
+          - generic [ref=e376]:
+            - generic [ref=e377]:
+              - button "Ж" [ref=e378] [cursor=pointer]:
+                - strong [ref=e379]: Ж
+              - button "К" [ref=e380] [cursor=pointer]:
+                - emphasis [ref=e381]: К
+              - button "H2" [ref=e383] [cursor=pointer]
+              - button "H3" [ref=e384] [cursor=pointer]
+              - button "•" [ref=e386] [cursor=pointer]
+              - button "1." [ref=e387] [cursor=pointer]
+              - button "❝" [ref=e388] [cursor=pointer]
+            - button "✨ Продолжить" [ref=e390] [cursor=pointer]
+          - textbox [ref=e392]:
+            - paragraph [ref=e393]: "Пожилой, безупречно вежливый камергер двора — единственный, кто передаёт героям волю королевы. Знает дворец до последней мыши, помнит тайны трёх поколений знати. Предан короне до фанатизма — вот только короне, а не обязательно королеве лично. Двусмысленная фигура: может оказаться верной рукой Аленоры либо тем самым человеком, что нашёптывает ей подозрения в своих целях. Героям приходится доверять ему, не имея выбора."
+          - paragraph [ref=e394]: Введите «/» для команд форматирования
+        - generic [ref=e395]:
+          - complementary [ref=e396]:
+            - heading "Помощник по документу" [level=3] [ref=e397]
+            - generic [ref=e398]:
+              - generic [ref=e399]:
+                - generic [ref=e400]: Вы
+                - paragraph [ref=e402]: Какой у него типичный жест?
+              - generic [ref=e403]:
+                - generic [ref=e404]: ИИ
+                - generic [ref=e405]:
+                  - paragraph [ref=e406]: Никаких правок документу не требуется — это вопрос про образ, отвечаю просто.
+                  - paragraph [ref=e407]:
+                    - text: "Самый «вкусный» вариант — жест, который работает на его двусмысленность:"
+                    - strong [ref=e408]: прежде чем сказать что-то важное, Вессел неторопливо проводит большим пальцем по цепи (или ключу) камергерского чина у себя на груди — будто проверяя, на месте ли она.
+                  - paragraph [ref=e409]: "Почему это удачно:"
+                  - list [ref=e410]:
+                    - listitem [ref=e411]:
+                      - strong [ref=e412]: Характер.
+                      - text: "Он касается не перстня с гербом королевы, а знака должности — символа короны как institución. Тонкое физическое напоминание: предан он короне, не Аленоре лично."
+                    - listitem [ref=e413]:
+                      - strong [ref=e414]: Тон.
+                      - text: Жест медленный, выверенный, как и сам Вессел — пожилой, безупречно вежливый.
+                    - listitem [ref=e415]:
+                      - strong [ref=e416]: Игровой крючок.
+                      - text: "Это его «tell». Если мастер хочет намекнуть игрокам, что камергер взвешивает, что́ им можно знать, а что нет, — он касается цепи. Внимательные герои со временем заметят: палец на ключе = сейчас прозвучит полуправда."
+                  - paragraph [ref=e417]: "Альтернативы, если хочется другого оттенка:"
+                  - list [ref=e418]:
+                    - listitem [ref=e419]:
+                      - strong [ref=e420]: Складывает руки и кланяется ровно настолько, насколько предписывает этикет — ни на градус глубже.
+                      - text: Подчёркивает контроль и холодок за вежливостью.
+                    - listitem [ref=e421]:
+                      - strong [ref=e422]: Снимает и протирает очки/лорнет, выгадывая паузу,
+                      - text: — жест человека, который никогда не отвечает сразу.
+                  - paragraph [ref=e423]: Хочешь — впишу выбранный жест в документ отдельной строкой к портрету.
+            - generic [ref=e424]:
+              - generic [ref=e425]: Сообщение помощнику
+              - textbox "Сообщение помощнику" [ref=e426]:
+                - /placeholder: Спросите про документ…
+              - button "Отправить" [ref=e427] [cursor=pointer]
+          - complementary [ref=e428]:
+            - heading "Связи" [level=3] [ref=e429]
+            - generic [ref=e430]:
+              - heading "Исходящие" [level=4] [ref=e431]
+              - list
+            - generic [ref=e432]:
+              - heading "Обратные ссылки" [level=4] [ref=e433]
+              - list
+            - generic [ref=e434]:
+              - button "Документ для связи" [ref=e436] [cursor=pointer]:
+                - generic [ref=e437]: — документ —
+                - img [ref=e438]
+              - textbox "тип связи" [ref=e440]
+              - button "Связать" [ref=e441] [cursor=pointer]
+  - status

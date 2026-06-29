@@ -1,9 +1,9 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
-import { DocumentEditor } from "../editor/DocumentEditor.js";
+import { DocumentEditor, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
 import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
 import { LinksPanel } from "./LinksPanel.js";
@@ -27,6 +27,7 @@ export function DocumentPage() {
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<string>("");
   const [contentJson, setContentJson] = useState<unknown>(null);
+  const editorRef = useRef<DocumentEditorHandle>(null);
 
   useEffect(() => {
     if (!documentId) return;
@@ -79,7 +80,8 @@ export function DocumentPage() {
             ariaLabel="Статус"
             value={status}
             onChange={setStatus}
-            options={[{ value: "", label: "—" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
+            placeholder="Статус"
+            options={[{ value: "", label: "Без статуса" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
           />
         )}
         <button type="button" onClick={save}>Сохранить</button>
@@ -87,10 +89,16 @@ export function DocumentPage() {
 
       <div className="doc-grid">
         <div className="doc-main">
-          <DocumentEditor key={documentId} content={contentJson} onChange={setContentJson} />
+          <DocumentEditor ref={editorRef} key={documentId} content={contentJson} onChange={setContentJson} />
         </div>
         <div className="ws-aside">
-          <DocumentAssistant title={title} typeLabel={t?.label ?? doc.type} getText={() => pmText(contentJson).trim()} />
+          <DocumentAssistant
+            docId={doc.id}
+            title={title}
+            typeLabel={t?.label ?? doc.type}
+            getText={() => pmText(contentJson).trim()}
+            onApply={(text) => editorRef.current?.applyText(text)}
+          />
           <LinksPanel campaignId={doc.campaignId} documentId={doc.id} />
         </div>
       </div>

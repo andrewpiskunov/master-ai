@@ -19,7 +19,7 @@ describe("DocumentEditor inline-AI", () => {
     const onChange = vi.fn();
     render(<DocumentEditor content={{ type: "doc", content: [] }} onChange={onChange} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /продолжить/i }));
+    await userEvent.click(screen.getByRole("button", { name: /дописать/i }));
     await waitFor(() => expect(streamComplete).toHaveBeenCalled());
     // предложение вставлено в документ
     expect(await screen.findByText(/Барон мрачен\./)).toBeInTheDocument();
@@ -40,7 +40,7 @@ describe("DocumentEditor inline-AI", () => {
       return "временный текст";
     });
     render(<DocumentEditor content={{ type: "doc", content: [] }} onChange={vi.fn()} />);
-    await userEvent.click(screen.getByRole("button", { name: /продолжить/i }));
+    await userEvent.click(screen.getByRole("button", { name: /дописать/i }));
     expect(await screen.findByText("временный текст")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /отклонить/i }));
     await waitFor(() =>
@@ -63,7 +63,7 @@ describe("DocumentEditor inline-AI", () => {
     render(<DocumentEditor content={{ type: "doc", content: [] }} onChange={onChange} />);
 
     // запускаем стриминг без await — он зависает на streamHang
-    const clickPromise = userEvent.click(screen.getByRole("button", { name: /продолжить/i }));
+    const clickPromise = userEvent.click(screen.getByRole("button", { name: /дописать/i }));
     // дожидаемся вставки чанка в документ
     await screen.findByText("чанк");
     // onChange не должен быть вызван во время стриминга
@@ -84,7 +84,7 @@ describe("DocumentEditor inline-AI", () => {
     });
     render(<DocumentEditor content={{ type: "doc", content: [] }} onChange={vi.fn()} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /продолжить/i }));
+    await userEvent.click(screen.getByRole("button", { name: /дописать/i }));
     // частичный текст остаётся в документе
     expect(await screen.findByText("частичный")).toBeInTheDocument();
     // кнопки принять/отклонить доступны (suggesting=true, streaming=false)

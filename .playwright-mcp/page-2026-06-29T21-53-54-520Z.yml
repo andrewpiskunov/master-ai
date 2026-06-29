@@ -1,0 +1,275 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "master-ai master-ai" [ref=e5] [cursor=pointer]:
+      - /url: /
+      - img "master-ai" [ref=e6]:
+        - generic [ref=e14]: "20"
+      - generic [ref=e15]: master-ai
+  - generic [ref=e16]:
+    - complementary [ref=e17]:
+      - button "Свернуть меню" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+      - link "Тени Невервинтера Кампания" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e23]: Тени Невервинтера
+        - generic [ref=e24]: Кампания
+      - navigation [ref=e25]:
+        - link "Обзор" [ref=e26] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3
+          - img [ref=e27]
+          - generic [ref=e30]: Обзор
+        - link "Мастерская" [active] [ref=e31] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/workshop
+          - img [ref=e32]
+          - generic [ref=e34]: Мастерская
+        - link "База знаний" [ref=e35] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/knowledge
+          - img [ref=e36]
+          - generic [ref=e38]: База знаний
+        - link "Игровые материалы" [ref=e39] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/play
+          - img [ref=e40]
+          - generic [ref=e44]: Игровые материалы
+      - searchbox "Поиск по кампании…" [ref=e47]
+      - generic [ref=e48]:
+        - button "Новый документ" [ref=e49] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e51]: Новый документ
+        - button "Удалить кампанию" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e56]: Удалить кампанию
+    - generic [ref=e149]:
+      - banner [ref=e150]:
+        - img [ref=e151]
+        - generic [ref=e153]:
+          - heading "Мастерская" [level=1] [ref=e154]
+          - paragraph [ref=e155]: Обсудите идею с ИИ — он ответит и предложит документы для кампании.
+      - generic [ref=e156]:
+        - generic [ref=e157]:
+          - generic [ref=e158]:
+            - generic [ref=e159]:
+              - generic [ref=e160]: ИИ
+              - generic [ref=e161]:
+                - paragraph [ref=e162]: Привет! Я — ваш ассистент-соавтор. Помогу собрать кампанию «Тени Невервинтера» и подготовить её к игре за столом.
+                - paragraph [ref=e163]: "Расскажите, что у вас уже есть в голове:"
+                - list [ref=e164]:
+                  - listitem [ref=e165]: о каком приключении вы думаете, в каком сеттинге и системе;
+                  - listitem [ref=e166]: кто герои и в какую историю они попадают в начале;
+                  - listitem [ref=e167]: или, может, уже есть конкретный злодей, место или завязка.
+                - paragraph [ref=e168]: Можно начать с любой детали — я задам уточняющие вопросы и предложу первые документы (NPC, локации, секреты, сцены).
+            - generic [ref=e169]:
+              - generic [ref=e170]: Вы
+              - paragraph [ref=e172]: Привет! Давай создадим историю про секретную службу королевы, которая выясняет секреты всех министров и самого короля, которая служит королеве и совершенно секретна, туда и пригласили наших героев, каждый из них до этого чем-то помог королеве
+            - generic [ref=e173]:
+              - generic [ref=e174]: ИИ
+              - generic [ref=e175]:
+                - paragraph [ref=e176]: "Отличная завязка — «тайная канцелярия королевы» даёт сразу и интригу, и причину, по которой разношёрстная партия держится вместе. И ход с тем, что каждый герой уже однажды выручил королеву, — это удобно: у вас есть готовый крючок для предысторий и личный долг, который трудно проигнорировать."
+                - paragraph [ref=e177]: "Прежде чем я начну предлагать конкретику (саму службу, её главу-куратора, первое задание), уточню три вещи — от них сильно зависит тон:"
+                - list [ref=e178]:
+                  - listitem [ref=e179]:
+                    - paragraph [ref=e180]:
+                      - strong [ref=e181]: Сеттинг и система.
+                      - text: Это условное фэнтези (D&D-подобное), историческое дворцовое интрига-фэнтези без магии, что-то мрачное вроде Мира Тьмы? И на какой системе играете — или система пока не важна?
+                  - listitem [ref=e182]:
+                    - paragraph [ref=e183]:
+                      - strong [ref=e184]: Зачем королеве эти секреты.
+                      - text: "Это меняет весь нерв кампании:"
+                    - list [ref=e185]:
+                      - listitem [ref=e186]:
+                        - emphasis [ref=e187]: защита
+                        - text: — она боится заговора и хочет знать угрозы первой;
+                      - listitem [ref=e188]:
+                        - emphasis [ref=e189]: рычаг
+                        - text: — она собирает компромат, чтобы держать министров и короля на коротком поводке;
+                      - listitem [ref=e190]:
+                        - emphasis [ref=e191]: паранойя/тайна
+                        - text: — она сама что-то скрывает, и служба прикрывает её собственный секрет.
+                  - listitem [ref=e192]:
+                    - paragraph [ref=e193]:
+                      - strong [ref=e194]: Герои — кто они друг другу.
+                      - text: Незнакомцы, которых свёл только долг королеве, или есть пары со старыми связями? И насколько они «оперативники в тени» против «уважаемых лиц с двойной жизнью»?
+                - paragraph [ref=e195]: "Пока вы думаете, вот пара направлений, которые делают такую кампанию живой:"
+                - list [ref=e196]:
+                  - listitem [ref=e197]:
+                    - strong [ref=e198]: Куратор-посредник.
+                    - text: "Герои почти никогда не видят королеву лично — есть один человек (мажордом, фрейлина, «серый кардинал»), кто передаёт задания. Идеальный источник интриги: ему можно не доверять."
+                  - listitem [ref=e199]:
+                    - strong [ref=e200]: Первое дело — маленькое и личное.
+                    - text: Не «раскройте госизмену», а «выясните, кому пишет ночные письма младший министр». Через мелочь игроки нащупывают, что служба — это всерьёз.
+                - paragraph [ref=e201]: Куда двинемся дальше?
+                - list [ref=e202]:
+                  - listitem [ref=e203]:
+                    - text: Определимся с сеттингом/системой и тоном — и я предложу
+                    - strong [ref=e204]: саму Тайную службу
+                    - text: как фракцию (название, символ, правила секретности).
+                  - listitem [ref=e205]:
+                    - text: Набросаю
+                    - strong [ref=e206]: куратора-посредника
+                    - text: — ключевого NPC, через которого пойдут все задания.
+                  - listitem [ref=e207]:
+                    - text: Сразу придумаю
+                    - strong [ref=e208]: первое задание
+                    - text: как вводную сцену.
+                  - listitem [ref=e209]:
+                    - text: Соберём
+                    - strong [ref=e210]: завязки-долги
+                    - text: — по одному крючку «как этот герой выручил королеву» на каждого игрока.
+            - generic [ref=e211]:
+              - generic [ref=e212]: Вы
+              - paragraph [ref=e214]: Сеттинг - геройское приключение, система D&D Королеве нужны эти секреты, потому что она подозревает короля в измене государтсву Герои - незнакомцы, и их всех соберет королева
+            - generic [ref=e215]:
+              - generic [ref=e216]: ИИ
+              - generic [ref=e217]:
+                - paragraph [ref=e218]: This conversation appears to be a roleplay/creative-writing collaboration where I'm acting as a tabletop RPG (НРИ) game master's assistant. The user is building a campaign about a queen's secret service. There's a lot of injected context (skills, hooks, memory) but none of it is relevant to this creative task — this is a game-master assistant persona conversation, in Russian.
+                - paragraph [ref=e219]: "Let me respond in character as the GM assistant, continuing the campaign building. The user just gave me the key details:"
+                - list [ref=e220]:
+                  - listitem [ref=e221]: "Setting: heroic adventure, D&D"
+                  - listitem [ref=e222]: Queen needs secrets because she suspects the king of treason against the state
+                  - listitem [ref=e223]: Heroes are strangers, the queen will gather them all
+                - paragraph [ref=e224]: "I should respond in Russian, continue the живой диалог, and now I have enough to propose some documents. The system prompt says to propose documents when appropriate, with a JSON block at the end. This is a good moment — we have setting, system, the core motive, and the hero setup. I should propose the foundational pieces: the secret service faction, the curator NPC, and maybe the core secret. Let me not overload — propose 2-3 documents."
+                - paragraph [ref=e225]: Let me give a substantive in-character response.
+                - paragraph [ref=e226]:
+                  - text: "Отлично, теперь картина сложилась:"
+                  - strong [ref=e227]: геройское D&D-приключение
+                  - text: ", но с нервом политического триллера. Королева подозревает короля в измене государству — и это сильный двигатель, потому что ставит героев в неудобное положение с самого начала: они служат короне, но копают под её живого носителя. Классический моральный капкан."
+                - paragraph [ref=e228]: "Сразу проговорю пару развилок, которые стоит держать в голове (отвечать прямо сейчас не нужно — просто чтобы мы не противоречили себе позже):"
+                - list [ref=e229]:
+                  - listitem [ref=e230]:
+                    - paragraph [ref=e231]:
+                      - strong [ref=e232]: Прав ли король?
+                      - text: "Это сердце кампании. Варианты:"
+                    - list [ref=e233]:
+                      - listitem [ref=e234]:
+                        - emphasis [ref=e235]: Король виновен
+                        - text: — измена реальна (продался вражеской державе, культу, или хочет развязать войну). Тогда финал — разоблачение и переворот.
+                      - listitem [ref=e236]:
+                        - emphasis [ref=e237]: Король невиновен
+                        - text: — его подставили, а настоящий предатель шепчет королеве на ухо (может, тот самый куратор!). Тогда герои в финале спасают того, под кого копали.
+                      - listitem [ref=e238]:
+                        - emphasis [ref=e239]: Оба правы по-своему
+                        - text: — король готовит что-то страшное, но «ради спасения королевства». Самый серый и взрослый вариант.
+                    - paragraph [ref=e240]:
+                      - text: Я бы пока
+                      - strong [ref=e241]: не решал жёстко
+                      - text: — оставим «виновен/подставлен» открытым, чтобы вы за столом могли повернуть по реакции игроков. Но я заложу зацепки в обе стороны.
+                  - listitem [ref=e242]:
+                    - paragraph [ref=e243]:
+                      - strong [ref=e244]: Тон секретности.
+                      - text: "Раз каждый герой уже выручил королеву — служба собирается «по личному доверию», а не по найму. Это значит: предательство внутри партии бьёт особенно больно, а провал = не увольнение, а виселица за госизмену."
+                - paragraph [ref=e245]: "Теперь предлагаю заложить три краеугольных камня, на которых всё будет держаться:"
+                - list [ref=e246]:
+                  - listitem [ref=e247]:
+                    - strong [ref=e248]: Сама Тайная служба
+                    - text: "— как фракция: название, символ-опознавание, правило «вас официально не существует», как передаются задания."
+                  - listitem [ref=e249]:
+                    - strong [ref=e250]: Куратор-посредник
+                    - text: "— единственное лицо между героями и королевой. Я специально делаю его двусмысленным: он может оказаться и верной рукой королевы, и тем самым предателем. Идеальный источник интриги."
+                  - listitem [ref=e251]:
+                    - strong [ref=e252]: Сам секрет короля
+                    - text: — что именно королева подозревает, и первая улика, с которой начнётся игра.
+                - paragraph [ref=e253]: Посмотрите наброски ниже — что-то принимайте, что-то скажите переделать.
+                - paragraph [ref=e254]: "А дальше выберем, куда двигаться:"
+                - list [ref=e255]:
+                  - listitem [ref=e256]:
+                    - text: собрать
+                    - strong [ref=e257]: четыре завязки-долга
+                    - text: (как каждый герой выручил королеву — личный крючок на игрока);
+                  - listitem [ref=e258]:
+                    - text: придумать
+                    - strong [ref=e259]: первое задание
+                    - text: как вводную сцену (маленькое и личное, чтобы нащупать тон);
+                  - listitem [ref=e260]:
+                    - text: проработать
+                    - strong [ref=e261]: короля
+                    - text: как NPC — чтобы он не был картонным злодеем.
+            - generic [ref=e262]:
+              - generic [ref=e263]: Вы
+              - paragraph [ref=e265]: Сеттинг - геройское приключение, система D&D Королеве нужны эти секреты, потому что она подозревает короля в измене государтсву Герои - незнакомцы, и их всех соберет королева
+            - generic [ref=e266]:
+              - generic [ref=e267]: ИИ
+              - generic [ref=e268]:
+                - paragraph [ref=e269]:
+                  - text: "Привет! Вижу, ключевые детали сложились:"
+                  - strong [ref=e270]: геройское D&D-приключение
+                  - text: с нервом политического триллера, королева подозревает короля в измене государству, а герои — незнакомцы, которых она лично соберёт под одной крышей.
+                - paragraph [ref=e271]: Раз вы подтвердили вводные, давайте теперь заложим три краеугольных камня кампании, чтобы было от чего отталкиваться. Я специально оставлю вопрос «виновен ли король на самом деле» открытым — так за столом вы сможете повернуть историю по реакции игроков, а я заложу зацепки в обе стороны.
+                - paragraph [ref=e272]: "Вот что предлагаю как фундамент:"
+                - paragraph [ref=e273]:
+                  - strong [ref=e274]: 1. Сама Тайная служба
+                  - text: "— как фракция. У неё должно быть название, тайный знак для своих, и железное правило: официально вас не существует, провал = виселица за измену."
+                - paragraph [ref=e275]:
+                  - strong [ref=e276]: 2. Куратор-посредник
+                  - text: "— единственный человек между героями и королевой. Делаю его намеренно двусмысленным: он может оказаться и верной рукой королевы, и тем самым предателем, который нашёптывает ей подозрения. Это ваш главный рычаг интриги."
+                - paragraph [ref=e277]:
+                  - strong [ref=e278]: 3. Сам секрет короля
+                  - text: "— что именно подозревает королева и с какой первой улики начнётся игра. Оставляю трактовку открытой: улика указывает на измену, но её можно прочесть и как подставу."
+                - paragraph [ref=e279]: Посмотрите наброски ниже — принимайте, или говорите, что переделать.
+                - paragraph [ref=e280]: "А дальше выберем направление:"
+                - list [ref=e281]:
+                  - listitem [ref=e282]:
+                    - text: собрать
+                    - strong [ref=e283]: четыре завязки-долга
+                    - text: — по одному крючку «как этот герой выручил королеву» на каждого игрока;
+                  - listitem [ref=e284]:
+                    - text: придумать
+                    - strong [ref=e285]: первое задание
+                    - text: как вводную сцену (маленькое и личное, чтобы нащупать тон);
+                  - listitem [ref=e286]:
+                    - text: проработать
+                    - strong [ref=e287]: короля
+                    - text: как живого NPC, а не картонного злодея;
+                  - listitem [ref=e288]:
+                    - text: набросать
+                    - strong [ref=e289]: дворец
+                    - text: как основную локацию-арену интриг.
+          - generic [ref=e290]:
+            - generic [ref=e291]: Сообщение
+            - textbox "Сообщение" [ref=e292]:
+              - /placeholder: Напишите сообщение…
+            - button "Отправить" [ref=e293] [cursor=pointer]
+        - complementary [ref=e295]:
+          - heading "Недавно созданные" [level=3] [ref=e296]
+          - list [ref=e297]:
+            - listitem [ref=e298]:
+              - 'link "Первая улика: «дунгрейское письмо» Секрет" [ref=e299] [cursor=pointer]':
+                - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/documents/9848164e-e045-4b52-b265-83b438dba5cd
+                - img [ref=e301]
+                - generic [ref=e304]:
+                  - generic [ref=e305]: "Первая улика: «дунгрейское письмо»"
+                  - generic [ref=e306]: Секрет
+            - listitem [ref=e307]:
+              - link "Голос королевы (куратор) NPC" [ref=e308] [cursor=pointer]:
+                - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/documents/8e0e8f81-46e2-45f0-82b9-03ae5206e543
+                - img [ref=e310]
+                - generic [ref=e313]:
+                  - generic [ref=e314]: Голос королевы (куратор)
+                  - generic [ref=e315]: NPC
+            - listitem [ref=e316]:
+              - link "Тайная канцелярия «Серебряная нить» Фракция" [ref=e317] [cursor=pointer]:
+                - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/documents/cfdae9bc-0d54-4891-8511-ec5bb1bfc32b
+                - img [ref=e319]
+                - generic [ref=e324]:
+                  - generic [ref=e325]: Тайная канцелярия «Серебряная нить»
+                  - generic [ref=e326]: Фракция
+            - listitem [ref=e327]:
+              - 'link "Подозрение королевы: ночные письма короля Секрет" [ref=e328] [cursor=pointer]':
+                - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/documents/145d4452-187f-4104-8413-b575dfb85830
+                - img [ref=e330]
+                - generic [ref=e333]:
+                  - generic [ref=e334]: "Подозрение королевы: ночные письма короля"
+                  - generic [ref=e335]: Секрет
+            - listitem [ref=e336]:
+              - link "Лорд-камергер Вессел, куратор NPC" [ref=e337] [cursor=pointer]:
+                - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/documents/6d67d2c2-1582-4523-8dcd-677c5f67318e
+                - img [ref=e339]
+                - generic [ref=e342]:
+                  - generic [ref=e343]: Лорд-камергер Вессел, куратор
+                  - generic [ref=e344]: NPC
+            - listitem [ref=e345]:
+              - link "Тайная служба королевы («Тихая комната») Фракция" [ref=e346] [cursor=pointer]:
+                - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/documents/efaeb453-b8b0-490d-8203-0a10e68cb6e8
+                - img [ref=e348]
+                - generic [ref=e353]:
+                  - generic [ref=e354]: Тайная служба королевы («Тихая комната»)
+                  - generic [ref=e355]: Фракция
+  - status

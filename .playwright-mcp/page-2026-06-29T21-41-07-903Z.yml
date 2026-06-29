@@ -1,0 +1,79 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "master-ai master-ai" [ref=e5] [cursor=pointer]:
+      - /url: /
+      - img "master-ai" [ref=e6]:
+        - generic [ref=e14]: "20"
+      - generic [ref=e15]: master-ai
+  - generic [ref=e16]:
+    - complementary [ref=e17]:
+      - button "Свернуть меню" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+      - link "… Кампания" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e23]: …
+        - generic [ref=e24]: Кампания
+      - navigation [ref=e25]:
+        - link "Обзор" [ref=e26] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3
+          - img [ref=e27]
+          - generic [ref=e30]: Обзор
+        - link "Мастерская" [ref=e31] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/workshop
+          - img [ref=e32]
+          - generic [ref=e34]: Мастерская
+        - link "База знаний" [ref=e35] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/knowledge
+          - img [ref=e36]
+          - generic [ref=e38]: База знаний
+        - link "Игровые материалы" [ref=e39] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/play
+          - img [ref=e40]
+          - generic [ref=e44]: Игровые материалы
+      - searchbox "Поиск по кампании…" [ref=e47]
+      - generic [ref=e48]:
+        - button "Новый документ" [ref=e49] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e51]: Новый документ
+        - button "Удалить кампанию" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e56]: Удалить кампанию
+    - generic [ref=e58]:
+      - banner [ref=e59]:
+        - img [ref=e60]
+        - generic [ref=e62]:
+          - heading "База знаний" [level=1] [ref=e63]
+          - paragraph [ref=e64]: "0 документов: лор, NPC, локации, фракции, референсы, заметки"
+      - generic [ref=e65]:
+        - button "0 Лор + создать" [ref=e66] [cursor=pointer]:
+          - img [ref=e69]
+          - generic [ref=e71]: "0"
+          - generic [ref=e72]: Лор
+          - generic [ref=e73]: + создать
+        - button "0 NPC + создать" [ref=e74] [cursor=pointer]:
+          - img [ref=e77]
+          - generic [ref=e80]: "0"
+          - generic [ref=e81]: NPC
+          - generic [ref=e82]: + создать
+        - button "0 Локация + создать" [ref=e83] [cursor=pointer]:
+          - img [ref=e86]
+          - generic [ref=e89]: "0"
+          - generic [ref=e90]: Локация
+          - generic [ref=e91]: + создать
+        - button "0 Фракция + создать" [ref=e92] [cursor=pointer]:
+          - img [ref=e95]
+          - generic [ref=e100]: "0"
+          - generic [ref=e101]: Фракция
+          - generic [ref=e102]: + создать
+        - button "0 Референс + создать" [ref=e103] [cursor=pointer]:
+          - img [ref=e106]
+          - generic [ref=e108]: "0"
+          - generic [ref=e109]: Референс
+          - generic [ref=e110]: + создать
+        - button "0 Заметка + создать" [ref=e111] [cursor=pointer]:
+          - img [ref=e114]
+          - generic [ref=e117]: "0"
+          - generic [ref=e118]: Заметка
+          - generic [ref=e119]: + создать
+      - paragraph [ref=e120]: Пока пусто. Создайте документ или примите предложение ИИ в Мастерской.
+  - status

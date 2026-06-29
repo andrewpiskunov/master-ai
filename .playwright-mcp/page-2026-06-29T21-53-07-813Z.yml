@@ -1,0 +1,100 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "master-ai master-ai" [ref=e5] [cursor=pointer]:
+      - /url: /
+      - img "master-ai" [ref=e6]:
+        - generic [ref=e14]: "20"
+      - generic [ref=e15]: master-ai
+  - generic [ref=e16]:
+    - complementary [ref=e17]:
+      - button "Свернуть меню" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+      - link "Тени Невервинтера Кампания" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e23]: Тени Невервинтера
+        - generic [ref=e24]: Кампания
+      - navigation [ref=e25]:
+        - link "Обзор" [ref=e26] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3
+          - img [ref=e27]
+          - generic [ref=e30]: Обзор
+        - link "Мастерская" [ref=e31] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/workshop
+          - img [ref=e32]
+          - generic [ref=e34]: Мастерская
+        - link "База знаний" [ref=e35] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/knowledge
+          - img [ref=e36]
+          - generic [ref=e38]: База знаний
+        - link "Игровые материалы" [ref=e39] [cursor=pointer]:
+          - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3/play
+          - img [ref=e40]
+          - generic [ref=e44]: Игровые материалы
+      - searchbox "Поиск по кампании…" [ref=e47]
+      - generic [ref=e48]:
+        - button "Новый документ" [ref=e49] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e51]: Новый документ
+        - button "Удалить кампанию" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e56]: Удалить кампанию
+    - generic [ref=e58]:
+      - banner [ref=e59]:
+        - img [ref=e61]
+        - generic [ref=e64]:
+          - link "NPC" [ref=e65] [cursor=pointer]:
+            - /url: /campaigns/2458396b-d604-4e1e-a908-7712899bc9b3
+            - img [ref=e66]
+            - text: NPC
+          - textbox "Заголовок" [ref=e68]: Лорд-камергер Вессел, куратор
+        - button "Статус" [ref=e70] [cursor=pointer]:
+          - generic [ref=e71]: Без статуса
+          - img [ref=e72]
+        - button "Сохранить" [ref=e74] [cursor=pointer]
+      - generic [ref=e75]:
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - generic [ref=e79]:
+              - button "Ж" [ref=e80] [cursor=pointer]:
+                - strong [ref=e81]: Ж
+              - button "К" [ref=e82] [cursor=pointer]:
+                - emphasis [ref=e83]: К
+              - button "H2" [ref=e85] [cursor=pointer]
+              - button "H3" [ref=e86] [cursor=pointer]
+              - button "•" [ref=e88] [cursor=pointer]
+              - button "1." [ref=e89] [cursor=pointer]
+              - button "❝" [ref=e90] [cursor=pointer]
+            - button "✨ Продолжить" [ref=e92] [cursor=pointer]
+          - textbox [ref=e94]:
+            - paragraph [ref=e95]: "Пожилой, безупречно вежливый камергер двора — единственный, кто передаёт героям волю королевы. Знает дворец до последней мыши, помнит тайны трёх поколений знати. Предан короне до фанатизма — вот только короне, а не обязательно королеве лично. Двусмысленная фигура: может оказаться верной рукой Аленоры либо тем самым человеком, что нашёптывает ей подозрения в своих целях. Героям приходится доверять ему, не имея выбора."
+          - paragraph [ref=e96]: Введите «/» для команд форматирования
+        - generic [ref=e97]:
+          - complementary [ref=e98]:
+            - heading "Помощник по документу" [level=3] [ref=e99]
+            - generic [ref=e100]:
+              - generic [ref=e120]:
+                - generic [ref=e121]: Вы
+                - paragraph [ref=e123]: Какой у него типичный жест?
+              - generic [ref=e124]:
+                - generic [ref=e125]: ИИ
+                - generic "ИИ печатает" [ref=e126]
+            - generic [ref=e102]:
+              - generic [ref=e103]: Сообщение помощнику
+              - textbox "Сообщение помощнику" [disabled] [ref=e104]:
+                - /placeholder: Спросите про документ…
+              - button "Отправить" [disabled] [ref=e105]
+          - complementary [ref=e106]:
+            - heading "Связи" [level=3] [ref=e107]
+            - generic [ref=e108]:
+              - heading "Исходящие" [level=4] [ref=e109]
+              - list
+            - generic [ref=e110]:
+              - heading "Обратные ссылки" [level=4] [ref=e111]
+              - list
+            - generic [ref=e112]:
+              - button "Документ для связи" [ref=e114] [cursor=pointer]:
+                - generic [ref=e115]: — документ —
+                - img [ref=e116]
+              - textbox "тип связи" [ref=e118]
+              - button "Связать" [ref=e119] [cursor=pointer]
+  - status

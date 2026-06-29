@@ -48,7 +48,7 @@ export function Select({
         className="select-trigger"
         onClick={() => setOpen((v) => !v)}
       >
-        <span className={current ? "" : "select-placeholder"}>{current?.label ?? placeholder}</span>
+        <span className={`select-value${current ? "" : " select-placeholder"}`}>{current?.label ?? placeholder}</span>
         <ChevronDown size={16} className="select-caret" />
       </button>
       {open && (
@@ -62,7 +62,7 @@ export function Select({
               onClick={() => { onChange(o.value); setOpen(false); }}
             >
               <span className="select-check">{o.value === value && <Check size={15} />}</span>
-              {o.label}
+              <span className="select-label">{o.label}</span>
             </li>
           ))}
         </ul>
