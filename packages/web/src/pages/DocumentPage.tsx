@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { generateJSON } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { DocumentEditor, textToHtml, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
+import { useGoBack } from "../useGoBack.js";
 import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
 import { LinksPanel } from "./LinksPanel.js";
@@ -29,8 +30,9 @@ function pmText(node: unknown): string {
 }
 
 export function DocumentPage() {
-  const { documentId } = useParams<{ documentId: string }>();
+  const { campaignId, documentId } = useParams<{ campaignId: string; documentId: string }>();
   const navigate = useNavigate();
+  const goBack = useGoBack(`/campaigns/${campaignId ?? ""}`);
   const { showToast } = useToast();
   const campaignCtx = useCampaign();
   const allDocuments = campaignCtx?.documents ?? [];
@@ -104,9 +106,9 @@ export function DocumentPage() {
           <header className="view-head doc-head">
             <TypeBadge type={doc.type} size={40} />
             <div className="doc-head-main">
-              <Link to={`/campaigns/${doc.campaignId}`} className="doc-back">
-                <ArrowLeft size={15} /> {t?.label ?? doc.type}
-              </Link>
+              <button type="button" className="doc-back" onClick={goBack}>
+                <ArrowLeft size={15} /> Назад
+              </button>
               <input
                 id="doc-title"
                 aria-label="Заголовок"
