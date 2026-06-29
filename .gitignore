@@ -9,3 +9,7 @@ dist/
 *.sqlite-wal
 *.sqlite-shm
 packages/server/data/
+
+# Scratch / test artifacts
+.playwright-mcp/
+/*.png
