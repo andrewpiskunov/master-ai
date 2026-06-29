@@ -125,11 +125,55 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .ws-nav a.active { background: var(--accent-soft); color: var(--accent-hover); }
 
 .ws-search .search-box { margin: 0; }
-.ws-foot { margin-top: auto; }
+.ws-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
 .ws-new {
   width: 100%;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
+.ws-delete {
+  width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: transparent; border: 1px solid var(--border); color: var(--muted); font-weight: 500;
+}
+.ws-delete:hover { filter: none; color: #fca5a5; border-color: var(--danger); }
+
+.ws-toggle {
+  align-self: flex-start;
+  background: transparent; border: 1px solid transparent; color: var(--muted);
+  padding: 6px; border-radius: var(--radius-sm); cursor: pointer;
+}
+.ws-toggle:hover { filter: none; color: var(--text-strong); background: var(--surface); }
+
+/* Свёрнутый сайдбар — только иконки */
+.sidebar.collapsed { width: 68px; padding: 14px 10px; align-items: center; }
+.sidebar.collapsed .ws-toggle { align-self: center; }
+.sidebar.collapsed .ws-campaign,
+.sidebar.collapsed .ws-search,
+.sidebar.collapsed .ws-label { display: none; }
+.sidebar.collapsed .ws-nav { width: 100%; }
+.sidebar.collapsed .ws-nav a { justify-content: center; padding: 10px; }
+.sidebar.collapsed .ws-new,
+.sidebar.collapsed .ws-delete { justify-content: center; padding: 10px; }
+
+/* ---------- Модальное окно ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1100;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(2, 6, 12, 0.62); backdrop-filter: blur(2px);
+}
+.modal {
+  width: 100%; max-width: 440px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+.modal-title { margin: 0 0 14px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.checkbox { display: flex; flex-direction: row; align-items: center; gap: 8px; margin: 14px 0 0; color: var(--text); font-size: 0.92rem; }
+.checkbox input { width: auto; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger:hover { filter: brightness(1.08); }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .workspace-main {
   flex: 1 1 auto;
@@ -349,9 +393,12 @@ form button { align-self: flex-start; }
 .msg-user { align-self: flex-end; background: var(--accent-soft); border-color: rgba(59,130,246,0.35); }
 .msg-assistant { align-self: flex-start; background: var(--surface-2); }
 
-.chat-form { flex-direction: row; align-items: center; gap: 8px; }
-.chat-form input { flex: 1 1 auto; }
-.chat-form button { flex: none; align-self: auto; }
+.chat-form { flex-direction: row; align-items: flex-end; gap: 8px; }
+.chat-form textarea {
+  flex: 1 1 auto; resize: none; overflow-y: auto;
+  min-height: 44px; max-height: 200px; line-height: 1.45;
+}
+.chat-form button { flex: none; align-self: flex-end; }
 
 .typing { display: inline-flex; gap: 4px; padding: 6px 2px; }
 .typing span {

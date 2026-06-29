@@ -48,6 +48,10 @@ export const api = {
   createCampaign: (input: NewCampaign) =>
     request<Campaign>("/api/campaigns", { method: "POST", body: JSON.stringify(input) }),
   getCampaign: (id: string) => request<Campaign>(`/api/campaigns/${id}`),
+  deleteCampaign: (id: string) =>
+    fetch(`/api/campaigns/${id}`, { method: "DELETE" }).then((res) => {
+      if (!res.ok) throw new ApiError(res.status, res.statusText);
+    }),
   listCampaignDocuments: (campaignId: string) =>
     request<Document[]>(`/api/campaigns/${campaignId}/documents`),
   createDocument: (input: NewDocument) =>

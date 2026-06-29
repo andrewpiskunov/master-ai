@@ -290,3 +290,31 @@ describe("LLM endpoint", () => {
     expect(res.statusCode).toBe(500);
   });
 });
+
+describe("жизненный цикл кампании", () => {
+  it("создание заводит беседу с приветствием, упоминающим название", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "Авалон" } })).json();
+    const conv = await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` });
+    const msgs = conv.json();
+    expect(msgs.length).toBeGreaterThanOrEqual(1);
+    expect(msgs[0].role).toBe("assistant");
+    expect(msgs[0].content).toContain("Авалон");
+  });
+
+  it("DELETE удаляет кампанию и её документы", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "Удаляемая" } })).json();
+    await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Тест" } });
+    const del = await app.inject({ method: "DELETE", url: `/api/campaigns/${c.id}` });
+    expect(del.statusCode).toBe(204);
+    expect((await app.inject({ method: "GET", url: `/api/campaigns/${c.id}` })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/documents` })).json()).toHaveLength(0);
+  });
+
+  it("DELETE несуществующей кампании → 404", async () => {
+    const app = makeApp();
+    const res = await app.inject({ method: "DELETE", url: "/api/campaigns/нет-такой" });
+    expect(res.statusCode).toBe(404);
+  });
+});

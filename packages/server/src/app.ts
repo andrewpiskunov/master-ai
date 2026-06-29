@@ -23,6 +23,19 @@ import { loadProvider } from "./llm/config.js";
 
 type IdParams = { Params: { id: string } };
 
+function buildWelcome(name: string): string {
+  return [
+    `Привет! Я — ваш ассистент-соавтор. Помогу собрать кампанию «${name}» и подготовить её к игре за столом.`,
+    "",
+    "Расскажите, что у вас уже есть в голове:",
+    "- о каком приключении вы думаете, в каком сеттинге и системе;",
+    "- кто герои и в какую историю они попадают в начале;",
+    "- или, может, уже есть конкретный злодей, место или завязка.",
+    "",
+    "Можно начать с любой детали — я задам уточняющие вопросы и предложу первые документы (NPC, локации, секреты, сцены).",
+  ].join("\n");
+}
+
 const DocumentPatchSchema = z.object({
   title: z.string().min(1).optional(),
   status: z.string().nullable().optional(),
@@ -51,7 +64,17 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   app.post("/api/campaigns", (req, reply) => {
     const parsed = NewCampaignSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
-    return reply.code(201).send(campaignsSvc.create(parsed.data));
+    const campaign = campaignsSvc.create(parsed.data);
+    // Сразу заводим беседу с приветствием — игрок попадает в готовый чат.
+    const conv = conversationsSvc.getOrCreateForCampaign(campaign.id);
+    conversationsSvc.addMessage(conv.id, "assistant", buildWelcome(campaign.name));
+    return reply.code(201).send(campaign);
+  });
+
+  app.delete<IdParams>("/api/campaigns/:id", (req, reply) => {
+    const { id } = req.params;
+    if (!campaignsSvc.delete(id)) return reply.code(404).send({ error: "кампания не найдена" });
+    return reply.code(204).send();
   });
 
   app.get<IdParams>("/api/campaigns/:id", (req, reply) => {

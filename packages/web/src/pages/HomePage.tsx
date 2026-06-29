@@ -31,7 +31,7 @@ export function HomePage() {
       const created = await api.createCampaign({ name: name.trim() });
       setName("");
       setCreating(false);
-      navigate(`/campaigns/${created.id}`);
+      navigate(`/campaigns/${created.id}/workshop`);
     } catch {
       showToast("Не удалось создать кампанию");
     }
