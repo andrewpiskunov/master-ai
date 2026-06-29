@@ -46,3 +46,11 @@ export const proposals = sqliteTable("proposals", {
   status: text("status").notNull().default("pending"),
   createdAt: text("created_at").notNull(),
 });
+
+export const links = sqliteTable("links", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  fromDocId: text("from_doc_id").notNull(),
+  toDocId: text("to_doc_id").notNull(),
+  kind: text("kind").notNull(),
+});
