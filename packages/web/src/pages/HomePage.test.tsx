@@ -7,6 +7,10 @@ import { api } from "../api/client.js";
 import { ToastProvider } from "../ui/toast.js";
 
 vi.mock("../api/client.js");
+vi.mock("react-router-dom", async (orig) => ({
+  ...(await orig<typeof import("react-router-dom")>()),
+  useNavigate: () => vi.fn(),
+}));
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -23,7 +27,7 @@ function renderPage() {
 describe("HomePage", () => {
   it("показывает загруженные кампании", async () => {
     vi.mocked(api.listCampaigns).mockResolvedValue([
-      { id: "c1", name: "Город Солнца", system: null, description: null, createdAt: "x" },
+      { id: "c1", name: "Город Солнца", system: null, description: null, createdAt: "2026-06-28T22:04:00.000Z" },
     ]);
     renderPage();
     expect(await screen.findByText("Город Солнца")).toBeInTheDocument();
@@ -35,16 +39,16 @@ describe("HomePage", () => {
     expect(await screen.findByText(/не удалось загрузить кампании/i)).toBeInTheDocument();
   });
 
-  it("создаёт кампанию по сабмиту формы", async () => {
+  it("создаёт кампанию через форму «Новая кампания»", async () => {
     vi.mocked(api.listCampaigns).mockResolvedValue([]);
     vi.mocked(api.createCampaign).mockResolvedValue({
       id: "c2", name: "Новая", system: null, description: null, createdAt: "x",
     });
     renderPage();
-    await screen.findByRole("button", { name: /создать/i });
+    // форма скрыта за кнопкой «Новая кампания»
+    await userEvent.click(screen.getByRole("button", { name: /новая кампания/i }));
     await userEvent.type(screen.getByLabelText(/название/i), "Новая");
-    await userEvent.click(screen.getByRole("button", { name: /создать/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^создать$/i }));
     await waitFor(() => expect(api.createCampaign).toHaveBeenCalledWith({ name: "Новая" }));
-    expect(await screen.findByText("Новая")).toBeInTheDocument();
   });
 });

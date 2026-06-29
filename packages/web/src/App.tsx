@@ -1,7 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HomePage } from "./pages/HomePage.js";
-import { CampaignPage } from "./pages/CampaignPage.js";
 import { DocumentPage } from "./pages/DocumentPage.js";
+import { CampaignWorkspace } from "./pages/campaign/CampaignWorkspace.js";
+import { CampaignHome } from "./pages/campaign/CampaignHome.js";
+import { WorkshopView } from "./pages/campaign/WorkshopView.js";
+import { KnowledgeBase } from "./pages/campaign/KnowledgeBase.js";
+import { PlayMaterials } from "./pages/campaign/PlayMaterials.js";
+import { Layout } from "./ui/Layout.js";
 import { ToastProvider } from "./ui/toast.js";
 
 export function App() {
@@ -9,9 +14,16 @@ export function App() {
     <ToastProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
-          <Route path="/documents/:documentId" element={<DocumentPage />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/campaigns/:campaignId" element={<CampaignWorkspace />}>
+              <Route index element={<CampaignHome />} />
+              <Route path="workshop" element={<WorkshopView />} />
+              <Route path="knowledge" element={<KnowledgeBase />} />
+              <Route path="play" element={<PlayMaterials />} />
+            </Route>
+            <Route path="/documents/:documentId" element={<DocumentPage />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </ToastProvider>
