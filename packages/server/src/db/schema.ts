@@ -20,3 +20,29 @@ export const documents = sqliteTable("documents", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const conversations = sqliteTable("conversations", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const messages = sqliteTable("messages", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id").notNull(),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const proposals = sqliteTable("proposals", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  conversationId: text("conversation_id").notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  fields: text("fields").notNull().default("{}"),
+  status: text("status").notNull().default("pending"),
+  createdAt: text("created_at").notNull(),
+});
