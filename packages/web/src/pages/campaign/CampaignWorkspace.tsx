@@ -7,6 +7,7 @@ import { useToast } from "../../ui/toast.js";
 import { Modal } from "../../ui/Modal.js";
 import { SearchBox } from "../SearchBox.js";
 import type { CampaignContext } from "./shared.js";
+import { WorkshopChatProvider } from "./WorkshopChatContext.js";
 
 export function CampaignWorkspace() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -108,9 +109,11 @@ export function CampaignWorkspace() {
         </div>
       </aside>
 
-      <div className="workspace-main">
-        <Outlet context={ctx} />
-      </div>
+      <WorkshopChatProvider campaignId={campaignId!} onApproved={reload}>
+        <div className="workspace-main">
+          <Outlet context={ctx} />
+        </div>
+      </WorkshopChatProvider>
 
       {createType && (
         <Modal title="Новый документ" onClose={() => setCreateType(null)}>

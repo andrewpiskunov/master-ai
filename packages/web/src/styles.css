@@ -212,7 +212,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; margin: 18px 0; }
-.ws-grid { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; margin-top: 10px; }
+.ws-grid { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; margin-top: 10px; }
+.ws-aside { display: flex; flex-direction: column; gap: 18px; }
 @media (max-width: 900px) {
   .home-grid, .ws-grid { grid-template-columns: 1fr; }
 }
@@ -395,7 +396,7 @@ form button { align-self: flex-start; }
 
 .chat-form { flex-direction: row; align-items: flex-end; gap: 8px; }
 .chat-form textarea {
-  flex: 1 1 auto; resize: none; overflow-y: auto;
+  flex: 1 1 auto; resize: none; overflow-y: hidden;
   min-height: 44px; max-height: 200px; line-height: 1.45;
 }
 .chat-form button { flex: none; align-self: flex-end; }
@@ -414,7 +415,10 @@ form button { align-self: flex-start; }
 .proposal { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .proposal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .proposal-head strong { color: var(--text-strong); }
-.proposal-head em { font-style: normal; font-size: 0.74rem; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hover); }
+.type-tag {
+  display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
+  font-size: 0.74rem; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px;
+}
 .proposal-actions { display: flex; gap: 8px; margin-top: 10px; }
 .proposal-actions button { padding: 7px 14px; }
 .proposal-actions button + button { background: transparent; border-color: var(--border); color: var(--muted); font-weight: 500; }

@@ -66,6 +66,18 @@ export function TypeBadge({ type, size = 40 }: { type: string; size?: number }) 
   );
 }
 
+// Компактный тег типа: цвет + иконка + русская подпись (для карточек-предложений).
+export function TypeTag({ type }: { type: string }) {
+  const t = getDocumentType(type);
+  const c = TYPE_COLORS[type] ?? { fg: "var(--muted)", bg: "var(--surface-3)" };
+  return (
+    <span className="type-tag" style={{ color: c.fg, background: c.bg }}>
+      <DocIcon name={t?.icon ?? "file"} size={13} />
+      {t?.label ?? type}
+    </span>
+  );
+}
+
 export function DocCard({ doc, variant = "row" }: { doc: Document; variant?: "row" | "tile" }) {
   const t = getDocumentType(doc.type);
   if (variant === "tile") {

@@ -2,7 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ToastProvider } from "../ui/toast.js";
-import { WorkshopPanel } from "./WorkshopPanel.js";
+import { WorkshopPanel, WorkshopProposals } from "./WorkshopPanel.js";
+import { WorkshopChatProvider } from "./campaign/WorkshopChatContext.js";
 import { api } from "../api/client.js";
 
 vi.mock("../api/client.js");
@@ -11,7 +12,10 @@ beforeEach(() => vi.resetAllMocks());
 function renderPanel(onApproved = vi.fn()) {
   return render(
     <ToastProvider>
-      <WorkshopPanel campaignId="c1" onApproved={onApproved} />
+      <WorkshopChatProvider campaignId="c1" onApproved={onApproved}>
+        <WorkshopPanel />
+        <WorkshopProposals />
+      </WorkshopChatProvider>
     </ToastProvider>,
   );
 }

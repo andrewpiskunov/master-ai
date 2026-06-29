@@ -1,78 +1,42 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import type { ConversationMessage, Proposal } from "@master-ai/shared";
-import { api } from "../api/client.js";
-import { useToast } from "../ui/toast.js";
 import { Markdown } from "../ui/Markdown.js";
+import { useWorkshopChat } from "./campaign/WorkshopChatContext.js";
+import { TypeTag } from "./campaign/shared.js";
 
-export function WorkshopPanel({ campaignId, onApproved }: { campaignId: string; onApproved: () => void }) {
-  const { showToast } = useToast();
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+export function WorkshopPanel() {
+  const { messages, busy, send } = useWorkshopChat();
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
 
-  // Подгоняем высоту поля под содержимое (до max-height из CSS).
+  // Подгоняем высоту поля под содержимое; скролл показываем только при достижении max-height.
   function autoGrow() {
     const el = textareaRef.current;
     if (!el) return;
+    const max = 200;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+    el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
   }
   useEffect(autoGrow, [input]);
 
+  // Держим чат прокрученным вниз — в т.ч. при возврате в раздел и при ответе ИИ.
   useEffect(() => {
-    api.getConversation(campaignId).then(setMessages).catch(() => showToast("Не удалось загрузить беседу"));
-    api.listProposals(campaignId, "pending").then(setProposals).catch(() => showToast("Не удалось загрузить предложения"));
-  }, [campaignId, showToast]);
+    const el = chatRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, busy]);
 
-  async function send(e: { preventDefault: () => void }) {
+  function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
     const text = input.trim();
     if (!text || busy) return;
-    // Сразу показываем сообщение пользователя и индикатор «печатает».
-    setMessages((prev) => [
-      ...prev,
-      { id: `u-${Date.now()}`, role: "user", content: text, createdAt: new Date().toISOString() },
-    ]);
+    send(text);
     setInput("");
-    setBusy(true);
-    try {
-      const res = await api.brainstorm(campaignId, text);
-      setMessages((prev) => [
-        ...prev,
-        { id: `a-${Date.now()}`, role: "assistant", content: res.reply, createdAt: new Date().toISOString() },
-      ]);
-      setProposals((prev) => [...prev, ...res.proposals]);
-    } catch {
-      showToast("Не удалось получить ответ ИИ");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function approve(id: string) {
-    try {
-      await api.approveProposal(id);
-      setProposals((prev) => prev.filter((p) => p.id !== id));
-      onApproved();
-    } catch {
-      showToast("Не удалось принять предложение");
-    }
-  }
-
-  async function reject(id: string) {
-    try {
-      await api.rejectProposal(id);
-      setProposals((prev) => prev.filter((p) => p.id !== id));
-    } catch {
-      showToast("Не удалось отклонить предложение");
-    }
   }
 
   return (
     <section className="workshop">
-      <div className="chat">
+      <div className="chat" ref={chatRef}>
         {messages.length === 0 && !busy && (
           <p className="chat-empty">Опишите идею кампании — ИИ ответит и предложит документы.</p>
         )}
@@ -92,7 +56,7 @@ export function WorkshopPanel({ campaignId, onApproved }: { campaignId: string; 
         )}
       </div>
 
-      <form className="chat-form" onSubmit={send}>
+      <form className="chat-form" onSubmit={submit}>
         <label htmlFor="brainstorm-input" className="sr-only">Сообщение</label>
         <textarea
           id="brainstorm-input"
@@ -104,31 +68,38 @@ export function WorkshopPanel({ campaignId, onApproved }: { campaignId: string; 
           onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              send(e);
+              submit(e);
             }
           }}
           disabled={busy}
         />
         <button type="submit" disabled={busy}>Отправить</button>
       </form>
-
-      {proposals.length > 0 && (
-        <div className="proposals">
-          <h3>Предложения</h3>
-          {proposals.map((p) => (
-            <div key={p.id} className="proposal">
-              <div className="proposal-head">
-                <strong>{p.title}</strong> <em>{p.type}</em>
-              </div>
-              <div className="proposal-body"><Markdown>{p.content}</Markdown></div>
-              <div className="proposal-actions">
-                <button type="button" onClick={() => approve(p.id)}>Принять</button>
-                <button type="button" onClick={() => reject(p.id)}>Отклонить</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </section>
+  );
+}
+
+// Предложения ИИ — в правой колонке, рядом с «Недавно созданными».
+export function WorkshopProposals() {
+  const { proposals, approve, reject } = useWorkshopChat();
+  if (proposals.length === 0) return null;
+  return (
+    <aside className="panel">
+      <h3>Предложения</h3>
+      <div className="proposals">
+        {proposals.map((p) => (
+          <div key={p.id} className="proposal">
+            <div className="proposal-head">
+              <strong>{p.title}</strong> <TypeTag type={p.type} />
+            </div>
+            <div className="proposal-body"><Markdown>{p.content}</Markdown></div>
+            <div className="proposal-actions">
+              <button type="button" onClick={() => approve(p.id)}>Принять</button>
+              <button type="button" onClick={() => reject(p.id)}>Отклонить</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </aside>
   );
 }

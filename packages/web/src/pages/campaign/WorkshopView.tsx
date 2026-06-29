@@ -1,9 +1,9 @@
 import { Lightbulb } from "lucide-react";
-import { WorkshopPanel } from "../WorkshopPanel.js";
+import { WorkshopPanel, WorkshopProposals } from "../WorkshopPanel.js";
 import { RecentlyCreated, useCampaign } from "./shared.js";
 
 export function WorkshopView() {
-  const { campaignId, documents, reload } = useCampaign();
+  const { documents } = useCampaign();
   return (
     <div className="view">
       <header className="view-head">
@@ -14,8 +14,11 @@ export function WorkshopView() {
         </div>
       </header>
       <div className="ws-grid">
-        <WorkshopPanel campaignId={campaignId} onApproved={reload} />
-        <RecentlyCreated documents={documents} />
+        <WorkshopPanel />
+        <div className="ws-aside">
+          <WorkshopProposals />
+          <RecentlyCreated documents={documents} />
+        </div>
       </div>
     </div>
   );

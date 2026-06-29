@@ -37,6 +37,8 @@ describe("CampaignWorkspace + KnowledgeBase", () => {
       { id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: null, contentJson: null, fields: {}, createdAt: "x", updatedAt: "x" },
     ]);
     vi.mocked(api.search).mockResolvedValue([]);
+    vi.mocked(api.getConversation).mockResolvedValue([]);
+    vi.mocked(api.listProposals).mockResolvedValue([]);
 
     renderAt("/campaigns/c1/knowledge");
 
