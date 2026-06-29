@@ -11,7 +11,7 @@ export function KnowledgeBase() {
         <BookOpen size={24} strokeWidth={1.8} className="view-head-icon" />
         <div>
           <h1 className="page-title">База знаний</h1>
-          <p className="view-sub">{docs.length} {plural(docs.length, ["документ", "документа", "документов"])}: лор, NPC, локации, фракции, референсы, заметки</p>
+          <p className="view-sub">{docs.length} {plural(docs.length, ["документ", "документа", "документов"])}: персонажи игроков, NPC, локации, фракции, лор, референсы, заметки</p>
         </div>
       </header>
 

@@ -515,6 +515,7 @@ form button { align-self: flex-start; }
 
 /* Подсветка упоминаний других сущностей цветом их типа */
 .mention { border-radius: 4px; padding: 0 4px; }
+.mention-pc { background: #1a2e05; color: #d9f99d; }
 .mention-npc { background: #14532d; color: #bbf7d0; }
 .mention-location { background: #422006; color: #fde68a; }
 .mention-faction { background: #3b1764; color: #e9d5ff; }

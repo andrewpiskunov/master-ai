@@ -1,12 +1,12 @@
 import { Link, useOutletContext } from "react-router-dom";
 import {
-  User, MapPin, Users, Lock, Clapperboard, Calendar, Package, Book, Library, File,
+  User, Shield, MapPin, Users, Lock, Clapperboard, Calendar, Package, Book, Library, File,
   type LucideIcon,
 } from "lucide-react";
 import { getDocumentType, type Campaign, type Document } from "@master-ai/shared";
 
 // Деление типов документов на разделы — как в Campaign Arks.
-export const KNOWLEDGE_TYPES = ["lore", "npc", "location", "faction", "reference", "note"];
+export const KNOWLEDGE_TYPES = ["pc", "npc", "location", "faction", "lore", "reference", "note"];
 export const PLAY_TYPES = ["scene", "session", "secret", "item"];
 
 export interface CampaignContext {
@@ -23,6 +23,7 @@ export function useCampaign(): CampaignContext {
 
 const ICONS: Record<string, LucideIcon> = {
   user: User,
+  shield: Shield,
   "map-pin": MapPin,
   users: Users,
   lock: Lock,
@@ -36,6 +37,7 @@ const ICONS: Record<string, LucideIcon> = {
 
 // Цвет иконки (fg) + фон плитки (bg) для каждого типа.
 const TYPE_COLORS: Record<string, { fg: string; bg: string }> = {
+  pc: { fg: "#a3e635", bg: "#1a2e05" },
   npc: { fg: "#34d399", bg: "#0e2a20" },
   location: { fg: "#f59e0b", bg: "#2a1e06" },
   faction: { fg: "#c084fc", bg: "#221036" },

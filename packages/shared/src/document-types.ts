@@ -6,6 +6,7 @@ export interface DocumentTypeDef {
 }
 
 export const DOCUMENT_TYPES: DocumentTypeDef[] = [
+  { key: "pc", label: "Персонаж игрока", icon: "shield", statuses: ["alive", "dead", "unknown"] },
   { key: "npc", label: "NPC", icon: "user", statuses: ["alive", "dead", "unknown"] },
   { key: "location", label: "Локация", icon: "map-pin", statuses: [] },
   { key: "faction", label: "Фракция", icon: "users", statuses: [] },
