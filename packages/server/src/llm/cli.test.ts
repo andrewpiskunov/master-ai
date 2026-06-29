@@ -42,4 +42,18 @@ describe("CliProvider", () => {
     const provider = new CliProvider({ command: "definitely-not-a-real-cmd-xyz", args: [] });
     await expect(collect(provider.complete(input))).rejects.toBeInstanceOf(LlmError);
   });
+
+  it("корректно собирает многобайтовые символы (UTF-8) при разбивке на границах чанков", async () => {
+    // Пишет первые 3 байта «Привет» (оба байта П + первый байт р), затем остаток.
+    // Без setEncoding('utf8') первый чанк даст «П» + replacement char, итог будет не «Привет».
+    const provider = new CliProvider({
+      command: "node",
+      args: [
+        "-e",
+        "const b=Buffer.from('Привет','utf8');process.stdout.write(b.subarray(0,3));setTimeout(()=>process.stdout.write(b.subarray(3)),20)",
+      ],
+    });
+    const out = await collect(provider.complete(input));
+    expect(out).toBe("Привет");
+  });
 });

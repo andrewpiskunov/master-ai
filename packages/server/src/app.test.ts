@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createDb } from "./db/client.js";
 import { buildApp } from "./app.js";
 import { FakeProvider } from "./llm/fake.js";
+import type { LLMProvider } from "./llm/provider.js";
 
 function makeApp() {
   const { db } = createDb(":memory:");
@@ -167,5 +168,21 @@ describe("LLM endpoint", () => {
       payload: { messages: [] },
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it("500 когда провайдер бросает до первого yield", async () => {
+    const { db } = createDb(":memory:");
+    const errorProvider: LLMProvider = {
+      async *complete() {
+        throw new Error("boom");
+      },
+    };
+    const app = buildApp({ db, llm: errorProvider });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/llm/complete",
+      payload: { messages: [{ role: "user", content: "привет" }] },
+    });
+    expect(res.statusCode).toBe(500);
   });
 });

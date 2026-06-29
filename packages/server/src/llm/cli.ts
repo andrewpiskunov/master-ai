@@ -22,6 +22,9 @@ export class CliProvider implements LLMProvider {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
+    // StringDecoder будет хранить незавершённые многобайтовые последовательности между чанками
+    child.stdout.setEncoding("utf8");
+
     // ошибка запуска процесса (например, команда не найдена)
     const spawnError = new Promise<never>((_, reject) => {
       child.on("error", (err) => reject(new LlmError(`Не удалось запустить CLI: ${err.message}`)));
@@ -32,23 +35,30 @@ export class CliProvider implements LLMProvider {
       stderr += d.toString();
     });
 
+    // при EPIPE/ERR_STREAM_DESTROYED на пути ошибки spawn не даём упасть серверу
+    child.stdin.on("error", () => {});
     child.stdin.write(renderPrompt(input));
     child.stdin.end();
 
-    // стримим stdout; гонимся со spawnError, чтобы упасть, если процесс не стартовал
-    const stdoutIterator = child.stdout[Symbol.asyncIterator]();
-    while (true) {
-      const next = await Promise.race([stdoutIterator.next(), spawnError]);
-      if (next.done) break;
-      yield (next.value as Buffer).toString();
-    }
+    // стримим stdout; гонимся со spawnError, чтобы упасть, если процесс не стартовал;
+    // finally гарантирует завершение дочернего процесса при раннем return генератора
+    try {
+      const stdoutIterator = child.stdout[Symbol.asyncIterator]();
+      while (true) {
+        const next = await Promise.race([stdoutIterator.next(), spawnError]);
+        if (next.done) break;
+        yield next.value as string;
+      }
 
-    const code: number | null = await Promise.race([
-      new Promise<number | null>((resolve) => child.on("close", resolve)),
-      spawnError,
-    ]);
-    if (code !== 0) {
-      throw new LlmError(`CLI завершился с кодом ${code}: ${stderr}`);
+      const code: number | null = await Promise.race([
+        new Promise<number | null>((resolve) => child.on("close", resolve)),
+        spawnError,
+      ]);
+      if (code !== 0) {
+        throw new LlmError(`CLI завершился с кодом ${code}: ${stderr}`);
+      }
+    } finally {
+      if (!child.killed) child.kill();
     }
   }
 }
