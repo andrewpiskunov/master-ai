@@ -523,20 +523,22 @@ form button { align-self: flex-start; }
 
 /* Подсветка упоминаний других сущностей цветом их типа */
 .mention { border-radius: 4px; padding: 0 4px; }
-/* Упоминание-ссылка (в чатах): выглядит как цветная плашка, без подчёркивания. */
-a.mention { text-decoration: none; cursor: pointer; }
-a.mention:hover { text-decoration: underline; filter: brightness(1.12); }
-.mention-pc { background: #1a2e05; color: #d9f99d; }
-.mention-npc { background: #14532d; color: #bbf7d0; }
-.mention-location { background: #422006; color: #fde68a; }
-.mention-faction { background: #3b1764; color: #e9d5ff; }
-.mention-secret { background: #4c0519; color: #fecdd3; }
-.mention-scene { background: #082f49; color: #bae6fd; }
-.mention-session { background: #1e1b4b; color: #c7d2fe; }
-.mention-item { background: #431407; color: #fed7aa; }
-.mention-lore { background: #042f2e; color: #99f6e4; }
-.mention-reference { background: #172554; color: #bfdbfe; }
-.mention-note { background: #1e293b; color: #cbd5e1; }
+/* Упоминание-ссылка (в чатах): та же цветная плашка, что и текст, но кликабельная —
+   без синего цвета ссылки и без подчёркивания (даже на hover). */
+a.mention, a.mention:hover { text-decoration: none; cursor: pointer; }
+a.mention:hover { filter: brightness(1.12); }
+/* Двойной класс — чтобы цвет типа перебивал правило `.md a` (синие ссылки). */
+.mention.mention-pc { background: #1a2e05; color: #d9f99d; }
+.mention.mention-npc { background: #14532d; color: #bbf7d0; }
+.mention.mention-location { background: #422006; color: #fde68a; }
+.mention.mention-faction { background: #3b1764; color: #e9d5ff; }
+.mention.mention-secret { background: #4c0519; color: #fecdd3; }
+.mention.mention-scene { background: #082f49; color: #bae6fd; }
+.mention.mention-session { background: #1e1b4b; color: #c7d2fe; }
+.mention.mention-item { background: #431407; color: #fed7aa; }
+.mention.mention-lore { background: #042f2e; color: #99f6e4; }
+.mention.mention-reference { background: #172554; color: #bfdbfe; }
+.mention.mention-note { background: #1e293b; color: #cbd5e1; }
 .editor-hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
 
 /* ---------- Меню команд «/» ---------- */
