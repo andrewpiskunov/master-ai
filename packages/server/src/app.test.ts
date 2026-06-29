@@ -143,6 +143,52 @@ describe("REST API", () => {
   });
 });
 
+describe("brainstorm & proposals API", () => {
+  function appWithLlm(reply: string) {
+    const { db } = createDb(":memory:");
+    return buildApp({ db, llm: new FakeProvider([reply]) });
+  }
+  const llmText = 'Идея!\n\n```json\n{"proposals":[{"type":"npc","title":"Барон","content":"Мрачный."}]}\n```';
+
+  it("brainstorm создаёт предложение, апрув создаёт документ", async () => {
+    const app = appWithLlm(llmText);
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+
+    const br = await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm`, payload: { message: "злодей" } });
+    expect(br.statusCode).toBe(200);
+    expect(br.json().proposals).toHaveLength(1);
+    const proposalId = br.json().proposals[0].id;
+
+    const pending = await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/proposals?status=pending` });
+    expect(pending.json()).toHaveLength(1);
+
+    const appr = await app.inject({ method: "POST", url: `/api/proposals/${proposalId}/approve` });
+    expect(appr.statusCode).toBe(200);
+    expect(appr.json().title).toBe("Барон");
+
+    const docs = await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/documents` });
+    expect(docs.json()).toHaveLength(1);
+  });
+
+  it("brainstorm с пустым сообщением → 400", async () => {
+    const app = appWithLlm("x");
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const res = await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm`, payload: { message: "" } });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("reject помечает предложение и не создаёт документ", async () => {
+    const app = appWithLlm(llmText);
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const br = await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm`, payload: { message: "злодей" } });
+    const pid = br.json().proposals[0].id;
+    const rej = await app.inject({ method: "POST", url: `/api/proposals/${pid}/reject` });
+    expect(rej.statusCode).toBe(200);
+    const docs = await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/documents` });
+    expect(docs.json()).toHaveLength(0);
+  });
+});
+
 describe("LLM endpoint", () => {
   function makeAppWithLlm(chunks: string[]) {
     const { db } = createDb(":memory:");

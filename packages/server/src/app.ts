@@ -12,6 +12,9 @@ import {
 import { z } from "zod";
 import { CampaignService } from "./services/campaigns.js";
 import { DocumentService } from "./services/documents.js";
+import { ConversationService } from "./services/conversations.js";
+import { ProposalService } from "./services/proposals.js";
+import { BrainstormService } from "./services/brainstorm.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { loadProvider } from "./llm/config.js";
 
@@ -31,6 +34,10 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   const llm = deps.llm ?? loadProvider();
   const campaignsSvc = new CampaignService(deps.db);
   const documentsSvc = new DocumentService(deps.db);
+  const conversationsSvc = new ConversationService(deps.db);
+  const proposalsSvc = new ProposalService(deps.db);
+  const brainstormSvc = new BrainstormService({ llm, conversations: conversationsSvc, proposals: proposalsSvc });
+  const BrainstormBodySchema = z.object({ message: z.string().min(1) });
 
   app.get("/api/document-types", () => DOCUMENT_TYPES);
 
@@ -98,6 +105,39 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
     const updated = documentsSvc.update(id, parsed.data);
     if (!updated) return reply.code(404).send({ error: "not found" });
     return updated;
+  });
+
+  app.post("/api/campaigns/:id/brainstorm", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = BrainstormBodySchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    return brainstormSvc.respond(id, parsed.data.message);
+  });
+
+  app.get("/api/campaigns/:id/proposals", (req) => {
+    const { id } = req.params as { id: string };
+    const { status } = req.query as { status?: "pending" | "approved" | "rejected" };
+    return proposalsSvc.listByCampaign(id, status);
+  });
+
+  app.get("/api/campaigns/:id/conversation", (req) => {
+    const { id } = req.params as { id: string };
+    const conv = conversationsSvc.getOrCreateForCampaign(id);
+    return conversationsSvc.listMessages(conv.id);
+  });
+
+  app.post("/api/proposals/:id/approve", (req, reply) => {
+    const { id } = req.params as { id: string };
+    const doc = proposalsSvc.approve(id, documentsSvc);
+    if (!doc) return reply.code(409).send({ error: "предложение не найдено или уже обработано" });
+    return doc;
+  });
+
+  app.post("/api/proposals/:id/reject", (req, reply) => {
+    const { id } = req.params as { id: string };
+    const p = proposalsSvc.reject(id);
+    if (!p) return reply.code(404).send({ error: "предложение не найдено" });
+    return p;
   });
 
   app.post("/api/llm/complete", (req, reply) => {
