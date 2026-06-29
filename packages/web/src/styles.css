@@ -243,17 +243,17 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .type-card-add { grid-column: 2; color: var(--muted); font-size: 0.78rem; font-weight: 500; }
 
 /* ---------- Карточки документов ---------- */
-.doc-cards { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.doc-cards.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.doc-cards { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.doc-cards.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .doc-card {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text);
 }
-.doc-card:hover { text-decoration: none; border-color: var(--accent); background: var(--surface-2); }
+.doc-card:hover { text-decoration: none; border-color: var(--border-soft); background: var(--surface-2); }
 .doc-card-icon { flex: none; color: var(--accent-hover); display: flex; }
 .doc-card-body { display: flex; flex-direction: column; min-width: 0; }
 .doc-card-title { color: var(--text-strong); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -387,12 +387,16 @@ form button { align-self: flex-start; }
 
 /* ---------- Мастерская (чат) ---------- */
 .workshop { display: flex; flex-direction: column; gap: 14px; }
-.chat { display: flex; flex-direction: column; gap: 10px; max-height: 52vh; overflow-y: auto; }
+.chat { display: flex; flex-direction: column; gap: 14px; max-height: 56vh; overflow-y: auto; padding-right: 4px; }
+.chat::-webkit-scrollbar { width: 8px; }
+.chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+.chat::-webkit-scrollbar-track { background: transparent; }
 .chat-empty { color: var(--muted); margin: 4px 0; }
-.msg { max-width: 88%; padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border-soft); }
-.msg-role { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 2px; }
-.msg-user { align-self: flex-end; background: var(--accent-soft); border-color: rgba(59,130,246,0.35); }
-.msg-assistant { align-self: flex-start; background: var(--surface-2); }
+.msg { border-radius: var(--radius); }
+.msg-role { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
+/* Реплики пользователя — компактный пузырь справа; ответы ИИ — текст без рамки. */
+.msg-user { align-self: flex-end; max-width: 85%; padding: 10px 14px; background: var(--accent-soft); border: 1px solid rgba(59,130,246,0.35); }
+.msg-assistant { align-self: stretch; max-width: 100%; padding: 0; background: transparent; }
 
 .chat-form { flex-direction: row; align-items: flex-end; gap: 8px; }
 .chat-form textarea {
@@ -413,8 +417,11 @@ form button { align-self: flex-start; }
 /* ---------- Предложения ---------- */
 .proposals { display: flex; flex-direction: column; gap: 10px; }
 .proposal { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
-.proposal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.proposal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
 .proposal-head strong { color: var(--text-strong); }
+/* Не раздуваем карточку — показываем превью, полный текст откроется после принятия. */
+.proposal-body { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 0.9rem; }
+.proposal-body p { margin: 0 0 0.4em; }
 .type-tag {
   display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
   font-size: 0.74rem; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px;
