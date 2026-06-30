@@ -684,3 +684,37 @@ a.mention:hover { filter: brightness(1.12); }
 /* ---------- Тосты ---------- */
 .toaster { position: fixed; right: 16px; bottom: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; z-index: 1000; }
 .toast { pointer-events: auto; max-width: 360px; padding: 11px 15px; border-radius: var(--radius-sm); background: var(--surface-3); border: 1px solid var(--border); color: var(--text-strong); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); }
+
+/* ---------- Ридер для печати ---------- */
+.print-page { min-height: 100vh; background: var(--bg); color: var(--text); }
+.print-bar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 14px; justify-content: flex-end;
+  padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.print-bar .btn-ghost { margin-right: auto; }
+.print-bar button { display: inline-flex; align-items: center; gap: 6px; }
+.print-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem; }
+.print-doc {
+  max-width: 760px; margin: 0 auto; padding: 48px 56px 96px;
+  background: #fff; color: #14181f;
+}
+.print-section + .print-section { margin-top: 56px; }
+.print-break { break-before: page; }
+.print-head { margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid #14181f; }
+.print-type { display: block; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; }
+.print-head h1 { margin: 6px 0 0; font-size: 2rem; color: #14181f; }
+.print-status { display: inline-block; margin-top: 8px; font-size: 0.85rem; color: #6b7280; }
+.print-body { line-height: 1.7; font-size: 1rem; }
+.print-body h2 { font-size: 1.35rem; margin: 28px 0 10px; color: #14181f; }
+.print-body h3 { font-size: 1.1rem; margin: 22px 0 8px; color: #14181f; }
+.print-body p { margin: 0 0 12px; }
+.print-body ul, .print-body ol { margin: 0 0 12px; padding-left: 24px; }
+.print-body li { margin: 4px 0; }
+
+@media print {
+  .print-bar { display: none; }
+  .print-page { background: #fff; }
+  .print-doc { max-width: none; margin: 0; padding: 0; }
+  .print-section + .print-section { margin-top: 0; }
+}

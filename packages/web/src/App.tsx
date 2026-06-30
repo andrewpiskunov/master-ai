@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HomePage } from "./pages/HomePage.js";
 import { DocumentPage } from "./pages/DocumentPage.js";
+import { PrintReader } from "./pages/PrintReader.js";
 import { CampaignWorkspace } from "./pages/campaign/CampaignWorkspace.js";
 import { CampaignHome } from "./pages/campaign/CampaignHome.js";
 import { WorkshopView } from "./pages/campaign/WorkshopView.js";
@@ -24,6 +25,7 @@ export function App() {
               <Route path="documents/:documentId" element={<DocumentPage />} />
             </Route>
           </Route>
+          <Route path="/campaigns/:campaignId/documents/:documentId/print" element={<PrintReader />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>

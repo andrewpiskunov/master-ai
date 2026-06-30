@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -169,6 +169,9 @@ export function DocumentPage() {
             <button type="button" onClick={save}>Сохранить</button>
             <button type="button" className={`btn-ghost icon-btn doc-bookmark${marked ? " active" : ""}`} onClick={toggleMark} title={marked ? "Убрать из закладок" : "В закладки"} aria-pressed={marked}>
               <BookmarkIcon size={16} strokeWidth={1.8} fill={marked ? "currentColor" : "none"} />
+            </button>
+            <button type="button" className="btn-ghost icon-btn" onClick={() => navigate(`/campaigns/${doc.campaignId}/documents/${doc.id}/print`)} title="Печать">
+              <Printer size={16} strokeWidth={1.8} />
             </button>
             <ChangeTypeMenu current={doc.type} onChange={changeType} />
             <button type="button" className="btn-ghost doc-delete" onClick={() => setDeleting(true)} title="Удалить документ">
