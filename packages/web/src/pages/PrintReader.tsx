@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Printer, X } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
 import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
-import { SuggestionMark } from "../editor/SuggestionMark.js";
+import { baseExtensions } from "../editor/extensions.js";
 
 // Чистый «ридер для печати» — отдельная страница без интерфейса приложения,
 // как в Campaign Arks. Рендерит документ (и, по желанию, связанные с ним) в
@@ -13,7 +12,7 @@ import { SuggestionMark } from "../editor/SuggestionMark.js";
 function contentToHtml(content: unknown): string {
   if (!content || typeof content !== "object") return "";
   try {
-    return generateHTML(content as Record<string, unknown>, [StarterKit, SuggestionMark]);
+    return generateHTML(content as Record<string, unknown>, baseExtensions);
   } catch {
     return "";
   }

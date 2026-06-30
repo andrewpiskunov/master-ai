@@ -2,9 +2,10 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, Link2 } from "lucide-react";
 import { getDocumentType } from "@master-ai/shared";
 import { streamComplete } from "../api/stream.js";
+import { baseExtensions } from "./extensions.js";
 import { MentionHighlight, mentionKey, type MentionItem } from "./MentionHighlight.js";
 import { Placeholder } from "./Placeholder.js";
 import { GhostText, ghostKey } from "./GhostText.js";
@@ -95,7 +96,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   ref,
 ) {
   const [menu, setMenu] = useState<MenuState | null>(null);
-  const [bubble, setBubble] = useState<{ top: number; left: number } | null>(null);
+  const [bubble, setBubble] = useState<{ top: number; left: number; below: boolean } | null>(null);
   const [autocomplete, setAutocomplete] = useState(() => {
     try { return localStorage.getItem("ai-autocomplete") !== "off"; } catch { return true; }
   });
@@ -114,7 +115,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     if (sel.empty || !ed.isFocused) { setBubble(null); return; }
     const a = ed.view.coordsAtPos(sel.from);
     const b = ed.view.coordsAtPos(sel.to);
-    setBubble({ top: Math.min(a.top, b.top) - 10, left: (a.left + b.right) / 2 });
+    const above = Math.min(a.top, b.top) - 10;
+    const below = above < 96; // у самого верха показываем под выделением
+    setBubble({ top: below ? Math.max(a.bottom, b.bottom) + 10 : above, left: (a.left + b.right) / 2, below });
   }
 
   // Меню по «/» (команды) и «@» (вставка сущностей кампании).
@@ -192,7 +195,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   }
 
   const editor = useEditor({
-    extensions: [StarterKit, MentionHighlight, Placeholder, GhostText],
+    extensions: [...baseExtensions, MentionHighlight, Placeholder, GhostText],
     content: (content as object) ?? "",
     onUpdate: ({ editor }) => { onChange(editor.getJSON()); detectMenu(editor); detectBubble(editor); scheduleGhost(editor); },
     onSelectionUpdate: ({ editor }) => { detectMenu(editor); detectBubble(editor); },
@@ -242,7 +245,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     return () => window.removeEventListener("keydown", onKey, true);
   }, [menu]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fmtActive = (name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false;
+  const fmtActive = (nameOrAttrs: string | Record<string, unknown>, attrs?: Record<string, unknown>) =>
+    editor ? (typeof nameOrAttrs === "string" ? editor.isActive(nameOrAttrs, attrs) : editor.isActive(nameOrAttrs)) : false;
   const run = (fn: (c: ReturnType<NonNullable<typeof editor>["chain"]>) => void) => {
     if (!editor) return;
     const chain = editor.chain().focus();
@@ -270,14 +274,27 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         </button>
       </div>
       {bubble && editor && (
-        <div className="bubble-menu" style={{ top: bubble.top, left: bubble.left }} onMouseDown={(e) => e.preventDefault()}>
+        <div className={`bubble-menu${bubble.below ? " below" : ""}`} style={{ top: bubble.top, left: bubble.left }} onMouseDown={(e) => e.preventDefault()}>
           <button type="button" className={fmtActive("paragraph") ? "active" : ""} title="Текст" onClick={() => run((c) => c.setParagraph().run())}>T</button>
           <button type="button" className={fmtActive("heading", { level: 2 }) ? "active" : ""} title="Заголовок" onClick={() => run((c) => c.toggleHeading({ level: 2 }).run())}>H2</button>
           <button type="button" className={fmtActive("heading", { level: 3 }) ? "active" : ""} title="Подзаголовок" onClick={() => run((c) => c.toggleHeading({ level: 3 }).run())}>H3</button>
           <span className="bubble-sep" />
           <button type="button" className={fmtActive("bold") ? "active" : ""} title="Жирный" onClick={() => run((c) => c.toggleBold().run())}><strong>Ж</strong></button>
           <button type="button" className={fmtActive("italic") ? "active" : ""} title="Курсив" onClick={() => run((c) => c.toggleItalic().run())}><em>К</em></button>
+          <button type="button" className={fmtActive("underline") ? "active" : ""} title="Подчёркнутый" onClick={() => run((c) => c.toggleUnderline().run())}><UnderlineIcon size={15} /></button>
           <button type="button" className={fmtActive("strike") ? "active" : ""} title="Зачёркнутый" onClick={() => run((c) => c.toggleStrike().run())}><s>S</s></button>
+          <button type="button" className={fmtActive("link") ? "active" : ""} title="Ссылка" onClick={() => {
+            if (!editor) return;
+            const prev = (editor.getAttributes("link").href as string) ?? "";
+            const url = window.prompt("Ссылка (URL):", prev);
+            if (url === null) return;
+            if (url === "") run((c) => c.extendMarkRange("link").unsetLink().run());
+            else run((c) => c.extendMarkRange("link").setLink({ href: url }).run());
+          }}><Link2 size={15} /></button>
+          <span className="bubble-sep" />
+          <button type="button" className={fmtActive({ textAlign: "left" }) ? "active" : ""} title="По левому краю" onClick={() => run((c) => c.setTextAlign("left").run())}><AlignLeft size={15} /></button>
+          <button type="button" className={fmtActive({ textAlign: "center" }) ? "active" : ""} title="По центру" onClick={() => run((c) => c.setTextAlign("center").run())}><AlignCenter size={15} /></button>
+          <button type="button" className={fmtActive({ textAlign: "right" }) ? "active" : ""} title="По правому краю" onClick={() => run((c) => c.setTextAlign("right").run())}><AlignRight size={15} /></button>
           <span className="bubble-sep" />
           <button type="button" className={fmtActive("bulletList") ? "active" : ""} title="Список" onClick={() => run((c) => c.toggleBulletList().run())}>•</button>
           <button type="button" className={fmtActive("orderedList") ? "active" : ""} title="Нумерованный список" onClick={() => run((c) => c.toggleOrderedList().run())}>1.</button>

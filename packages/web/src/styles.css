@@ -950,7 +950,7 @@ form button { align-self: flex-start; }
 .ProseMirror { flex: 1 1 auto; min-height: 320px; padding: 26px 30px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); line-height: 1.65; font-size: 1.02rem; }
 /* Плавающая панель форматирования над выделением */
 .bubble-menu {
-  position: fixed; z-index: 75; transform: translate(-50%, -100%);
+  position: fixed; z-index: 75; transform: translate(-50%, -100%); max-width: 94vw; flex-wrap: wrap;
   display: flex; align-items: center; gap: 2px; padding: 4px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -961,6 +961,7 @@ form button { align-self: flex-start; }
 }
 .bubble-menu button:hover { filter: none; background: var(--surface-2); }
 .bubble-menu button.active { background: var(--accent-soft); color: var(--accent-hover); }
+.bubble-menu.below { transform: translate(-50%, 0); }
 .bubble-sep { width: 1px; height: 20px; background: var(--border-soft); margin: 0 3px; }
 
 /* Подсказка в пустом блоке под курсором */
@@ -976,6 +977,7 @@ form button { align-self: flex-start; }
 .ProseMirror li { margin: 0.2em 0; }
 .ProseMirror li > p { margin: 0; }
 .ProseMirror strong { color: var(--text-strong); }
+.ProseMirror a, .play-content a:not(.play-link), .play-viewer-body a, .print-body a { color: var(--accent-hover); text-decoration: underline; }
 .ProseMirror blockquote { margin: 0 0 0.7em; padding-left: 14px; border-left: 3px solid var(--accent); color: var(--muted); }
 .ProseMirror:focus { outline: none; }
 .suggestion, [data-suggestion] { background: var(--accent-soft); border-bottom: 1px dashed var(--accent); border-radius: 3px; }

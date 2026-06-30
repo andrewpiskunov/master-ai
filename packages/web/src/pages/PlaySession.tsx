@@ -2,18 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { X, ArrowLeft, ArrowRight } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
-import { SuggestionMark } from "../editor/SuggestionMark.js";
+import { baseExtensions } from "../editor/extensions.js";
 import { DocumentAssistant } from "./DocumentAssistant.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
 
 function contentToHtml(content: unknown): string {
   if (!content || typeof content !== "object") return "";
   try {
-    return generateHTML(content as Record<string, unknown>, [StarterKit, SuggestionMark]);
+    return generateHTML(content as Record<string, unknown>, baseExtensions);
   } catch {
     return "";
   }
