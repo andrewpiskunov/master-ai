@@ -81,7 +81,15 @@ export function WorkshopProposals() {
   if (proposals.length === 0) return null;
   return (
     <aside className="panel">
-      <h3>Предложения</h3>
+      <div className="proposals-head">
+        <h3>Предложения</h3>
+        {proposals.length > 1 && (
+          <div className="proposals-bulk">
+            <button type="button" className="bulk-accept" onClick={() => proposals.forEach((p) => approve(p.id))}>Принять все</button>
+            <button type="button" className="bulk-reject" onClick={() => proposals.forEach((p) => reject(p.id))}>Отклонить все</button>
+          </div>
+        )}
+      </div>
       <div className="proposals">
         {proposals.map((p) => (
           <div key={p.id} className="proposal">
