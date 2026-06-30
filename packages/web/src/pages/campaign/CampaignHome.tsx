@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
-import { Bookmark, Clock, Plus } from "lucide-react";
+import { Bookmark, Clock, Plus, FileText } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, type Document } from "@master-ai/shared";
 import { useBookmarks } from "../../bookmarks.js";
 import { DocCard, TypeBadge, TypeTag, TypeSection, useCampaign } from "./shared.js";
 
-// Порядок разделов на «Обзоре» и в «Быстром создании».
-const HOME_ORDER = ["session", "pc", "npc", "location", "faction", "arc", "scene", "encounter", "secret", "item", "lore", "reference", "note"];
+// Порядок разделов на «Обзоре». «session» выведен отдельной вкладкой сверху.
+const SECTION_ORDER = ["pc", "npc", "location", "faction", "arc", "scene", "encounter", "secret", "item", "lore", "reference", "note"];
+// Порядок в «Быстром создании» (сессия — первой).
+const CREATE_ORDER = ["session", ...SECTION_ORDER];
 
 function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -27,7 +29,8 @@ export function CampaignHome() {
     .map((b) => documents.find((d) => d.id === b.id))
     .filter((d): d is Document => Boolean(d));
   const recent = [...documents].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6);
-  const present = HOME_ORDER.filter((t) => documents.some((d) => d.type === t));
+  const sessions = documents.filter((d) => d.type === "session");
+  const present = SECTION_ORDER.filter((t) => documents.some((d) => d.type === t));
 
   return (
     <div className="view view-wide">
@@ -40,6 +43,28 @@ export function CampaignHome() {
 
       <div className="home2">
         <div className="home2-main">
+          <section className="type-section">
+            <div className="type-section-head">
+              <TypeBadge type="session" size={24} />
+              <h2>Сессии</h2>
+              {sessions.length > 0 && <span className="count-badge">{sessions.length}</span>}
+            </div>
+            {sessions.length > 0 ? (
+              <ul className="doc-cards grid">
+                {sessions.map((d) => <li key={d.id}><DocCard doc={d} variant="tile" /></li>)}
+              </ul>
+            ) : (
+              <div className="session-empty">
+                <FileText size={34} strokeWidth={1.6} />
+                <h3>Пока нет сессий</h3>
+                <p className="muted">Создайте первую сессию, чтобы планировать и вести кампанию.</p>
+                <button type="button" className="btn" onClick={() => createDocument("session")}>
+                  <Plus size={16} strokeWidth={2} /> Создать первую сессию
+                </button>
+              </div>
+            )}
+          </section>
+
           {bookmarked.length > 0 && (
             <section className="type-section">
               <div className="type-section-head">
@@ -96,7 +121,7 @@ export function CampaignHome() {
           <section className="panel">
             <div className="panel-head"><Plus size={16} strokeWidth={2} /><h3>Быстрое создание</h3></div>
             <div className="quick-create">
-              {HOME_ORDER.map((key) => {
+              {CREATE_ORDER.map((key) => {
                 const t = getDocumentType(key);
                 if (!t) return null;
                 return (
