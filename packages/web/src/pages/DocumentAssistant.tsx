@@ -105,12 +105,15 @@ export function DocumentAssistant({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // Применённые правки (по индексу реплики) — карточка сворачивается в отметку «применено».
+  const [applied, setApplied] = useState<Set<number>>(() => new Set());
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // История беседы по документу хранится на сервере — загружаем её при открытии.
   useEffect(() => {
     let cancelled = false;
+    setApplied(new Set());
     api.getDocumentConversation(docId)
       .then((msgs) => { if (!cancelled) setMessages(msgs.map((m) => ({ role: m.role, content: m.content }))); })
       .catch(() => {});
@@ -224,12 +227,16 @@ export function DocumentAssistant({
                   <>
                     {intro && <Markdown>{intro}</Markdown>}
                     {doc && (
-                      <div className="apply-card">
-                        <div className="apply-preview">{doc}</div>
-                        <button type="button" className="apply-btn" onClick={() => onApply(doc)}>
-                          <Check size={15} /> Применить к документу
-                        </button>
-                      </div>
+                      applied.has(i) ? (
+                        <div className="apply-done"><Check size={15} /> Применено к документу</div>
+                      ) : (
+                        <div className="apply-card">
+                          <div className="apply-preview">{doc}</div>
+                          <button type="button" className="apply-btn" onClick={() => { onApply(doc); setApplied((s) => new Set(s).add(i)); }}>
+                            <Check size={15} /> Применить к документу
+                          </button>
+                        </div>
+                      )
                     )}
                     {newDoc && (
                       <div className="apply-card">

@@ -1059,6 +1059,7 @@ a.mention:hover { filter: brightness(1.12); }
 .apply-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
 .apply-new-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
 .apply-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; border-radius: 0; }
+.apply-done { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.85rem; color: var(--success, #4ade80); }
 
 /* ---------- Панель связей ---------- */
 .links-panel {
