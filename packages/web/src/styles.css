@@ -395,14 +395,23 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .onboard-foundation-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .onboard-foundation-head h3 { margin: 0; font-size: 1rem; color: var(--text-strong); }
 .onboard-steps-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
-.onboard-step { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; padding: 12px; margin-bottom: 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+.onboard-badge-almost { background: rgba(34, 94, 67, 0.4); color: #7ee2a8; }
+.onboard-cta { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; padding: 12px 18px; background: #c2410c; border-color: transparent; color: #fff; font-weight: 600; }
+.onboard-cta:hover { filter: brightness(1.08); }
+.onboard-keep { margin: 22px 0 8px; color: var(--text-strong); font-weight: 600; font-size: 0.95rem; }
+.onboard-keep-links { display: flex; flex-wrap: wrap; gap: 18px; }
+.onboard-keep-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-hover); font-weight: 600; font-size: 0.9rem; }
+
+.onboard-step { display: flex; gap: 12px; align-items: center; padding: 12px; margin-bottom: 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
 .onboard-step:last-child { margin-bottom: 0; }
-.onboard-step:hover { filter: none; border-color: var(--accent); background: var(--surface-3); }
-.onboard-step.done { border-color: rgba(74,222,128,0.4); }
-.onboard-step-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; background: var(--surface-3); color: var(--accent-hover); }
-.onboard-step.done .onboard-step-icon { color: #4ade80; }
+.onboard-step.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.onboard-step-icons { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.onboard-step-ic { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border-radius: 9px; background: var(--surface-3); color: var(--accent-hover); border: 1px solid transparent; }
+.onboard-step-ic:hover { filter: none; border-color: var(--accent); color: var(--text-strong); }
+.onboard-step-check { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; background: rgba(34, 94, 67, 0.45); color: #4ade80; }
 .onboard-step-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .onboard-step-title { color: var(--text-strong); font-weight: 600; }
+.onboard-step.done .onboard-step-title { color: #7ee2a8; }
 .onboard-step-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
 
 .onboard-assistant-title { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 1.2rem; }
@@ -733,11 +742,11 @@ form button { align-self: flex-start; }
 .proposals-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .proposals-head h3 { margin: 0; }
 .proposals-bulk { display: flex; gap: 6px; flex: none; margin-left: auto; }
-.proposals-bulk button { padding: 4px 10px; font-size: 0.75rem; font-weight: 600; border-radius: 7px; border: 1px solid transparent; }
-.bulk-accept { background: var(--accent-soft); color: var(--accent-hover); border-color: rgba(59, 130, 246, 0.32); }
-.bulk-accept:hover { filter: none; background: var(--accent); color: var(--accent-fg); border-color: transparent; }
-.bulk-reject { background: transparent; border-color: var(--border); color: var(--muted); }
-.bulk-reject:hover { filter: none; border-color: var(--danger); color: #fca5a5; }
+.proposals-bulk button { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; font-size: 0.78rem; font-weight: 600; border-radius: 8px; border: 1px solid transparent; }
+.bulk-accept { background: rgba(34, 94, 67, 0.5); color: #b8f2cf; border-color: rgba(74, 222, 128, 0.3); }
+.bulk-accept:hover { filter: none; background: #1f7a4d; color: #fff; border-color: transparent; }
+.bulk-reject { background: transparent; border-color: transparent; color: var(--muted); }
+.bulk-reject:hover { filter: none; color: var(--text-strong); }
 .proposals { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
 .proposal-tag-update { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-hover); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; }
 /* Компактная карточка предложения: иконка + заголовок/тег + краткое описание + кнопки ✓ ✗ */

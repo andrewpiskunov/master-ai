@@ -1,11 +1,43 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, BookOpen, Layers, Bookmark, Users, Shield, CalendarDays, Lightbulb } from "lucide-react";
+import { Sparkles, BookOpen, Layers, Bookmark, Users, Shield, CalendarDays, Lightbulb, MapPin, Milestone, Check, Plus, type LucideIcon } from "lucide-react";
 import { getDocumentType, type Campaign, type Document } from "@master-ai/shared";
 import { WorkshopPanel, WorkshopProposals, WorldSummary } from "../WorkshopPanel.js";
 import { TypeBadge } from "./shared.js";
 
 const CREATE_ORDER = ["session", "npc", "location", "arc", "encounter", "pc", "lore", "scene", "secret", "item", "faction", "reference"];
+
+interface FoundationStep {
+  key: string;
+  icons: { Icon: LucideIcon; type: string }[];
+  title: string;
+  counted: boolean;
+  tip: string;
+  doneText: string;
+  cta: string;
+  done: (has: (t: string) => boolean, campaign: Campaign | null) => boolean;
+}
+
+const FOUNDATION: FoundationStep[] = [
+  { key: "lore", icons: [{ Icon: Bookmark, type: "lore" }], title: "Лор и тон", counted: true, cta: "Добавить лор",
+    tip: "Скажите ассистенту тон, завязку или историю мира.", doneText: "В кампании уже есть стартовый контекст.",
+    done: (has, c) => has("lore") || !!c?.description?.trim() },
+  { key: "people", icons: [{ Icon: Users, type: "npc" }, { Icon: MapPin, type: "location" }], title: "Люди и места", counted: true, cta: "Добавить NPC",
+    tip: "Добавьте, кто важен и где будет происходить действие.", doneText: "У ассистента есть лица и места для ссылок.",
+    done: (has) => has("npc") || has("location") },
+  { key: "party", icons: [{ Icon: Shield, type: "pc" }, { Icon: Milestone, type: "arc" }], title: "Партия и сюжет", counted: true, cta: "Добавить персонажа игрока",
+    tip: "Добавьте персонажей игроков и нить, ведущую их вперёд.", doneText: "Есть партия и сюжетная нить.",
+    done: (has) => has("pc") || has("arc") },
+  { key: "session", icons: [{ Icon: CalendarDays, type: "session" }], title: "Первая сессия", counted: false, cta: "Создать первую сессию",
+    tip: "Когда будете готовы, превратите основу в подготовку к столу.", doneText: "Первая сессия запланирована.",
+    done: (has) => has("session") },
+];
+
+// Сколько из трёх ключевых шагов основы выполнено (для переключения экрана).
+export function foundationDoneCount(campaign: Campaign | null, documents: Document[]): number {
+  const has = (t: string) => documents.some((d) => d.type === t);
+  return FOUNDATION.filter((s) => s.counted && s.done(has, campaign)).length;
+}
 
 // Стартовый экран только что созданной кампании: шаги наполнения + чат с ИИ.
 export function CampaignOnboarding({
@@ -22,53 +54,83 @@ export function CampaignOnboarding({
     [documents, campaignId],
   );
 
-  const steps = [
-    { key: "lore", icon: Bookmark, title: "Лор и тон", desc: "Задайте ассистенту тон, завязку и историю мира.", create: "lore", done: has("lore") || !!campaign?.description?.trim() },
-    { key: "people", icon: Users, title: "Люди и места", desc: "Добавьте, кто важен и где будет происходить действие.", create: "npc", done: has("npc") || has("location") },
-    { key: "party", icon: Shield, title: "Партия и сюжет", desc: "Добавьте персонажей игроков и нить, что ведёт их вперёд.", create: "pc", done: has("pc") || has("arc") },
-    { key: "session", icon: CalendarDays, title: "Первая сессия", desc: "Когда будете готовы, превратите основу в подготовку к столу.", create: "session", done: has("session") },
-  ];
-  const done = steps.filter((s) => s.done).length;
+  const steps = FOUNDATION.map((s) => ({ ...s, isDone: s.done(has, campaign) }));
+  const counted = steps.filter((s) => s.counted);
+  const done = counted.filter((s) => s.isDone).length;
+  const current = counted.find((s) => !s.isDone);
+  const almost = done >= counted.length - 1;
 
   return (
     <div className="onboard">
       <div className="onboard-top">
         <section className="panel onboard-welcome">
-          <span className="onboard-badge"><Sparkles size={13} /> Настройка кампании</span>
-          <h2>Добро пожаловать в мастерскую кампании</h2>
-          <p className="muted">
-            Здесь ваши заметки, идеи и подготовка превращаются в то, что можно использовать за столом.
-            Необязательно продумывать всю кампанию сразу.
-          </p>
-          <div className="onboard-point">
-            <BookOpen size={18} className="onboard-point-icon" />
-            <div>
-              <strong>Сначала заземлите мир в Базе знаний</strong>
-              <p className="muted">Лор, NPC, локации, персонажи игроков и арки дают ассистенту контекст для понимания кампании.</p>
-            </div>
-          </div>
-          <div className="onboard-point">
-            <Layers size={18} className="onboard-point-icon" />
-            <div>
-              <strong>Потом соберите Игровые материалы</strong>
-              <p className="muted">Сессии, сцены, столкновения, секреты и награды опираются на эту основу — подготовка остаётся связанной с миром.</p>
-            </div>
-          </div>
+          {almost ? (
+            <>
+              <span className="onboard-badge onboard-badge-almost"><Sparkles size={13} /> Почти готово</span>
+              <h2>Почти готово к подготовке сессии</h2>
+              <p className="muted">
+                Вы собрали бóльшую часть основы кампании.{current ? ` Добавьте недостающее — ${current.title.toLowerCase()} — чтобы подготовка оставалась связанной с тем, о чём история.` : ""}
+              </p>
+              <p className="muted">
+                После этого пространство переключится с настройки на подготовку сессий — где можно собирать сессии и игровые материалы из уже начатой Базы знаний.
+              </p>
+              {current && (
+                <button type="button" className="onboard-cta" onClick={() => createDocument(current.icons[0].type)}>
+                  <Plus size={16} strokeWidth={2} /> {current.cta}
+                </button>
+              )}
+              <p className="onboard-keep">Хотите доработать уже созданное?</p>
+              <div className="onboard-keep-links">
+                <Link to={`/campaigns/${campaignId}/workshop`}><Lightbulb size={15} /> Открыть Мастерскую</Link>
+                <Link to={`/campaigns/${campaignId}/knowledge`}><BookOpen size={15} /> Открыть Базу знаний</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="onboard-badge"><Sparkles size={13} /> Настройка кампании</span>
+              <h2>Добро пожаловать в мастерскую кампании</h2>
+              <p className="muted">
+                Здесь ваши заметки, идеи и подготовка превращаются в то, что можно использовать за столом.
+                Необязательно продумывать всю кампанию сразу.
+              </p>
+              <div className="onboard-point">
+                <BookOpen size={18} className="onboard-point-icon" />
+                <div>
+                  <strong>Сначала заземлите мир в Базе знаний</strong>
+                  <p className="muted">Лор, NPC, локации, персонажи игроков и арки дают ассистенту контекст для понимания кампании.</p>
+                </div>
+              </div>
+              <div className="onboard-point">
+                <Layers size={18} className="onboard-point-icon" />
+                <div>
+                  <strong>Потом соберите Игровые материалы</strong>
+                  <p className="muted">Сессии, сцены, столкновения, секреты и награды опираются на эту основу — подготовка остаётся связанной с миром.</p>
+                </div>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="panel onboard-foundation">
           <div className="onboard-foundation-head">
             <h3>Основа кампании</h3>
-            <span className="onboard-steps-badge">{done}/{steps.length} шагов</span>
+            <span className="onboard-steps-badge">{done}/{counted.length} шага</span>
           </div>
           {steps.map((s) => (
-            <button key={s.key} type="button" className={`onboard-step${s.done ? " done" : ""}`} onClick={() => createDocument(s.create)}>
-              <span className="onboard-step-icon"><s.icon size={18} strokeWidth={1.8} /></span>
+            <div key={s.key} className={`onboard-step${s.isDone ? " done" : ""}${s === current ? " current" : ""}`}>
+              <span className="onboard-step-icons">
+                {s.icons.map((ic) => (
+                  <button key={ic.type} type="button" className="onboard-step-ic" title={`Создать: ${getDocumentType(ic.type)?.label ?? ic.type}`} onClick={() => createDocument(ic.type)}>
+                    <ic.Icon size={18} strokeWidth={1.8} />
+                  </button>
+                ))}
+                {s.isDone && <span className="onboard-step-check"><Check size={16} strokeWidth={2.6} /></span>}
+              </span>
               <span className="onboard-step-body">
                 <span className="onboard-step-title">{s.title}</span>
-                <span className="onboard-step-desc">{s.desc}</span>
+                <span className="onboard-step-desc">{s.isDone ? s.doneText : s.tip}</span>
               </span>
-            </button>
+            </div>
           ))}
         </section>
       </div>

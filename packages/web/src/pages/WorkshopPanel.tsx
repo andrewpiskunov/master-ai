@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Globe, RefreshCw, MessageCircle, Check, X } from "lucide-react";
+import { Globe, RefreshCw, MessageCircle, Check, X, Plus } from "lucide-react";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
 import type { MentionItem } from "../mentions.js";
@@ -131,7 +131,7 @@ export function WorkshopProposals() {
         <h3>Предложения</h3>
         {proposals.length > 1 && (
           <div className="proposals-bulk">
-            <button type="button" className="bulk-accept" onClick={() => proposals.forEach((p) => approve(p.id))}>Принять все</button>
+            <button type="button" className="bulk-accept" onClick={() => proposals.forEach((p) => approve(p.id))}><Plus size={14} strokeWidth={2.4} /> Принять все</button>
             <button type="button" className="bulk-reject" onClick={() => proposals.forEach((p) => reject(p.id))}>Отклонить все</button>
           </div>
         )}
