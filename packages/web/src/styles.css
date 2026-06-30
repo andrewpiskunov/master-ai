@@ -537,10 +537,33 @@ form button { align-self: flex-start; }
 .doc-main { min-width: 0; }
 .doc-main .links-panel { margin-top: 18px; }
 /* Помощник — полноэкранная панель справа на всю высоту окна. */
-.doc-side { position: sticky; top: var(--header-h); height: calc(100vh - var(--header-h) - 28px); }
+.doc-side { position: sticky; top: var(--header-h); height: calc(100vh - var(--header-h) - 28px); display: flex; flex-direction: column; gap: 10px; }
+.doc-side > .panel { flex: 1 1 auto; min-height: 0; }
+
+/* Переключатель правой панели: Помощник / Играть. */
+.panel-tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; flex: none; }
+.panel-tabs button { flex: 1 1 0; padding: 8px 10px; background: none; border: none; border-radius: 7px; color: var(--muted); font-weight: 600; }
+.panel-tabs button:hover { filter: none; color: var(--text); }
+.panel-tabs button.active { background: var(--accent); color: var(--accent-fg); }
+
+/* Панель «Играть». */
+.doc-play { display: flex; flex-direction: column; overflow: hidden; }
+.play-tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 10px; flex: none; }
+.play-tab { display: flex; align-items: center; gap: 8px; justify-content: flex-start; padding: 8px 10px; background: var(--surface-2); border: 1px solid transparent; border-radius: 9px; color: var(--text); font-weight: 500; font-size: 0.85rem; }
+.play-tab:hover { filter: none; background: var(--surface-3); }
+.play-tab.active { border-color: var(--accent); background: var(--surface-3); color: var(--text-strong); }
+.play-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; }
+.play-empty { margin: 8px 2px; }
+.play-item { display: flex; align-items: center; gap: 10px; justify-content: flex-start; padding: 9px 11px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); font-weight: 500; text-align: left; }
+.play-item:hover { filter: none; border-color: var(--accent); background: var(--surface-3); }
+.play-item-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.play-item-add { color: var(--muted); flex: none; }
+
 @media (max-width: 980px) {
   .doc-grid { grid-template-columns: 1fr; }
-  .doc-side { position: static; height: auto; }
+  .doc-side { position: static; height: auto; display: block; }
+  .doc-side > .panel { flex: none; }
+  .panel-tabs { margin-bottom: 10px; }
 }
 
 /* ---------- Редактор ---------- */
@@ -600,7 +623,7 @@ a.mention:hover { filter: brightness(1.12); }
 .slash-hint { color: var(--muted); font-size: 0.78rem; }
 
 /* ---------- Помощник по документу ---------- */
-.doc-assistant { display: flex; flex-direction: column; height: 100%; }
+.doc-assistant { display: flex; flex-direction: column; overflow: hidden; }
 .doc-assistant .doc-chat {
   flex: 1 1 auto; min-height: 0; margin: 6px 0 12px; padding: 12px;
   background: var(--bg-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm);

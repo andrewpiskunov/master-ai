@@ -10,6 +10,7 @@ import { Select } from "../ui/Select.js";
 import { Modal } from "../ui/Modal.js";
 import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
+import { PlayPanel } from "./PlayPanel.js";
 import { ChangeTypeMenu, TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
 
 // Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
@@ -38,6 +39,7 @@ export function DocumentPage() {
   const [status, setStatus] = useState<string>("");
   const [contentJson, setContentJson] = useState<unknown>(null);
   const [deleting, setDeleting] = useState(false);
+  const [panel, setPanel] = useState<"assistant" | "play">("assistant");
   const editorRef = useRef<DocumentEditorHandle>(null);
 
   useEffect(() => {
@@ -100,6 +102,14 @@ export function DocumentPage() {
     } catch {
       showToast("Не удалось изменить тип");
     }
+  }
+
+  // Вставляет ссылку на игровой материал в документ и связывает их.
+  async function insertReference(target: Document) {
+    if (!doc) return;
+    editorRef.current?.insertReference(target.title);
+    await api.createLink({ campaignId: doc.campaignId, fromDocId: doc.id, toDocId: target.id, kind: "связан" }).catch(() => {});
+    showToast(`Вставлено: «${target.title}»`);
   }
 
   // Удаляет документ и возвращает на предыдущую страницу.
@@ -165,15 +175,23 @@ export function DocumentPage() {
         </div>
 
         <aside className="doc-side">
-          <DocumentAssistant
-            docId={doc.id}
-            title={title}
-            typeLabel={t?.label ?? doc.type}
-            template={getTemplate(doc.type)}
-            getText={() => pmText(contentJson).trim()}
-            onApply={(text) => editorRef.current?.applyText(text)}
-            onCreateEntity={createEntity}
-          />
+          <div className="panel-tabs">
+            <button type="button" className={panel === "assistant" ? "active" : ""} onClick={() => setPanel("assistant")}>Помощник</button>
+            <button type="button" className={panel === "play" ? "active" : ""} onClick={() => setPanel("play")}>Играть</button>
+          </div>
+          {panel === "assistant" ? (
+            <DocumentAssistant
+              docId={doc.id}
+              title={title}
+              typeLabel={t?.label ?? doc.type}
+              template={getTemplate(doc.type)}
+              getText={() => pmText(contentJson).trim()}
+              onApply={(text) => editorRef.current?.applyText(text)}
+              onCreateEntity={createEntity}
+            />
+          ) : (
+            <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />
+          )}
         </aside>
       </div>
 

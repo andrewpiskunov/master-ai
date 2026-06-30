@@ -134,7 +134,6 @@ export function DocumentAssistant({
 
   return (
     <aside className="panel doc-assistant">
-      <h3>Помощник по документу</h3>
       <div className="chat doc-chat" ref={chatRef}>
         {messages.length === 0 && !busy && (
           <p className="chat-empty">Спросите ИИ, как улучшить или дополнить этот документ — и применяйте правки одной кнопкой.</p>

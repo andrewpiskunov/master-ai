@@ -15,6 +15,7 @@ interface DocumentEditorProps {
 
 export interface DocumentEditorHandle {
   applyText: (text: string) => void;
+  insertReference: (title: string) => void;
 }
 
 // Построчная конвертация markdown-ишного текста в HTML для вставки в редактор:
@@ -126,6 +127,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     applyText(text: string) {
       if (!editor) return;
       editor.commands.setContent(textToHtml(text), true);
+      onChange(editor.getJSON());
+    },
+    // Вставляет упоминание сущности в позицию курсора (подсветится как ссылка).
+    insertReference(title: string) {
+      if (!editor) return;
+      editor.chain().focus().insertContent(`${title} `).run();
       onChange(editor.getJSON());
     },
   }), [editor, onChange]);
