@@ -1,248 +1,247 @@
 // Шаблоны документов по типам — структура (как в Campaign Arks), которой следует
-// и первичная генерация, и последующая правка. Заголовки/подписи на английском
-// (как в эталоне), значения заполняются по-русски.
+// и первичная генерация, и последующая правка. Заголовки и подписи полей — на русском.
 
-const NPC = `## Core Profile
-- **Role / Occupation**:
-- **Heritage / Species**:
-- **Faction & Location Ties**:
+const NPC = `## Профиль
+- **Роль / Занятие**:
+- **Происхождение / Раса**:
+- **Фракции и связи с местами**:
 
-## Appearance & Presence
-- **First Impression**:
-- **Distinctive Feature**:
-- **Voice & Mannerisms**:
+## Внешность и образ
+- **Первое впечатление**:
+- **Отличительная черта**:
+- **Голос и манеры**:
 
-## Personality
-- **Core Traits**:
-- **Roleplay Guidance**:
-- **Taboos / Boundaries**:
+## Личность
+- **Ключевые черты**:
+- **Как отыгрывать**:
+- **Табу / Границы**:
 
-## Motivations & Goals
-- **Immediate Want**:
-- **Long-Term Goal**:
-- **Secrets & Weaknesses**:
+## Мотивация и цели
+- **Сиюминутное желание**:
+- **Долгосрочная цель**:
+- **Секреты и слабости**:
 
-## Background
-
-
-## Connections
-- **Allies / Patrons**:
-- **Rivals / Enemies**:
-- **Party Relationship**:
-
-## Story Function
-- **Use at the Table**:
-- **Hooks**: `;
-
-const PC = `## Core Profile
-- **Concept**:
-- **Heritage / Species**:
-- **Class / Role**:
-
-## Appearance & Presence
-- **First Impression**:
-- **Distinctive Feature**:
-
-## Personality
-- **Core Traits**:
-- **Ideals / Bonds / Flaws**:
-
-## Background
+## Предыстория
 
 
-## Motivations & Goals
-- **Immediate Want**:
-- **Long-Term Goal**:
+## Связи
+- **Союзники / Покровители**:
+- **Соперники / Враги**:
+- **Отношение к партии**:
 
-## Connections
-- **Allies / Patrons**:
-- **Rivals / Enemies**: `;
+## Роль в сюжете
+- **Использование за столом**:
+- **Зацепки**: `;
 
-const LOCATION = `## Location Snapshot
-- **Type / Scale**:
-- **Purpose / Significance**:
-- **Status**:
-- **Mood**:
-- **Core Tension**:
+const PC = `## Профиль
+- **Концепция**:
+- **Происхождение / Раса**:
+- **Класс / Роль**:
 
-## First Impression
-- **Sights**:
-- **Sounds**:
-- **Other Sense**:
+## Внешность и образ
+- **Первое впечатление**:
+- **Отличительная черта**:
 
-## Layout & Notable Areas
-- **Entrances / Exits**:
-- **Key Area**:
+## Личность
+- **Ключевые черты**:
+- **Идеалы / Привязанности / Изъяны**:
 
-## Interactive Elements
-- **Feature / Object**:
-- **Hazard / Obstacle**:
-- **Service / Resource**:
-
-## Inhabitants & Local Dynamics
-- **Regulars / Residents**:
-- **Visitors / Intruders**:
-- **Local Rules or Customs**:
-
-## Secrets
-- **Hidden Feature**:
-- **GM-Only Note**:
-
-## Hooks & Connections
-- **Adventure Hook**:
-- **Connected Documents**: `;
-
-const FACTION = `## Overview
-- **Identity**:
-- **Public Face**:
-- **Hidden Reality**:
-- **Sphere of Influence**:
-
-## Goals & Agenda
-- **Immediate Goal**:
-- **Long-Term Aim**:
-- **Current Pressure**:
-- **Red Lines**:
-
-## Structure
-- **Leadership**:
-- **Key Figures**:
-- **Membership**:
-
-## Methods & Resources
-- **Methods**:
-- **Resources**:
-- **Influence Channels**:
-- **Weaknesses**:
-
-## Relationships
-- **Allies**:
-- **Rivals**:
-- **Dependencies & Friction**:
-
-## Current Posture
-- **Active Moves**:
-- **Relation to PCs**:
-- **Hooks & Consequences**: `;
-
-const SECRET = `## The Secret
-- **What's Hidden**:
-- **Who Knows**:
-
-## Truth (GM-Only)
+## Предыстория
 
 
-## Clues & Reveal
-- **Clue**:
-- **How It Surfaces**:
+## Мотивация и цели
+- **Сиюминутное желание**:
+- **Долгосрочная цель**:
 
-## Consequences`;
+## Связи
+- **Союзники / Покровители**:
+- **Соперники / Враги**: `;
 
-const SCENE = `## Scene Goal
-- **Purpose**:
-- **Success / Failure Triggers**:
+const LOCATION = `## Обзор локации
+- **Тип / Масштаб**:
+- **Назначение / Значимость**:
+- **Состояние**:
+- **Настроение**:
+- **Ключевое напряжение**:
 
-## Setup
-- **Where & When**:
-- **Present NPCs**:
+## Первое впечатление
+- **Виды**:
+- **Звуки**:
+- **Прочие ощущения**:
 
-## Beats
+## Планировка и ключевые места
+- **Входы / Выходы**:
+- **Ключевая зона**:
+
+## Интерактивные элементы
+- **Объект / Деталь**:
+- **Опасность / Преграда**:
+- **Услуга / Ресурс**:
+
+## Обитатели и местная жизнь
+- **Завсегдатаи / Жители**:
+- **Гости / Незваные**:
+- **Местные правила и обычаи**:
+
+## Секреты
+- **Скрытая особенность**:
+- **Заметка для мастера**:
+
+## Зацепки и связи
+- **Сюжетная зацепка**:
+- **Связанные документы**: `;
+
+const FACTION = `## Обзор
+- **Суть**:
+- **Публичное лицо**:
+- **Скрытая правда**:
+- **Сфера влияния**:
+
+## Цели и планы
+- **Сиюминутная цель**:
+- **Долгосрочная цель**:
+- **Текущее давление**:
+- **Красные линии**:
+
+## Структура
+- **Руководство**:
+- **Ключевые фигуры**:
+- **Состав**:
+
+## Методы и ресурсы
+- **Методы**:
+- **Ресурсы**:
+- **Каналы влияния**:
+- **Слабые места**:
+
+## Отношения
+- **Союзники**:
+- **Соперники**:
+- **Зависимости и трения**:
+
+## Текущая позиция
+- **Активные действия**:
+- **Отношение к партии**:
+- **Зацепки и последствия**: `;
+
+const SECRET = `## Секрет
+- **Что скрыто**:
+- **Кто знает**:
+
+## Истина (для мастера)
 
 
-## Complications
+## Улики и раскрытие
+- **Улика**:
+- **Как всплывает**:
+
+## Последствия`;
+
+const SCENE = `## Цель сцены
+- **Назначение**:
+- **Триггеры успеха / провала**:
+
+## Завязка
+- **Где и когда**:
+- **Присутствующие NPC**:
+
+## Ключевые моменты
 
 
-## Outcomes & Hooks`;
-
-const ENCOUNTER = `## Encounter Overview
-- **Type**:
-- **Trigger**:
-- **Stakes**:
-
-## Opposition
-- **Foes / Threats**:
-- **Tactics**:
-
-## Environment
-- **Terrain / Hazards**:
-
-## Resolution
-- **Win / Lose / Escape**:
-- **Rewards & Hooks**: `;
-
-const ARC = `## Arc Overview
-- **Premise**:
-- **Theme**:
-- **Status**:
-
-## Stakes & Driving Question
+## Осложнения
 
 
-## Key Beats
+## Исходы и зацепки`;
+
+const ENCOUNTER = `## Обзор столкновения
+- **Тип**:
+- **Триггер**:
+- **Ставки**:
+
+## Противники
+- **Враги / Угрозы**:
+- **Тактика**:
+
+## Окружение
+- **Местность / Опасности**:
+
+## Развязка
+- **Победа / Поражение / Бегство**:
+- **Награды и зацепки**: `;
+
+const ARC = `## Обзор арки
+- **Завязка**:
+- **Тема**:
+- **Статус**:
+
+## Ставки и главный вопрос
+
+
+## Ключевые моменты
 1.
 2.
 3.
 
-## Key Players & Locations
+## Ключевые персонажи и места
 
 
-## Possible Outcomes`;
+## Возможные исходы`;
 
-const ITEM = `## Item Overview
-- **Type**:
-- **Rarity / Status**:
-- **Appearance**:
+const ITEM = `## Обзор предмета
+- **Тип**:
+- **Редкость / Состояние**:
+- **Внешний вид**:
 
-## Properties
-- **Powers / Effects**:
-- **Drawbacks / Costs**:
+## Свойства
+- **Силы / Эффекты**:
+- **Недостатки / Цена**:
 
-## History & Lore
-
-
-## Hooks`;
-
-const LORE = `## Overview
+## История и лор
 
 
-## Key Facts
+## Зацепки`;
+
+const LORE = `## Обзор
+
+
+## Ключевые факты
 -
 
-## History
+## История
 
 
-## Implications & Hooks`;
+## Значение и зацепки`;
 
-const REFERENCE = `## Summary & Intent
-- **Type**:
-- **Audience**:
-- **Purpose**:
+const REFERENCE = `## Сводка и назначение
+- **Тип**:
+- **Аудитория**:
+- **Назначение**:
 
-## Quick Reference
-
-
-## How to Use This
+## Быстрая справка
 
 
-## Details
+## Как этим пользоваться
 
 
-## GM Notes & Play Guidance`;
-
-const SESSION = `## Session Goal
+## Подробности
 
 
-## Recap
+## Заметки мастера и советы по игре`;
+
+const SESSION = `## Цель сессии
 
 
-## Planned Beats
+## Краткое содержание
+
+
+## Запланированные моменты
 1.
 2.
 
-## NPCs & Locations
+## NPC и локации
 
 
-## Notes & Follow-ups`;
+## Заметки и хвосты`;
 
 export const DOCUMENT_TEMPLATES: Record<string, string> = {
   npc: NPC,
