@@ -33,6 +33,7 @@ export function CampaignWorkspace() {
   const [createType, setCreateType] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [suggesting, setSuggesting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const reload = useCallback(() => {
     if (!campaignId) return;
@@ -57,7 +58,8 @@ export function CampaignWorkspace() {
 
   async function submitCreate(e: FormEvent) {
     e.preventDefault();
-    if (!campaignId || !createType || !newTitle.trim()) return;
+    if (!campaignId || !createType || !newTitle.trim() || submitting) return;
+    setSubmitting(true);
     try {
       const template = getTemplate(createType);
       const doc = await api.createDocument({
@@ -68,9 +70,12 @@ export function CampaignWorkspace() {
       });
       setCreateType(null);
       setNewTitle("");
+      reload();
       navigate(`/campaigns/${campaignId}/documents/${doc.id}`);
     } catch {
       showToast("Не удалось создать документ");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -188,8 +193,8 @@ export function CampaignWorkspace() {
               </div>
             )}
             <div className="modal-actions">
-              <button type="submit" disabled={!newTitle.trim()}>Создать и открыть</button>
-              <button type="button" className="btn-ghost" onClick={() => setCreateType(null)}>Отмена</button>
+              <button type="submit" disabled={!newTitle.trim() || submitting}>{submitting ? "Создаём…" : "Создать и открыть"}</button>
+              <button type="button" className="btn-ghost" onClick={() => setCreateType(null)} disabled={submitting}>Отмена</button>
             </div>
           </form>
         </Modal>
