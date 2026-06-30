@@ -711,8 +711,10 @@ form button { align-self: flex-start; }
 .proposals-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .proposals-head h3 { margin: 0; }
 .proposals-bulk { display: flex; gap: 6px; flex: none; }
-.proposals-bulk button { padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
-.bulk-reject { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.proposals-bulk button { padding: 4px 10px; font-size: 0.75rem; font-weight: 600; border-radius: 7px; border: 1px solid transparent; }
+.bulk-accept { background: var(--accent-soft); color: var(--accent-hover); border-color: rgba(59, 130, 246, 0.32); }
+.bulk-accept:hover { filter: none; background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.bulk-reject { background: transparent; border-color: var(--border); color: var(--muted); }
 .bulk-reject:hover { filter: none; border-color: var(--danger); color: #fca5a5; }
 .proposals { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
 .proposal-tag-update { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-hover); background: var(--accent-soft); border-radius: 5px; padding: 2px 6px; margin-right: 4px; }
