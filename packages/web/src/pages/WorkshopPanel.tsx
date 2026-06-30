@@ -1,9 +1,29 @@
 import { useEffect, useRef } from "react";
+import { Globe, RefreshCw, MessageCircle, Check, X } from "lucide-react";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
 import type { MentionItem } from "../mentions.js";
 import { useWorkshopChat } from "./campaign/WorkshopChatContext.js";
-import { TypeTag } from "./campaign/shared.js";
+import { TypeTag, TypeBadge } from "./campaign/shared.js";
+
+// Короткое описание предложения для карточки: берём первое значимое значение поля
+// или первый абзац, без markdown-разметки.
+function snippet(md: string): string {
+  const strip = (s: string) => s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1").replace(/\s+/g, " ").trim();
+  for (const raw of md.split("\n")) {
+    const l = raw.trim();
+    if (!l || l.startsWith("#")) continue;
+    const field = /^[-*]\s*\*\*[^*]+\*\*\s*:?\s*(.+)$/.exec(l);
+    if (field?.[1]) return clip(strip(field[1]));
+    const item = /^[-*]\s+(.+)$/.exec(l);
+    if (item?.[1] && !/\*\*[^*]+\*\*\s*:?\s*$/.test(l)) return clip(strip(item[1]));
+    if (!l.startsWith("-") && !/^\d+\./.test(l)) return clip(strip(l));
+  }
+  return clip(strip(md));
+}
+function clip(s: string): string {
+  return s.length > 150 ? `${s.slice(0, 150).trimEnd()}…` : s;
+}
 
 export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
   const { messages, busy, send, draft, setDraft } = useWorkshopChat();
@@ -75,6 +95,32 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
   );
 }
 
+// «Мир пока что» — живая сводка кампании по беседе + текущий ключевой вопрос.
+export function WorldSummary() {
+  const { world, worldBusy, refreshWorld, messages } = useWorkshopChat();
+  if (messages.length < 2 && !world) return null;
+  return (
+    <section className="panel world-panel">
+      <div className="world-head">
+        <h3><Globe size={16} strokeWidth={1.9} /> Мир кампании</h3>
+        <button type="button" className="world-refresh" onClick={refreshWorld} disabled={worldBusy} title="Обновить сводку">
+          <RefreshCw size={14} className={worldBusy ? "spin" : ""} />
+        </button>
+      </div>
+      {worldBusy && !world ? (
+        <p className="muted">Собираю сводку мира…</p>
+      ) : world?.summary ? (
+        <>
+          <p className="world-summary">{world.summary}</p>
+          {world.question && <div className="world-question"><MessageCircle size={14} /> <span>{world.question}</span></div>}
+        </>
+      ) : (
+        <p className="muted">Сводка появится по мере беседы — нажмите «обновить».</p>
+      )}
+    </section>
+  );
+}
+
 // Предложения ИИ — в правой колонке, рядом с «Недавно созданными».
 export function WorkshopProposals() {
   const { proposals, approve, reject } = useWorkshopChat();
@@ -93,14 +139,22 @@ export function WorkshopProposals() {
       <div className="proposals">
         {proposals.map((p) => (
           <div key={p.id} className="proposal">
-            <div className="proposal-head">
-              {p.action === "update" && <span className="proposal-tag-update">Изменить</span>}
-              <strong>{p.title}</strong> <TypeTag type={p.type} />
+            <span className="proposal-icon"><TypeBadge type={p.type} size={34} /></span>
+            <div className="proposal-main">
+              <div className="proposal-titlerow">
+                <span className="proposal-title">{p.title}</span>
+                {p.action === "update" && <span className="proposal-tag-update">Изменить</span>}
+                <TypeTag type={p.type} />
+              </div>
+              <p className="proposal-snippet">{snippet(p.content)}</p>
             </div>
-            <div className="proposal-body"><Markdown>{p.content}</Markdown></div>
             <div className="proposal-actions">
-              <button type="button" onClick={() => approve(p.id)}>{p.action === "update" ? "Обновить" : "Принять"}</button>
-              <button type="button" onClick={() => reject(p.id)}>Отклонить</button>
+              <button type="button" className="prop-accept" title={p.action === "update" ? `Обновить «${p.title}»` : `Принять «${p.title}»`} onClick={() => approve(p.id)}>
+                <Check size={16} strokeWidth={2.2} />
+              </button>
+              <button type="button" className="prop-reject" title="Отклонить" onClick={() => reject(p.id)}>
+                <X size={16} strokeWidth={2.2} />
+              </button>
             </div>
           </div>
         ))}

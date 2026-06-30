@@ -212,6 +212,11 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
     return brainstormSvc.respond(id, parsed.data.message);
   });
 
+  app.get("/api/campaigns/:id/world", async (req) => {
+    const { id } = req.params as { id: string };
+    return brainstormSvc.worldSummary(id);
+  });
+
   app.get("/api/campaigns/:id/proposals", (req) => {
     const { id } = req.params as { id: string };
     const { status } = req.query as { status?: "pending" | "approved" | "rejected" };

@@ -3,6 +3,8 @@ import type { ConversationMessage, Proposal } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { useToast } from "../../ui/toast.js";
 
+interface WorldState { summary: string; question: string }
+
 interface WorkshopChat {
   messages: ConversationMessage[];
   proposals: Proposal[];
@@ -12,6 +14,9 @@ interface WorkshopChat {
   send: (text: string) => void;
   approve: (id: string) => void;
   reject: (id: string) => void;
+  world: WorldState | null;
+  worldBusy: boolean;
+  refreshWorld: () => void;
 }
 
 const Ctx = createContext<WorkshopChat | null>(null);
@@ -33,6 +38,8 @@ export function WorkshopChatProvider({
   const [busy, setBusy] = useState(false);
   // Черновик сообщения живёт здесь, чтобы не теряться при переключении вкладок.
   const [draft, setDraft] = useState("");
+  const [world, setWorld] = useState<WorldState | null>(null);
+  const [worldBusy, setWorldBusy] = useState(false);
 
   useEffect(() => {
     api.getConversation(campaignId).then(setMessages).catch(() => showToast("Не удалось загрузить беседу"));
@@ -72,7 +79,20 @@ export function WorkshopChatProvider({
       .catch(() => showToast("Не удалось отклонить предложение"));
   }, [showToast]);
 
-  return <Ctx.Provider value={{ messages, proposals, busy, draft, setDraft, send, approve, reject }}>{children}</Ctx.Provider>;
+  const refreshWorld = useCallback(() => {
+    setWorldBusy(true);
+    api.worldSummary(campaignId)
+      .then(setWorld)
+      .catch(() => showToast("Не удалось обновить сводку мира"))
+      .finally(() => setWorldBusy(false));
+  }, [campaignId, showToast]);
+
+  // Один раз подтягиваем сводку, когда в беседе уже есть обмен репликами.
+  useEffect(() => {
+    if (!world && !worldBusy && messages.length >= 2) refreshWorld();
+  }, [messages.length, world, worldBusy, refreshWorld]);
+
+  return <Ctx.Provider value={{ messages, proposals, busy, draft, setDraft, send, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
 }
 
 export function useWorkshopChat(): WorkshopChat {

@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { Sparkles, BookOpen, Layers, Bookmark, Users, Shield, CalendarDays, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Sparkles, BookOpen, Layers, Bookmark, Users, Shield, CalendarDays, Lightbulb } from "lucide-react";
 import { getDocumentType, type Campaign, type Document } from "@master-ai/shared";
-import { WorkshopPanel, WorkshopProposals } from "../WorkshopPanel.js";
+import { WorkshopPanel, WorkshopProposals, WorldSummary } from "../WorkshopPanel.js";
 import { TypeBadge } from "./shared.js";
 
 const CREATE_ORDER = ["session", "npc", "location", "arc", "encounter", "pc", "lore", "scene", "secret", "item", "faction", "reference"];
@@ -75,7 +76,10 @@ export function CampaignOnboarding({
       <section className="panel onboard-assistant">
         <h2 className="onboard-assistant-title"><Sparkles size={18} /> ИИ-ассистент</h2>
         <div className="onboard-assistant-grid">
-          <div className="onboard-chat"><WorkshopPanel mentions={mentions} /></div>
+          <div className="onboard-chat">
+            <WorkshopPanel mentions={mentions} />
+            <WorldSummary />
+          </div>
           <div className="onboard-side">
             <WorkshopProposals />
             <div className="onboard-quick">
@@ -95,6 +99,21 @@ export function CampaignOnboarding({
           </div>
         </div>
       </section>
+
+      <nav className="onboard-nav">
+        <Link to={`/campaigns/${campaignId}/workshop`} className="onboard-nav-card">
+          <Lightbulb size={20} strokeWidth={1.8} />
+          <span><strong>Мастерская</strong>Мозговой штурм, импорт заметок и генерация документов</span>
+        </Link>
+        <Link to={`/campaigns/${campaignId}/knowledge`} className="onboard-nav-card">
+          <BookOpen size={20} strokeWidth={1.8} />
+          <span><strong>База знаний</strong>Лор, NPC, локации, фракции и референсы</span>
+        </Link>
+        <Link to={`/campaigns/${campaignId}/play`} className="onboard-nav-card">
+          <Layers size={20} strokeWidth={1.8} />
+          <span><strong>Игровые материалы</strong>Сцены, столкновения, секреты, зацепки и предметы</span>
+        </Link>
+      </nav>
     </div>
   );
 }

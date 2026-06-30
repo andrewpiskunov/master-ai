@@ -287,6 +287,21 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; margin: 18px 0; }
 .ws-grid { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; margin-top: 10px; }
 .ws-aside { display: flex; flex-direction: column; gap: 18px; }
+.ws-chat-col { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* «Мир кампании» — сводка под чатом */
+.world-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.world-head h3 { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 1rem; color: var(--text-strong); }
+.world-head h3 svg { color: var(--accent-hover); }
+.world-refresh { padding: 6px; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); display: inline-flex; }
+.world-refresh:hover { filter: none; border-color: var(--accent); color: var(--text-strong); }
+.world-refresh:disabled { opacity: 0.5; }
+.world-summary { margin: 0; line-height: 1.6; color: var(--text); }
+.world-question { display: flex; gap: 8px; align-items: flex-start; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); color: var(--accent-hover); font-size: 0.9rem; }
+.world-question svg { flex: none; margin-top: 2px; }
+.world-question span { color: var(--muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.9s linear infinite; }
 @media (max-width: 900px) {
   .home-grid, .ws-grid { grid-template-columns: 1fr; }
 }
@@ -398,9 +413,16 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .onboard-side { display: flex; flex-direction: column; gap: 16px; }
 .onboard-quick h3 { margin: 0 0 10px; font-size: 1rem; color: var(--text-strong); }
 .onboard-quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.onboard-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding-top: 18px; border-top: 1px solid var(--border-soft); }
+.onboard-nav-card { display: flex; align-items: flex-start; gap: 12px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); }
+.onboard-nav-card:hover { text-decoration: none; border-color: var(--accent); background: var(--surface-2); }
+.onboard-nav-card svg { color: var(--accent-hover); flex: none; margin-top: 2px; }
+.onboard-nav-card span { display: flex; flex-direction: column; gap: 3px; font-size: 0.85rem; color: var(--muted); }
+.onboard-nav-card strong { color: var(--text-strong); font-size: 0.95rem; }
 @media (max-width: 900px) {
   .onboard-top { grid-template-columns: 1fr; }
   .onboard-assistant-grid { grid-template-columns: 1fr; }
+  .onboard-nav { grid-template-columns: 1fr; }
 }
 /* Пустое состояние раздела «Сессии» */
 .session-empty {
@@ -717,21 +739,24 @@ form button { align-self: flex-start; }
 .bulk-reject { background: transparent; border-color: var(--border); color: var(--muted); }
 .bulk-reject:hover { filter: none; border-color: var(--danger); color: #fca5a5; }
 .proposals { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
-.proposal-tag-update { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-hover); background: var(--accent-soft); border-radius: 5px; padding: 2px 6px; margin-right: 4px; }
-.proposal { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
-.proposal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-.proposal-head strong { color: var(--text-strong); }
-/* Не раздуваем карточку — показываем превью, полный текст откроется после принятия. */
-.proposal-body { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 0.9rem; }
-.proposal-body p { margin: 0 0 0.4em; }
+.proposal-tag-update { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-hover); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; }
+/* Компактная карточка предложения: иконка + заголовок/тег + краткое описание + кнопки ✓ ✗ */
+.proposal { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.proposal-icon { flex: none; }
+.proposal-main { flex: 1 1 auto; min-width: 0; }
+.proposal-titlerow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.proposal-title { color: var(--text-strong); font-weight: 700; font-size: 0.95rem; }
+.proposal-snippet { margin: 3px 0 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .type-tag {
   display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
-  font-size: 0.74rem; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 600; padding: 2px 8px 2px 6px; border-radius: 999px;
 }
-.proposal-actions { display: flex; gap: 8px; margin-top: 10px; }
-.proposal-actions button { padding: 7px 14px; }
-.proposal-actions button + button { background: transparent; border-color: var(--border); color: var(--muted); font-weight: 500; }
-.proposal-actions button + button:hover { filter: none; color: var(--text-strong); border-color: var(--accent); }
+.proposal-actions { display: flex; gap: 6px; flex: none; }
+.proposal-actions button { padding: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+.prop-accept { background: rgba(34, 94, 67, 0.55); border: 1px solid rgba(74, 222, 128, 0.3); color: #b8f2cf; }
+.prop-accept:hover { filter: none; background: #1f7a4d; border-color: transparent; color: #fff; }
+.prop-reject { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.prop-reject:hover { filter: none; border-color: var(--danger); color: #fca5a5; }
 
 /* ---------- Markdown ---------- */
 .md > :first-child { margin-top: 0; }

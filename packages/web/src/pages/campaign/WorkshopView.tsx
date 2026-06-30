@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Lightbulb } from "lucide-react";
-import { WorkshopPanel, WorkshopProposals } from "../WorkshopPanel.js";
+import { WorkshopPanel, WorkshopProposals, WorldSummary } from "../WorkshopPanel.js";
 import { RecentlyCreated, useCampaign } from "./shared.js";
 
 export function WorkshopView() {
@@ -23,7 +23,10 @@ export function WorkshopView() {
         </div>
       </header>
       <div className="ws-grid">
-        <WorkshopPanel mentions={mentions} />
+        <div className="ws-chat-col">
+          <WorkshopPanel mentions={mentions} />
+          <WorldSummary />
+        </div>
         <div className="ws-aside">
           <WorkshopProposals />
           <RecentlyCreated documents={documents} />

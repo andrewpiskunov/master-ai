@@ -76,6 +76,8 @@ export const api = {
     request<Proposal>(`/api/proposals/${id}/reject`, { method: "POST" }),
   getConversation: (campaignId: string) =>
     request<ConversationMessage[]>(`/api/campaigns/${campaignId}/conversation`),
+  worldSummary: (campaignId: string) =>
+    request<{ summary: string; question: string }>(`/api/campaigns/${campaignId}/world`),
   search: (campaignId: string, q: string) =>
     request<SearchHit[]>(`/api/campaigns/${campaignId}/search?q=${encodeURIComponent(q)}`),
   createLink: (input: NewLink) =>

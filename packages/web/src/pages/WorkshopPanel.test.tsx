@@ -24,6 +24,7 @@ describe("WorkshopPanel", () => {
   it("отправляет сообщение и показывает предложение, принимает его", async () => {
     vi.mocked(api.getConversation).mockResolvedValue([]);
     vi.mocked(api.listProposals).mockResolvedValue([]);
+    vi.mocked(api.worldSummary).mockResolvedValue({ summary: "", question: "" });
     vi.mocked(api.brainstorm).mockResolvedValue({
       conversationId: "k1",
       reply: "Вот злодей.",
