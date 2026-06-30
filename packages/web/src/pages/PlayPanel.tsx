@@ -20,7 +20,7 @@ export function PlayPanel({
   const tabDef = getDocumentType(tab);
 
   return (
-    <aside className="panel doc-play">
+    <div className="doc-play">
       <div className="play-tabs">
         {PLAY_TABS.map((t) => {
           const def = getDocumentType(t);
@@ -45,6 +45,6 @@ export function PlayPanel({
           ))
         )}
       </div>
-    </aside>
+    </div>
   );
 }

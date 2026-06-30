@@ -408,6 +408,8 @@ label { display: block; margin: 14px 0 5px; color: var(--muted); font-size: 0.85
   border-radius: 999px; background: var(--surface);
 }
 .select-tag .select-value { max-width: 140px; }
+.select-tag .select-menu { right: auto; min-width: 190px; }
+.select-tag .select-option .select-label { white-space: nowrap; }
 
 /* Кнопка-пометка в стиле тега (Только мастер) */
 .tag-toggle {
@@ -556,7 +558,7 @@ form button { align-self: flex-start; }
 
 /* ---------- Страница документа ---------- */
 .doc-head {
-  display: flex; align-items: stretch; gap: 0; margin-bottom: 8px; overflow: hidden;
+  flex: none; display: flex; align-items: stretch; gap: 0; margin-bottom: 8px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
 }
 /* Вертикальный «корешок» с подписью типа */
@@ -564,6 +566,7 @@ form button { align-self: flex-start; }
   flex: none; display: flex; align-items: center; justify-content: center;
   writing-mode: vertical-rl; transform: rotate(180deg);
   padding: 10px 0; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  border-radius: 11px 0 0 11px;
 }
 .doc-head-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
 .doc-head-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -589,8 +592,6 @@ form button { align-self: flex-start; }
   background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--muted);
 }
 .doc-actions .icon-btn:hover { filter: none; background: var(--surface-2); border-color: var(--border); color: var(--text-strong); }
-.doc-actions .doc-save { background: var(--accent); color: var(--accent-fg); }
-.doc-actions .doc-save:hover { background: var(--accent); color: var(--accent-fg); filter: brightness(1.07); border-color: transparent; }
 .doc-actions .doc-bookmark.active { color: var(--accent); }
 .doc-actions .doc-delete:hover { border-color: var(--danger); color: var(--danger); }
 /* Ряд тегов под заголовком */
@@ -598,20 +599,33 @@ form button { align-self: flex-start; }
 .doc-tags .select { flex: none; }
 .doc-view { max-width: none; }
 .doc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
-.doc-main { min-width: 0; }
-.doc-main .links-panel { margin-top: 18px; }
-/* Помощник — полноэкранная панель справа на всю высоту окна. */
-.doc-side { position: sticky; top: var(--header-h); height: calc(100vh - var(--header-h) - 28px); display: flex; flex-direction: column; gap: 10px; }
-.doc-side > .panel { flex: 1 1 auto; min-height: 0; }
+.doc-main { min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - var(--header-h) - 28px); }
+/* Помощник — панель справа на всю высоту. */
+.doc-side { display: flex; flex-direction: column; height: calc(100vh - var(--header-h) - 28px); }
+
+/* Страница документа не прокручивается целиком — скроллится только текст и чат. */
+@media (min-width: 981px) {
+  .workspace-main:has(.doc-view) { height: calc(100vh - var(--header-h)); overflow: hidden; padding-top: 24px; padding-bottom: 24px; }
+  .doc-view { height: 100%; overflow: hidden; }
+  .doc-grid { height: 100%; align-items: stretch; }
+  .doc-main { height: 100%; min-height: 0; }
+  .doc-side { height: 100%; }
+  .ProseMirror { min-height: 0; overflow-y: auto; }
+}
+/* Единая карточка: вкладки + содержимое без визуального разрыва. */
+.side-panel {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 8px;
+}
 
 /* Переключатель правой панели: Помощник / Играть. */
-.panel-tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; flex: none; }
-.panel-tabs button { flex: 1 1 0; padding: 8px 10px; background: none; border: none; border-radius: 7px; color: var(--muted); font-weight: 600; }
+.panel-tabs { display: flex; gap: 4px; padding: 2px; background: var(--surface-2); border-radius: 9px; flex: none; }
+.panel-tabs button { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 10px; font-size: 0.84rem; background: none; border: none; border-radius: 7px; color: var(--muted); font-weight: 600; }
 .panel-tabs button:hover { filter: none; color: var(--text); }
 .panel-tabs button.active { background: var(--accent); color: var(--accent-fg); }
 
 /* Панель «Играть». */
-.doc-play { display: flex; flex-direction: column; overflow: hidden; }
+.doc-play { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .play-tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 10px; flex: none; }
 .play-tab { display: flex; align-items: center; gap: 8px; justify-content: flex-start; padding: 8px 10px; background: var(--surface-2); border: 1px solid transparent; border-radius: 9px; color: var(--text); font-weight: 500; font-size: 0.85rem; }
 .play-tab:hover { filter: none; background: var(--surface-3); }
@@ -626,21 +640,17 @@ form button { align-self: flex-start; }
 @media (max-width: 980px) {
   .doc-grid { grid-template-columns: 1fr; }
   .doc-side { position: static; height: auto; display: block; }
-  .doc-side > .panel { flex: none; }
-  .panel-tabs { margin-bottom: 10px; }
+  .side-panel { min-height: 520px; }
 }
 
 /* ---------- Редактор ---------- */
-.editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
-.editor-format { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.editor-ai { display: inline-flex; gap: 8px; align-items: center; }
-.editor-toolbar button { padding: 6px 11px; font-size: 0.88rem; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-weight: 500; }
-.editor-toolbar button:hover:not(:disabled) { border-color: var(--accent); filter: none; }
-.editor-toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
-.editor-format button { min-width: 34px; padding: 6px 8px; }
-.editor-format button.active { border-color: var(--accent); color: var(--accent-hover); background: var(--accent-soft); }
-.editor-sep { width: 1px; align-self: stretch; background: var(--border-soft); margin: 2px 4px; }
-.ProseMirror { min-height: 62vh; padding: 26px 30px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); line-height: 1.65; font-size: 1.02rem; }
+.editor { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.editor > div { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.ProseMirror { flex: 1 1 auto; min-height: 320px; padding: 26px 30px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); line-height: 1.65; font-size: 1.02rem; }
+/* Подсказка в пустом блоке под курсором */
+.ProseMirror .pm-empty::before {
+  content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--muted);
+}
 .ProseMirror:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
 .ProseMirror p { margin: 0 0 0.7em; }
 .ProseMirror h2 { font-size: 1.32rem; color: var(--text-strong); margin: 1.1em 0 0.5em; padding-bottom: 6px; }
@@ -687,16 +697,17 @@ a.mention:hover { filter: brightness(1.12); }
 .slash-hint { color: var(--muted); font-size: 0.78rem; }
 
 /* ---------- Помощник по документу ---------- */
-.doc-assistant { display: flex; flex-direction: column; overflow: hidden; }
+.doc-assistant { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .doc-assistant .doc-chat {
-  flex: 1 1 auto; min-height: 0; max-height: none; margin: 6px 0 12px; padding: 12px;
-  background: var(--bg-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
+  flex: 1 1 auto; min-height: 0; max-height: none; margin: 0 0 8px; padding: 6px 4px;
+  background: transparent; border: none; overflow-y: auto;
 }
 .doc-assistant .doc-chat .chat-empty { margin: auto; text-align: center; }
 .doc-assistant .chat-form { display: flex; }
+.doc-assistant .chat-form textarea { font-size: 0.85rem; min-height: 50px; }
+.chat-send { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 0.85rem; }
 @media (max-width: 980px) {
-  .doc-assistant { height: auto; }
-  .doc-assistant .doc-chat { flex: none; height: 420px; }
+  .doc-assistant .doc-chat { flex: none; height: 360px; }
 }
 /* Карточка «применить текст ИИ к документу» */
 .apply-card { margin-top: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }

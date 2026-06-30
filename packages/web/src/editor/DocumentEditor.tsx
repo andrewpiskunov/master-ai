@@ -2,10 +2,9 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { streamComplete } from "../api/stream.js";
-import { useToast } from "../ui/toast.js";
-import { SuggestionMark } from "./SuggestionMark.js";
+import { getDocumentType } from "@master-ai/shared";
 import { MentionHighlight, mentionKey, type MentionItem } from "./MentionHighlight.js";
+import { Placeholder } from "./Placeholder.js";
 
 interface DocumentEditorProps {
   content: unknown;
@@ -65,64 +64,86 @@ export function markdownToDoc(text: string): unknown {
   return generateJSON(textToHtml(text) || "<p></p>", [StarterKit]);
 }
 
-interface SlashCommand { title: string; hint: string; keywords: string[]; run: (e: Editor) => void }
+interface MenuItem { id: string; title: string; hint: string; run: (e: Editor) => void }
 
-// Команды по «/» — как в Campaign Arks: вставка блоков разметки.
-const SLASH_COMMANDS: SlashCommand[] = [
-  { title: "Текст", hint: "Обычный абзац", keywords: ["текст", "параграф", "paragraph", "text"], run: (e) => e.chain().focus().setParagraph().run() },
-  { title: "Заголовок", hint: "Крупный заголовок", keywords: ["заголовок", "heading", "h2"], run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
-  { title: "Подзаголовок", hint: "Заголовок раздела", keywords: ["подзаголовок", "heading", "h3"], run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run() },
-  { title: "Маркированный список", hint: "Список с точками", keywords: ["список", "маркированный", "bullet", "ul"], run: (e) => e.chain().focus().toggleBulletList().run() },
-  { title: "Нумерованный список", hint: "Список по порядку", keywords: ["список", "нумерованный", "ordered", "ol"], run: (e) => e.chain().focus().toggleOrderedList().run() },
-  { title: "Цитата", hint: "Выделенная цитата", keywords: ["цитата", "quote", "blockquote"], run: (e) => e.chain().focus().toggleBlockquote().run() },
+// Команды по «/» — вставка блоков разметки (как в Campaign Arks).
+const SLASH_COMMANDS: MenuItem[] = [
+  { id: "p", title: "Текст", hint: "Обычный абзац", run: (e) => e.chain().focus().setParagraph().run() },
+  { id: "h2", title: "Заголовок", hint: "Крупный заголовок", run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
+  { id: "h3", title: "Подзаголовок", hint: "Заголовок раздела", run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run() },
+  { id: "ul", title: "Маркированный список", hint: "Список с точками", run: (e) => e.chain().focus().toggleBulletList().run() },
+  { id: "ol", title: "Нумерованный список", hint: "Список по порядку", run: (e) => e.chain().focus().toggleOrderedList().run() },
+  { id: "quote", title: "Цитата", hint: "Выделенная цитата", run: (e) => e.chain().focus().toggleBlockquote().run() },
 ];
 
-interface SlashState { items: SlashCommand[]; index: number; top: number; left: number; queryLen: number }
+const SLASH_KEYWORDS: Record<string, string[]> = {
+  p: ["текст", "параграф", "paragraph", "text"],
+  h2: ["заголовок", "heading", "h2"],
+  h3: ["подзаголовок", "heading", "h3"],
+  ul: ["список", "маркированный", "bullet", "ul"],
+  ol: ["список", "нумерованный", "ordered", "ol"],
+  quote: ["цитата", "quote", "blockquote"],
+};
+
+interface MenuState { kind: "slash" | "mention"; items: MenuItem[]; index: number; top: number; left: number; queryLen: number; triggerLen: number }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
   { content, onChange, mentions },
   ref,
 ) {
-  const { showToast } = useToast();
-  const [suggesting, setSuggesting] = useState(false);
-  const [streaming, setStreaming] = useState(false);
-  // диапазон вставленного предложения в позициях ProseMirror
-  const range = useRef<{ from: number; to: number }>({ from: 0, to: 0 });
-  // Fix 1: не вызывать onChange во время стриминга
-  const streamingRef = useRef(false);
-  const [slash, setSlash] = useState<SlashState | null>(null);
-  const activeSlashRef = useRef<HTMLLIElement>(null);
-  useEffect(() => { activeSlashRef.current?.scrollIntoView({ block: "nearest" }); }, [slash?.index]);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const mentionsRef = useRef<MentionItem[]>(mentions ?? []);
+  mentionsRef.current = mentions ?? [];
+  const activeRef = useRef<HTMLLIElement>(null);
+  useEffect(() => { activeRef.current?.scrollIntoView({ block: "nearest" }); }, [menu?.index]);
 
-  // Показ/скрытие меню «/» по тексту перед курсором.
-  function detectSlash(ed: Editor) {
-    if (streamingRef.current) { setSlash(null); return; }
+  // Меню по «/» (команды) и «@» (вставка сущностей кампании).
+  function detectMenu(ed: Editor) {
     const sel = ed.state.selection;
-    if (!sel.empty) { setSlash(null); return; }
+    if (!sel.empty) { setMenu(null); return; }
     const $from = sel.$from;
     const textBefore = $from.parent.textBetween(0, $from.parentOffset, "\n", "￼");
-    const m = /(?:^|\s)\/([^/\s]*)$/.exec(textBefore);
-    if (!m) { setSlash(null); return; }
-    const query = m[1].toLowerCase();
-    const items = SLASH_COMMANDS.filter(
-      (c) => !query || c.title.toLowerCase().includes(query) || c.keywords.some((k) => k.includes(query)),
-    );
-    if (items.length === 0) { setSlash(null); return; }
-    const coords = ed.view.coordsAtPos($from.pos);
-    setSlash({ items, index: 0, top: coords.bottom + 4, left: coords.left, queryLen: m[1].length });
+
+    const slashM = /(?:^|\s)\/([^/\s]*)$/.exec(textBefore);
+    if (slashM) {
+      const query = slashM[1].toLowerCase();
+      const items = SLASH_COMMANDS.filter(
+        (c) => !query || c.title.toLowerCase().includes(query) || (SLASH_KEYWORDS[c.id] ?? []).some((k) => k.includes(query)),
+      );
+      if (!items.length) { setMenu(null); return; }
+      const coords = ed.view.coordsAtPos($from.pos);
+      setMenu({ kind: "slash", items, index: 0, top: coords.bottom + 4, left: coords.left, queryLen: slashM[1].length, triggerLen: 1 });
+      return;
+    }
+
+    const atM = /(?:^|\s)@([^@]*)$/.exec(textBefore);
+    if (atM) {
+      const query = atM[1].toLowerCase();
+      const items: MenuItem[] = mentionsRef.current
+        .filter((mn) => !query || mn.title.toLowerCase().includes(query))
+        .slice(0, 8)
+        .map((mn) => ({
+          id: mn.title,
+          title: mn.title,
+          hint: getDocumentType(mn.type)?.label ?? mn.type,
+          run: (e) => e.chain().focus().insertContent(`${mn.title} `).run(),
+        }));
+      if (!items.length) { setMenu(null); return; }
+      const coords = ed.view.coordsAtPos($from.pos);
+      setMenu({ kind: "mention", items, index: 0, top: coords.bottom + 4, left: coords.left, queryLen: atM[1].length, triggerLen: 1 });
+      return;
+    }
+
+    setMenu(null);
   }
 
   const editor = useEditor({
-    extensions: [StarterKit, SuggestionMark, MentionHighlight],
+    extensions: [StarterKit, MentionHighlight, Placeholder],
     content: (content as object) ?? "",
-    onUpdate: ({ editor }) => {
-      if (!streamingRef.current) onChange(editor.getJSON());
-      detectSlash(editor);
-    },
-    onSelectionUpdate: ({ editor }) => detectSlash(editor),
+    onUpdate: ({ editor }) => { onChange(editor.getJSON()); detectMenu(editor); },
+    onSelectionUpdate: ({ editor }) => detectMenu(editor),
   });
 
-  // Позволяет ИИ-помощнику применять новый текст прямо в документ.
   useImperativeHandle(ref, () => ({
     applyText(text: string) {
       if (!editor) return;
@@ -143,167 +164,43 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editor.view.dispatch(editor.state.tr.setMeta(mentionKey, { mentions: mentions ?? [] }));
   }, [editor, mentions]);
 
-  function applySlash(cmd: SlashCommand) {
-    if (!editor) return;
+  function applyMenu(item: MenuItem) {
+    if (!editor || !menu) return;
     const to = editor.state.selection.$from.pos;
-    const from = to - ((slash?.queryLen ?? 0) + 1); // «/» + запрос
+    const from = to - (menu.queryLen + menu.triggerLen);
     editor.chain().focus().deleteRange({ from, to }).run();
-    cmd.run(editor);
-    setSlash(null);
+    item.run(editor);
+    setMenu(null);
   }
 
-  // Навигация по меню «/» с клавиатуры (перехватываем до ProseMirror).
+  // Навигация по меню с клавиатуры (перехватываем до ProseMirror).
   useEffect(() => {
-    if (!slash) return;
-    const { items, index } = slash;
+    if (!menu) return;
+    const { items, index } = menu;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setSlash((p) => p && { ...p, index: (p.index + 1) % p.items.length }); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setSlash((p) => p && { ...p, index: (p.index - 1 + p.items.length) % p.items.length }); }
-      else if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); applySlash(items[index]); }
-      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setSlash(null); }
+      if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setMenu((p) => p && { ...p, index: (p.index + 1) % p.items.length }); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setMenu((p) => p && { ...p, index: (p.index - 1 + p.items.length) % p.items.length }); }
+      else if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); applyMenu(items[index]); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMenu(null); }
     }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [slash]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function requestSuggestion() {
-    if (!editor) return;
-    const docText = editor.getText();
-    const from = editor.state.selection.to;
-    range.current = { from, to: from };
-    streamingRef.current = true;
-    setStreaming(true);
-    setSuggesting(true);
-    editor.setEditable(false);
-    try {
-      await streamComplete(
-        {
-          system: "Ты — соавтор мастера настольных ролевых игр. Продолжи документ по-русски, кратко и по делу.",
-          messages: [{ role: "user", content: `Текущий документ:\n${docText}\n\nПродолжи его.` }],
-        },
-        (chunk) => {
-          const at = range.current.to;
-          editor
-            .chain()
-            .insertContentAt(at, { type: "text", text: chunk, marks: [{ type: "suggestion" }] })
-            .run();
-          range.current = { from: range.current.from, to: editor.state.selection.to };
-        },
-      );
-      // Стрим завершён — превращаем markdown в оформленный текст (чтобы не висели «**» и «-»).
-      formatSuggestion();
-    } catch (err) {
-      // Fix 2: сохранить частичный стрим как предложение; удалять только если ничего не вставлено
-      const { from, to } = range.current;
-      editor.setEditable(true);
-      if (to > from) {
-        // частичный стрим — тоже оформляем и оставляем как предложение
-        formatSuggestion();
-        showToast("ИИ прервался — можно принять или отклонить начатое");
-      } else {
-        setSuggesting(false);
-        showToast(err instanceof Error ? `Ошибка ИИ: ${err.message}` : "Ошибка ИИ");
-      }
-    } finally {
-      streamingRef.current = false;
-      setStreaming(false);
-    }
-  }
-
-  // Превращает markdown из стрима в оформленный текст и заново помечает диапазон
-  // как предложение — чтобы превью не висело с «**» и «-», а выглядело как итог.
-  function formatSuggestion() {
-    if (!editor) return;
-    const { from, to } = range.current;
-    if (to <= from) return;
-    const raw = editor.state.doc.textBetween(from, to, "\n").trim();
-    if (!raw) return;
-    editor.chain().deleteRange({ from, to }).insertContentAt(from, textToHtml(raw)).run();
-    const newTo = editor.state.selection.to;
-    editor.chain().setTextSelection({ from, to: newTo }).setMark("suggestion").run();
-    range.current = { from, to: newTo };
-  }
-
-  function acceptSuggestion() {
-    if (!editor) return;
-    const { from, to } = range.current;
-    // Текст уже оформлен при завершении стрима — просто снимаем пометку «предложение».
-    if (to > from) editor.chain().focus().setTextSelection({ from, to }).unsetMark("suggestion").run();
-    editor.setEditable(true);
-    setSuggesting(false);
-    // Fix 5: явный вызов onChange оставлен — onUpdate в jsdom не гарантирует вызов от chain().run()
-    onChange(editor.getJSON());
-  }
-
-  function rejectSuggestion() {
-    if (!editor) return;
-    const { from, to } = range.current;
-    if (to > from) editor.chain().deleteRange({ from, to }).run();
-    editor.setEditable(true);
-    setSuggesting(false);
-    // Fix 5: явный вызов onChange оставлен — onUpdate в jsdom не гарантирует вызов от chain().run()
-    onChange(editor.getJSON());
-  }
-
-  const fmtDisabled = !editor || suggesting || streaming;
-  const isActive = (name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false;
+  }, [menu]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="editor">
-      <div className="editor-toolbar">
-        <div className="editor-format">
-          <button type="button" title="Жирный" disabled={fmtDisabled}
-            className={isActive("bold") ? "active" : ""}
-            onClick={() => editor?.chain().focus().toggleBold().run()}><strong>Ж</strong></button>
-          <button type="button" title="Курсив" disabled={fmtDisabled}
-            className={isActive("italic") ? "active" : ""}
-            onClick={() => editor?.chain().focus().toggleItalic().run()}><em>К</em></button>
-          <span className="editor-sep" />
-          <button type="button" title="Заголовок" disabled={fmtDisabled}
-            className={isActive("heading", { level: 2 }) ? "active" : ""}
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-          <button type="button" title="Подзаголовок" disabled={fmtDisabled}
-            className={isActive("heading", { level: 3 }) ? "active" : ""}
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
-          <span className="editor-sep" />
-          <button type="button" title="Маркированный список" disabled={fmtDisabled}
-            className={isActive("bulletList") ? "active" : ""}
-            onClick={() => editor?.chain().focus().toggleBulletList().run()}>•</button>
-          <button type="button" title="Нумерованный список" disabled={fmtDisabled}
-            className={isActive("orderedList") ? "active" : ""}
-            onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1.</button>
-          <button type="button" title="Цитата" disabled={fmtDisabled}
-            className={isActive("blockquote") ? "active" : ""}
-            onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
-        </div>
-        <div className="editor-ai">
-          {!suggesting && (
-            <button type="button" onClick={requestSuggestion} disabled={streaming}
-              title="ИИ продолжит документ с места курсора и оформит разметку">
-              ✨ Дописать ИИ
-            </button>
-          )}
-          {suggesting && !streaming && (
-            <>
-              <button type="button" onClick={acceptSuggestion}>Принять</button>
-              <button type="button" onClick={rejectSuggestion}>Отклонить</button>
-            </>
-          )}
-          {streaming && <span className="muted">ИИ печатает…</span>}
-        </div>
-      </div>
       <EditorContent editor={editor} />
-      <p className="editor-hint">Введите «/» для команд форматирования</p>
-      {slash && (
-        <ul className="slash-menu" role="listbox" style={{ top: slash.top, left: slash.left }}>
-          {slash.items.map((c, i) => (
+      <p className="editor-hint">Введите «@», чтобы вставить или связать сущность кампании</p>
+      {menu && (
+        <ul className="slash-menu" role="listbox" style={{ top: menu.top, left: menu.left }}>
+          {menu.items.map((c, i) => (
             <li
-              key={c.title}
-              ref={i === slash.index ? activeSlashRef : undefined}
+              key={`${c.id}-${i}`}
+              ref={i === menu.index ? activeRef : undefined}
               role="option"
-              aria-selected={i === slash.index}
-              className={`slash-option${i === slash.index ? " active" : ""}`}
-              onMouseDown={(e) => { e.preventDefault(); applySlash(c); }}
+              aria-selected={i === menu.index}
+              className={`slash-option${i === menu.index ? " active" : ""}`}
+              onMouseDown={(e) => { e.preventDefault(); applyMenu(c); }}
             >
               <span className="slash-title">{c.title}</span>
               <span className="slash-hint">{c.hint}</span>

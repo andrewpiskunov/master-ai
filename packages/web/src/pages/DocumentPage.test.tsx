@@ -27,7 +27,7 @@ function renderAt(id: string) {
 }
 
 describe("DocumentPage", () => {
-  it("грузит документ и сохраняет изменения title", async () => {
+  it("автоматически сохраняет изменения title", async () => {
     vi.mocked(api.getDocument).mockResolvedValue({
       id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: "active",
       contentJson: { type: "doc", content: [] }, fields: {}, createdAt: "x", updatedAt: "x",
@@ -40,7 +40,8 @@ describe("DocumentPage", () => {
     const title = await screen.findByLabelText(/заголовок/i);
     await userEvent.clear(title);
     await userEvent.type(title, "Барон фон Кройц");
-    await userEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    // Кнопки «Сохранить» больше нет — сохранение происходит само, с задержкой.
+    expect(screen.queryByRole("button", { name: /сохранить/i })).not.toBeInTheDocument();
     await waitFor(() =>
       expect(api.updateDocument).toHaveBeenCalledWith(
         "d1",

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, Save } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Drama } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -43,6 +43,8 @@ export function DocumentPage() {
   const [panel, setPanel] = useState<"assistant" | "play">("assistant");
   const [marked, setMarked] = useState(false);
   const editorRef = useRef<DocumentEditorHandle>(null);
+  // Снимок последнего сохранённого состояния — чтобы автосохранение не дёргало сервер зря.
+  const savedRef = useRef<{ title: string; content: string } | null>(null);
 
   useEffect(() => { if (documentId) setMarked(isBookmarked(documentId)); }, [documentId]);
 
@@ -62,23 +64,22 @@ export function DocumentPage() {
       setStatus(d.status ?? "");
       setContentJson(d.contentJson);
       setFields(d.fields ?? {});
+      savedRef.current = { title: d.title, content: JSON.stringify(d.contentJson) };
     }).catch(() => showToast("Не удалось загрузить документ"));
   }, [documentId, showToast]);
 
-  async function save() {
-    if (!documentId) return;
-    try {
-      const updated = await api.updateDocument(documentId, {
-        title,
-        status: status === "" ? null : status,
-        contentJson,
-      });
-      setDoc(updated);
-      showToast("Сохранено");
-    } catch {
-      showToast("Не удалось сохранить");
-    }
-  }
+  // Автосохранение заголовка и текста — с задержкой, без кнопки «Сохранить».
+  useEffect(() => {
+    if (!doc || !documentId) return;
+    const content = JSON.stringify(contentJson);
+    if (savedRef.current && savedRef.current.title === title && savedRef.current.content === content) return;
+    const timer = setTimeout(() => {
+      api.updateDocument(documentId, { title, contentJson })
+        .then((updated) => { savedRef.current = { title: updated.title, content: JSON.stringify(updated.contentJson) }; })
+        .catch(() => showToast("Не удалось сохранить"));
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [title, contentJson, doc, documentId, showToast]);
 
   // Мгновенно сохраняет «тег» (статус, отношение, пометку) — как в Arks, без кнопки «Сохранить».
   async function patchDoc(p: { status?: string | null; fields?: Record<string, unknown> }) {
@@ -179,9 +180,6 @@ export function DocumentPage() {
                   onChange={(e) => setTitle(e.target.value)}
                 />
                 <div className="doc-actions">
-                  <button type="button" className="icon-btn doc-save" onClick={save} title="Сохранить">
-                    <Save size={15} strokeWidth={1.8} />
-                  </button>
                   <button type="button" className={`icon-btn doc-bookmark${marked ? " active" : ""}`} onClick={toggleMark} title={marked ? "Убрать из закладок" : "В закладки"} aria-pressed={marked}>
                     <BookmarkIcon size={15} strokeWidth={1.8} fill={marked ? "currentColor" : "none"} />
                   </button>
@@ -243,23 +241,29 @@ export function DocumentPage() {
         </div>
 
         <aside className="doc-side">
-          <div className="panel-tabs">
-            <button type="button" className={panel === "assistant" ? "active" : ""} onClick={() => setPanel("assistant")}>Помощник</button>
-            <button type="button" className={panel === "play" ? "active" : ""} onClick={() => setPanel("play")}>Играть</button>
+          <div className="side-panel">
+            <div className="panel-tabs">
+              <button type="button" className={panel === "assistant" ? "active" : ""} onClick={() => setPanel("assistant")}>
+                <MessageCircle size={15} strokeWidth={1.8} /> Помощник
+              </button>
+              <button type="button" className={panel === "play" ? "active" : ""} onClick={() => setPanel("play")}>
+                <Drama size={15} strokeWidth={1.8} /> Играть
+              </button>
+            </div>
+            {panel === "assistant" ? (
+              <DocumentAssistant
+                docId={doc.id}
+                title={title}
+                typeLabel={t?.label ?? doc.type}
+                template={getTemplate(doc.type)}
+                getText={() => pmText(contentJson).trim()}
+                onApply={(text) => editorRef.current?.applyText(text)}
+                onCreateEntity={createEntity}
+              />
+            ) : (
+              <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />
+            )}
           </div>
-          {panel === "assistant" ? (
-            <DocumentAssistant
-              docId={doc.id}
-              title={title}
-              typeLabel={t?.label ?? doc.type}
-              template={getTemplate(doc.type)}
-              getText={() => pmText(contentJson).trim()}
-              onApply={(text) => editorRef.current?.applyText(text)}
-              onCreateEntity={createEntity}
-            />
-          ) : (
-            <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />
-          )}
         </aside>
       </div>
 

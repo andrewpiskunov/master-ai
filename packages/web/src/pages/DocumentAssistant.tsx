@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, Send } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { streamComplete } from "../api/stream.js";
 import { Markdown } from "../ui/Markdown.js";
@@ -134,7 +134,7 @@ export function DocumentAssistant({
   }
 
   return (
-    <aside className="panel doc-assistant">
+    <div className="doc-assistant">
       <div className="chat doc-chat" ref={chatRef}>
         {messages.length === 0 && !busy && (
           <p className="chat-empty">Спросите ИИ, как улучшить или дополнить этот документ — и применяйте правки одной кнопкой.</p>
@@ -190,7 +190,7 @@ export function DocumentAssistant({
         <textarea
           id="doc-assistant-input"
           ref={textareaRef}
-          rows={1}
+          rows={2}
           placeholder="Спросите про документ…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -199,8 +199,10 @@ export function DocumentAssistant({
           }}
           disabled={busy}
         />
-        <button type="submit" disabled={busy}>Отправить</button>
+        <button type="submit" className="chat-send" disabled={busy} title="Отправить">
+          <Send size={15} strokeWidth={1.9} /> <span>Отправить</span>
+        </button>
       </form>
-    </aside>
+    </div>
   );
 }
