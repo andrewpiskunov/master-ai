@@ -139,7 +139,7 @@ export function WorkshopProposals() {
       <div className="proposals">
         {proposals.map((p) => (
           <div key={p.id} className="proposal">
-            <span className="proposal-icon"><TypeBadge type={p.type} size={34} /></span>
+            <span className="proposal-icon"><TypeBadge type={p.type} size={26} /></span>
             <div className="proposal-main">
               <div className="proposal-titlerow">
                 <span className="proposal-title">{p.title}</span>
