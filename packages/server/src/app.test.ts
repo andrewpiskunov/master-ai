@@ -339,4 +339,24 @@ describe("жизненный цикл кампании", () => {
     const res = await app.inject({ method: "DELETE", url: "/api/documents/нет-такой" });
     expect(res.statusCode).toBe(404);
   });
+
+  it("PATCH меняет тип и сбрасывает несовместимый статус", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб", status: "alive" } })).json();
+    // location не имеет статусов — статус "alive" должен сброситься
+    const res = await app.inject({ method: "PATCH", url: `/api/documents/${d.id}`, payload: { type: "location" } });
+    expect(res.statusCode).toBe(200);
+    const updated = res.json();
+    expect(updated.type).toBe("location");
+    expect(updated.status).toBeNull();
+  });
+
+  it("PATCH на неизвестный тип → 400", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+    const res = await app.inject({ method: "PATCH", url: `/api/documents/${d.id}`, payload: { type: "дракон" } });
+    expect(res.statusCode).toBe(400);
+  });
 });

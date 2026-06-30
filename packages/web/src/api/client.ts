@@ -40,7 +40,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-type DocumentPatch = Partial<Pick<Document, "title" | "status" | "contentJson" | "fields">>;
+type DocumentPatch = Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">>;
 
 export const api = {
   listDocumentTypes: () => request<DocumentTypeDef[]>("/api/document-types"),

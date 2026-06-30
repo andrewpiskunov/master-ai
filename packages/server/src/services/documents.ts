@@ -65,11 +65,12 @@ export class DocumentService {
 
   update(
     id: string,
-    patch: Partial<Pick<Document, "title" | "status" | "contentJson" | "fields">>,
+    patch: Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">>,
   ): Document | undefined {
     const existing = this.get(id);
     if (!existing) return undefined;
     const updates: Partial<DocumentRow> = { updatedAt: new Date().toISOString() };
+    if (patch.type !== undefined) updates.type = patch.type;
     if (patch.title !== undefined) updates.title = patch.title;
     if (patch.status !== undefined) updates.status = patch.status;
     if (patch.contentJson !== undefined) updates.contentJson = JSON.stringify(patch.contentJson);

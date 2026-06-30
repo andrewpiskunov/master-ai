@@ -37,6 +37,7 @@ function buildWelcome(name: string): string {
 }
 
 const DocumentPatchSchema = z.object({
+  type: z.string().optional(),
   title: z.string().min(1).optional(),
   status: z.string().nullable().optional(),
   contentJson: z.unknown().optional(),
@@ -125,18 +126,27 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
     const parsed = DocumentPatchSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
 
-    const status = parsed.data.status;
-    if (status != null) {
-      const existing = documentsSvc.get(id);
-      if (existing) {
-        const typeDef = getDocumentType(existing.type);
-        if (typeDef && !typeDef.statuses.includes(status)) {
-          return reply.code(400).send({ error: `invalid status "${status}" for type "${existing.type}"` });
-        }
+    const existing = documentsSvc.get(id);
+    if (!existing) return reply.code(404).send({ error: "not found" });
+
+    // Новый тип (если меняется) должен быть известным.
+    if (parsed.data.type != null && !getDocumentType(parsed.data.type)) {
+      return reply.code(400).send({ error: `unknown document type: ${parsed.data.type}` });
+    }
+    const effectiveType = parsed.data.type ?? existing.type;
+    const typeDef = getDocumentType(effectiveType);
+
+    const patch = { ...parsed.data };
+    if (patch.status != null) {
+      if (typeDef && !typeDef.statuses.includes(patch.status)) {
+        return reply.code(400).send({ error: `invalid status "${patch.status}" for type "${effectiveType}"` });
       }
+    } else if (parsed.data.type != null && existing.status != null && typeDef && !typeDef.statuses.includes(existing.status)) {
+      // Тип сменился, а прежний статус не подходит новому типу — сбрасываем.
+      patch.status = null;
     }
 
-    const updated = documentsSvc.update(id, parsed.data);
+    const updated = documentsSvc.update(id, patch);
     if (!updated) return reply.code(404).send({ error: "not found" });
     return updated;
   });

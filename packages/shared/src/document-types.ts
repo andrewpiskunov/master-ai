@@ -12,6 +12,8 @@ export const DOCUMENT_TYPES: DocumentTypeDef[] = [
   { key: "faction", label: "Фракция", icon: "users", statuses: [] },
   { key: "secret", label: "Секрет", icon: "lock", statuses: ["hidden", "revealed"] },
   { key: "scene", label: "Сцена", icon: "clapperboard", statuses: ["planned", "used"] },
+  { key: "encounter", label: "Столкновение", icon: "swords", statuses: ["planned", "used"] },
+  { key: "arc", label: "Сюжетная арка", icon: "milestone", statuses: ["planned", "active", "completed"] },
   { key: "session", label: "Сессия", icon: "calendar", statuses: ["planned", "played"] },
   { key: "item", label: "Предмет", icon: "package", statuses: [] },
   { key: "lore", label: "Лор", icon: "book", statuses: [] },
@@ -33,6 +35,8 @@ export const STATUS_LABELS: Record<string, string> = {
   planned: "Запланировано",
   used: "Использовано",
   played: "Сыграно",
+  active: "Активна",
+  completed: "Завершена",
 };
 
 export function statusLabel(value: string): string {

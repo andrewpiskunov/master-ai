@@ -1,13 +1,15 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
   User, Shield, MapPin, Users, Lock, Clapperboard, Calendar, Package, Book, Library, File,
+  Swords, Milestone, Replace,
   type LucideIcon,
 } from "lucide-react";
-import { getDocumentType, type Campaign, type Document } from "@master-ai/shared";
+import { DOCUMENT_TYPES, getDocumentType, type Campaign, type Document } from "@master-ai/shared";
 
 // Деление типов документов на разделы — как в Campaign Arks.
 export const KNOWLEDGE_TYPES = ["pc", "npc", "location", "faction", "lore", "reference", "note"];
-export const PLAY_TYPES = ["scene", "session", "secret", "item"];
+export const PLAY_TYPES = ["scene", "encounter", "arc", "session", "secret", "item"];
 
 export interface CampaignContext {
   campaignId: string;
@@ -33,6 +35,8 @@ const ICONS: Record<string, LucideIcon> = {
   book: Book,
   library: Library,
   file: File,
+  swords: Swords,
+  milestone: Milestone,
 };
 
 // Цвет иконки (fg) + фон плитки (bg) для каждого типа.
@@ -43,6 +47,8 @@ const TYPE_COLORS: Record<string, { fg: string; bg: string }> = {
   faction: { fg: "#c084fc", bg: "#221036" },
   secret: { fg: "#fb7185", bg: "#2a0f17" },
   scene: { fg: "#38bdf8", bg: "#06283b" },
+  encounter: { fg: "#f87171", bg: "#2d0a0a" },
+  arc: { fg: "#f0abfc", bg: "#2e1065" },
   session: { fg: "#818cf8", bg: "#14173a" },
   item: { fg: "#fb923c", bg: "#2a1608" },
   lore: { fg: "#2dd4bf", bg: "#07292a" },
@@ -168,5 +174,53 @@ export function TypeSection({ type, documents }: { type: string; documents: Docu
         {docs.map((d) => <li key={d.id}><DocCard doc={d} variant="tile" /></li>)}
       </ul>
     </section>
+  );
+}
+
+// Кнопка-выпадашка смены типа документа — как «Change type to» в Campaign Arks.
+export function ChangeTypeMenu({ current, onChange }: { current: string; onChange: (type: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  return (
+    <div className="type-menu" ref={ref}>
+      <button
+        type="button"
+        className="btn-ghost icon-btn"
+        title="Изменить тип"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Replace size={16} strokeWidth={1.8} />
+      </button>
+      {open && (
+        <div className="type-menu-pop" role="menu">
+          <div className="type-menu-head">Изменить тип на</div>
+          {DOCUMENT_TYPES.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="menuitem"
+              className="type-menu-item"
+              disabled={t.key === current}
+              onClick={() => { onChange(t.key); setOpen(false); }}
+            >
+              <span className="type-menu-ic" style={{ color: TYPE_COLORS[t.key]?.fg ?? "var(--muted)" }}>
+                <DocIcon name={t.icon} size={16} />
+              </span>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

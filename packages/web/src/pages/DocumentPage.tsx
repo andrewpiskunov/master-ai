@@ -12,7 +12,7 @@ import { Select } from "../ui/Select.js";
 import { Modal } from "../ui/Modal.js";
 import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
-import { TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
+import { ChangeTypeMenu, TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
 
 // Собирает JSON-документ ProseMirror из текста с разметкой — тем же путём
 // (textToHtml → generateJSON), что и редактор, чтобы заголовки/списки отрисовались.
@@ -96,6 +96,20 @@ export function DocumentPage() {
     }
   }
 
+  // Меняет тип документа (как «Change type» в Arks); статус сервер сбросит при несовместимости.
+  async function changeType(type: string) {
+    if (!documentId) return;
+    try {
+      const updated = await api.updateDocument(documentId, { type });
+      setDoc(updated);
+      setStatus(updated.status ?? "");
+      campaignCtx?.reload();
+      showToast("Тип изменён");
+    } catch {
+      showToast("Не удалось изменить тип");
+    }
+  }
+
   // Удаляет документ и возвращает на предыдущую страницу.
   async function remove() {
     if (!documentId) return;
@@ -142,6 +156,7 @@ export function DocumentPage() {
               />
             )}
             <button type="button" onClick={save}>Сохранить</button>
+            <ChangeTypeMenu current={doc.type} onChange={changeType} />
             <button type="button" className="btn-ghost doc-delete" onClick={() => setDeleting(true)} title="Удалить документ">
               <Trash2 size={16} strokeWidth={1.8} />
             </button>

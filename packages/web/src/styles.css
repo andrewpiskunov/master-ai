@@ -394,9 +394,29 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn:hover { text-decoration: none; filter: brightness(1.07); color: var(--accent-fg); }
 .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-ghost:hover { border-color: var(--accent); color: var(--text-strong); }
+/* Квадратная иконочная кнопка в шапке документа. */
+.icon-btn { display: inline-flex; align-items: center; padding: 9px 11px; color: var(--muted); }
+.icon-btn:hover { filter: none; }
 /* Иконочная кнопка удаления документа в шапке. */
 .doc-delete { display: inline-flex; align-items: center; padding: 9px 11px; color: var(--muted); }
 .doc-delete:hover { border-color: var(--danger); color: var(--danger); filter: none; }
+
+/* Меню смены типа документа. */
+.type-menu { position: relative; display: inline-flex; }
+.type-menu-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 230px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+.type-menu-head { padding: 6px 10px 8px; font-size: 0.78rem; color: var(--muted); }
+.type-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; justify-content: flex-start;
+  background: none; border: none; border-radius: 8px; padding: 8px 10px;
+  color: var(--text); font-weight: 400; cursor: pointer;
+}
+.type-menu-item:hover:not(:disabled) { background: var(--surface-3); filter: none; }
+.type-menu-item:disabled { color: var(--muted); opacity: 0.55; cursor: default; }
+.type-menu-ic { display: inline-flex; }
 
 form { margin: 0; display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
 form button { align-self: flex-start; }
