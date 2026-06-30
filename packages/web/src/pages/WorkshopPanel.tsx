@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
-import { Globe, RefreshCw, MessageCircle, Check, X, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Globe, RefreshCw, MessageCircle, Check, X, Plus, FileUp } from "lucide-react";
 import { Markdown } from "../ui/Markdown.js";
+import { Modal } from "../ui/Modal.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
 import type { MentionItem } from "../mentions.js";
 import { useWorkshopChat } from "./campaign/WorkshopChatContext.js";
@@ -29,6 +30,16 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
   const { messages, busy, send, draft, setDraft } = useWorkshopChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [source, setSource] = useState("");
+
+  function submitImport() {
+    const text = source.trim();
+    if (!text || busy) return;
+    send(`Вот исходный материал кампании (модуль, заметки, выдержки). Извлеки из него ключевые сущности — NPC, локации, фракции, секреты, сцены, арки — и оформи их документами. Сохраняй имена и факты из текста.\n\n---\n${text}`);
+    setSource("");
+    setImporting(false);
+  }
 
   // Подгоняем высоту поля под содержимое; скролл показываем только при достижении max-height.
   function autoGrow() {
@@ -56,6 +67,11 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
 
   return (
     <section className="workshop">
+      <div className="workshop-bar">
+        <button type="button" className="import-btn" onClick={() => setImporting(true)}>
+          <FileUp size={14} strokeWidth={1.9} /> Импорт материала
+        </button>
+      </div>
       <div className="chat" ref={chatRef}>
         {messages.length === 0 && !busy && (
           <p className="chat-empty">Опишите идею кампании — ИИ ответит и предложит документы.</p>
@@ -91,6 +107,29 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
         />
         <button type="submit" disabled={busy}>Отправить</button>
       </form>
+
+      {importing && (
+        <Modal title="Импорт материала" onClose={() => setImporting(false)}>
+          <p className="muted import-hint">
+            Вставьте исходник — модуль, свои заметки или выдержки с другого сайта. ИИ разберёт текст
+            и предложит документы (NPC, локации, фракции, секреты, сцены, арки), сохраняя имена и факты.
+          </p>
+          <label htmlFor="import-src" className="sr-only">Исходный материал</label>
+          <textarea
+            id="import-src"
+            className="import-textarea"
+            rows={10}
+            autoFocus
+            placeholder="Вставьте сюда текст модуля или заметок…"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+          />
+          <div className="modal-actions">
+            <button type="button" onClick={submitImport} disabled={!source.trim() || busy}>Разобрать материал</button>
+            <button type="button" className="btn-ghost" onClick={() => setImporting(false)}>Отмена</button>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

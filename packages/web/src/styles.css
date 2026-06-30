@@ -745,6 +745,11 @@ form button { align-self: flex-start; }
 
 /* ---------- Мастерская (чат) ---------- */
 .workshop { display: flex; flex-direction: column; gap: 14px; }
+.workshop-bar { display: flex; justify-content: flex-end; }
+.import-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; font-size: 0.82rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; }
+.import-btn:hover { filter: none; border-color: var(--accent); color: var(--text-strong); }
+.import-hint { font-size: 0.86rem; margin: 0 0 10px; }
+.import-textarea { width: 100%; resize: vertical; line-height: 1.5; }
 .chat { display: flex; flex-direction: column; gap: 14px; max-height: 56vh; overflow-y: auto; padding-right: 4px; }
 .chat::-webkit-scrollbar { width: 8px; }
 .chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
