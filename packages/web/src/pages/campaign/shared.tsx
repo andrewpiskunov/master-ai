@@ -152,7 +152,7 @@ export function TypeCards({
         const count = documents.filter((d) => d.type === key).length;
         return (
           <button key={key} type="button" className="type-card" onClick={() => onCreate(key)}>
-            <span className="type-card-icon"><TypeBadge type={key} size={38} /></span>
+            <span className="type-card-icon"><TypeBadge type={key} size={26} /></span>
             <span className="type-card-count">{count}</span>
             <span className="type-card-label">{t.label}</span>
             <span className="type-card-add">+ создать</span>
@@ -244,7 +244,7 @@ export function TypedLibrary({
   const visible = filter === "all" ? present : present.filter((t) => t === filter);
 
   return (
-    <div className="view">
+    <div className="view view-wide">
       <header className="view-head lib-head">
         <Icon size={24} strokeWidth={1.8} className="view-head-icon" />
         <div className="lib-head-main">
