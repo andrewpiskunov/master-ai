@@ -185,6 +185,24 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .view-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
 .view-head-icon { color: var(--accent-hover); margin-top: 4px; flex: none; }
 .view-sub { margin: 0; color: var(--muted); }
+.lib-head-main { flex: 1 1 auto; min-width: 0; }
+
+/* Переключатель вида сеткой/списком. */
+.view-toggle { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); flex: none; }
+.view-toggle button { padding: 6px 9px; background: none; border: none; border-radius: 7px; color: var(--muted); }
+.view-toggle button:hover { filter: none; color: var(--text); }
+.view-toggle button.active { background: var(--accent); color: var(--accent-fg); }
+
+/* Полоса фильтра по типу. */
+.type-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.type-filter-label { font-size: 0.74rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.type-filter .pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid transparent; color: var(--text); font-size: 0.88rem; font-weight: 500;
+}
+.type-filter .pill:hover { filter: none; background: var(--surface-3); }
+.type-filter .pill.active { background: var(--surface-3); border-color: var(--accent); color: var(--text-strong); }
+.type-filter .pill-count { font-size: 0.78rem; font-weight: 700; color: var(--muted); }
 
 @media (max-width: 860px) {
   .workspace { flex-direction: column; }

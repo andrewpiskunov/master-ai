@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
   User, Shield, MapPin, Users, Lock, Clapperboard, Calendar, Package, Book, Library, File,
-  Swords, Milestone, Replace,
+  Swords, Milestone, Replace, LayoutGrid, List,
   type LucideIcon,
 } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, type Campaign, type Document } from "@master-ai/shared";
@@ -158,8 +158,10 @@ export function TypeCards({
   );
 }
 
-// Раздел документов одного типа: заголовок с цветной иконкой + счётчик + сетка карточек.
-export function TypeSection({ type, documents }: { type: string; documents: Document[] }) {
+export type ViewMode = "grid" | "list";
+
+// Раздел документов одного типа: заголовок с цветной иконкой + счётчик + карточки.
+export function TypeSection({ type, documents, view = "grid" }: { type: string; documents: Document[]; view?: ViewMode }) {
   const t = getDocumentType(type);
   const docs = documents.filter((d) => d.type === type);
   if (docs.length === 0) return null;
@@ -170,10 +172,94 @@ export function TypeSection({ type, documents }: { type: string; documents: Docu
         <h2>{t?.label ?? type}</h2>
         <span className="count-badge">{docs.length}</span>
       </div>
-      <ul className="doc-cards grid">
-        {docs.map((d) => <li key={d.id}><DocCard doc={d} variant="tile" /></li>)}
+      <ul className={view === "grid" ? "doc-cards grid" : "doc-cards"}>
+        {docs.map((d) => <li key={d.id}><DocCard doc={d} variant={view === "grid" ? "tile" : "row"} /></li>)}
       </ul>
     </section>
+  );
+}
+
+// Переключатель вида: сеткой / списком.
+function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
+  return (
+    <div className="view-toggle" role="group" aria-label="Вид">
+      <button type="button" className={view === "grid" ? "active" : ""} aria-label="Сеткой" title="Сеткой" onClick={() => onChange("grid")}>
+        <LayoutGrid size={16} strokeWidth={1.8} />
+      </button>
+      <button type="button" className={view === "list" ? "active" : ""} aria-label="Списком" title="Списком" onClick={() => onChange("list")}>
+        <List size={16} strokeWidth={1.8} />
+      </button>
+    </div>
+  );
+}
+
+// Полоса фильтра по типу: «Все» + пилюли типов со счётчиками.
+function TypeFilterBar({
+  typeKeys, documents, value, onChange,
+}: { typeKeys: string[]; documents: Document[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="type-filter">
+      <span className="type-filter-label">Тип</span>
+      <button type="button" className={`pill${value === "all" ? " active" : ""}`} onClick={() => onChange("all")}>
+        Все <span className="pill-count">{documents.length}</span>
+      </button>
+      {typeKeys.map((t) => {
+        const def = getDocumentType(t);
+        const count = documents.filter((d) => d.type === t).length;
+        return (
+          <button key={t} type="button" className={`pill${value === t ? " active" : ""}`} onClick={() => onChange(t)}>
+            {def?.label ?? t}
+            <span className="pill-count" style={{ color: typeColor(t) }}>{count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Библиотека документов (База знаний / Игровые материалы) — общий красивый каркас
+// в духе Campaign Arks: шапка с переключателем вида, карточки-типы, фильтр, разделы.
+export function TypedLibrary({
+  icon: Icon, title, subtitle, typeKeys, documents, createDocument, storageKey,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: (count: number) => string;
+  typeKeys: string[];
+  documents: Document[];
+  createDocument: (type: string) => void;
+  storageKey: string;
+}) {
+  const [view, setView] = useState<ViewMode>(() => (localStorage.getItem(storageKey) === "list" ? "list" : "grid"));
+  const [filter, setFilter] = useState<string>("all");
+  useEffect(() => { localStorage.setItem(storageKey, view); }, [storageKey, view]);
+
+  const inScope = documents.filter((d) => typeKeys.includes(d.type));
+  const present = typeKeys.filter((t) => inScope.some((d) => d.type === t));
+  const visible = filter === "all" ? present : present.filter((t) => t === filter);
+
+  return (
+    <div className="view">
+      <header className="view-head lib-head">
+        <Icon size={24} strokeWidth={1.8} className="view-head-icon" />
+        <div className="lib-head-main">
+          <h1 className="page-title">{title}</h1>
+          <p className="view-sub">{subtitle(inScope.length)}</p>
+        </div>
+        <ViewToggle view={view} onChange={setView} />
+      </header>
+
+      <TypeCards typeKeys={typeKeys} documents={documents} onCreate={createDocument} />
+
+      {inScope.length === 0 ? (
+        <p className="muted">Пока пусто. Создайте документ или примите предложение ИИ в Мастерской.</p>
+      ) : (
+        <>
+          <TypeFilterBar typeKeys={present} documents={inScope} value={filter} onChange={setFilter} />
+          {visible.map((t) => <TypeSection key={t} type={t} documents={documents} view={view} />)}
+        </>
+      )}
+    </div>
   );
 }
 
