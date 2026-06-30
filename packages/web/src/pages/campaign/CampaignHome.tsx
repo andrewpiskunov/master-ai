@@ -33,6 +33,7 @@ function SessionsBoard({ campaignId, sessions, onNew }: { campaignId: string; se
   const current = sorted[0];
   const previous = sorted[1];
   const docHref = (id: string) => `/campaigns/${campaignId}/documents/${id}`;
+  const playHref = (id: string) => `/campaigns/${campaignId}/sessions/${id}/play`;
 
   return (
     <div className="sessions-board">
@@ -52,7 +53,7 @@ function SessionsBoard({ campaignId, sessions, onNew }: { campaignId: string; se
           <span className="session-title">{current.title}</span>
           <SessionStatus status={current.status} />
           <span className="session-edited">Изменено: {relTime(current.updatedAt)}</span>
-          <Link to={docHref(current.id)} className="btn session-run"><Play size={15} /> Открыть сессию</Link>
+          <Link to={playHref(current.id)} className="btn session-run"><Play size={15} /> Запустить сессию</Link>
         </div>
       </div>
 
@@ -67,6 +68,7 @@ function SessionsBoard({ campaignId, sessions, onNew }: { campaignId: string; se
               <FileText size={16} strokeWidth={1.7} className="sessions-row-icon" />
               <span className="sessions-row-title">{s.title}</span>
               <SessionStatus status={s.status} />
+              <Link to={playHref(s.id)} className="sessions-row-run"><Play size={13} /> Запустить</Link>
               <Link to={docHref(s.id)} className="sessions-row-open">Открыть</Link>
             </li>
           ))}

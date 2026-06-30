@@ -472,7 +472,32 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .sessions-row:hover { background: var(--surface-2); }
 .sessions-row-icon { color: var(--muted); flex: none; }
 .sessions-row-title { flex: 1 1 auto; min-width: 0; color: var(--text-strong); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sessions-row-run { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--accent-hover); font-weight: 600; font-size: 0.85rem; }
 .sessions-row-open { flex: none; color: var(--accent-hover); font-weight: 600; font-size: 0.85rem; }
+
+/* ---------- Режим игры (Play Mode) ---------- */
+.play-mode { position: fixed; inset: 0; z-index: 1200; display: flex; flex-direction: column; background: var(--bg); }
+.play-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+.play-head-title { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.play-head-title strong { color: var(--text-strong); font-size: 1.05rem; }
+.play-head-campaign { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.play-head-right { display: flex; align-items: center; gap: 12px; flex: none; }
+.play-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; color: #c084fc; background: rgba(192,132,252,0.14); border-radius: 999px; padding: 3px 10px; }
+.play-exit { display: inline-flex; align-items: center; gap: 6px; }
+.play-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.play-content { min-height: 0; overflow-y: auto; padding: 28px 36px; line-height: 1.7; font-size: 1.05rem; }
+.play-side { min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+.play-tabs2 { flex: none; display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.play-tabs2 button { padding: 4px 0; background: none; border: none; color: var(--muted); font-weight: 600; }
+.play-tabs2 button:hover { filter: none; color: var(--text); }
+.play-tabs2 button.active { color: var(--text-strong); }
+.play-draft { margin-left: auto; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.play-draft.saved { color: #4ade80; }
+.play-log { flex: 1 1 auto; min-height: 0; width: 100%; resize: none; border: none; border-radius: 0; background: transparent; padding: 18px; line-height: 1.6; }
+.play-log:focus { outline: none; box-shadow: none; }
+.play-assistant { flex: 1 1 auto; min-height: 0; display: flex; padding: 8px; }
+.play-assistant .doc-assistant { flex: 1 1 auto; min-height: 0; }
+@media (max-width: 860px) { .play-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } .play-side { border-left: none; border-top: 1px solid var(--border); } }
 @media (max-width: 720px) { .sessions-top { grid-template-columns: 1fr; } }
 
 /* ---------- Обзор кампании (как в Arks): контент + правая колонка ---------- */
