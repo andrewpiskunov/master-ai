@@ -463,6 +463,40 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .home-divider { border: none; border-top: 1px solid var(--border-soft); margin: 24px 0; }
 .home-new { display: inline-flex; align-items: center; gap: 8px; }
 
+/* ---------- Экран приветствия (нет кампаний) ---------- */
+.welcome-wrap { display: flex; justify-content: center; padding: 24px 0 64px; }
+.welcome {
+  width: 100%; max-width: 560px; display: flex; flex-direction: column;
+  padding: 32px 32px 28px; background: linear-gradient(180deg, var(--surface) 0%, var(--bg-2) 160%);
+  border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+.welcome-title { margin: 0; text-align: center; font-size: 1.6rem; line-height: 1.25; color: var(--text-strong); }
+.welcome-sub { margin: 10px 0 24px; text-align: center; color: var(--muted); }
+.welcome-input {
+  width: 100%; padding: 16px 18px; text-align: center; font-size: 1.15rem; font-weight: 600;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; color: var(--text-strong);
+}
+.welcome-input::placeholder { color: var(--muted); font-weight: 600; }
+.welcome-spark-head { display: flex; align-items: center; justify-content: space-between; margin: 16px 2px 8px; }
+.welcome-spark-label { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-hover); font-size: 0.85rem; font-weight: 600; }
+.welcome-refresh { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; font-size: 0.8rem; background: transparent; border: none; color: var(--muted); }
+.welcome-refresh:hover { filter: none; color: var(--text-strong); }
+.welcome-ideas { display: flex; flex-wrap: wrap; gap: 8px; }
+.welcome-idea {
+  padding: 7px 12px; font-size: 0.85rem; font-weight: 500;
+  background: var(--accent-soft); border: 1px solid rgba(59,130,246,0.3); border-radius: 999px; color: var(--text);
+}
+.welcome-idea:hover { filter: none; border-color: var(--accent); color: var(--text-strong); }
+.welcome-create {
+  margin-top: 18px; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px; font-size: 1rem;
+}
+.welcome-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0 14px; color: var(--muted); font-size: 0.8rem; }
+.welcome-divider::before, .welcome-divider::after { content: ""; flex: 1 1 auto; border-top: 1px solid var(--border-soft); }
+.welcome-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.welcome-steps li { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.92rem; }
+.welcome-steps li svg { color: var(--accent-hover); flex: none; }
+
 /* ---------- Списки-карточки (главная) ---------- */
 .card,
 .create-form {

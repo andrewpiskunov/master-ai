@@ -39,16 +39,15 @@ describe("HomePage", () => {
     expect(await screen.findByText(/не удалось загрузить кампании/i)).toBeInTheDocument();
   });
 
-  it("создаёт кампанию через форму «Новая кампания»", async () => {
+  it("без кампаний показывает экран приветствия и создаёт первую", async () => {
     vi.mocked(api.listCampaigns).mockResolvedValue([]);
     vi.mocked(api.createCampaign).mockResolvedValue({
       id: "c2", name: "Новая", system: null, description: null, realism: "balanced", createdAt: "x",
     });
     renderPage();
-    // форма скрыта за кнопкой «Новая кампания»
-    await userEvent.click(screen.getByRole("button", { name: /новая кампания/i }));
-    await userEvent.type(screen.getByLabelText(/название/i), "Новая");
-    await userEvent.click(screen.getByRole("button", { name: /^создать$/i }));
+    expect(await screen.findByText(/создадим первую кампанию/i)).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/название кампании/i), "Новая");
+    await userEvent.click(screen.getByRole("button", { name: /создать кампанию/i }));
     await waitFor(() => expect(api.createCampaign).toHaveBeenCalledWith({ name: "Новая" }));
   });
 });

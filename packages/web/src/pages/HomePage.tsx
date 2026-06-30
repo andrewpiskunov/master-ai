@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, RefreshCw, MessageCircle, FileText } from "lucide-react";
 import type { Campaign } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
@@ -13,53 +13,125 @@ function formatWhen(iso: string): string {
   }).format(d);
 }
 
+// Заготовки названий кампаний — для «Нужна идея?» на экране приветствия.
+const NAME_IDEAS = [
+  "Тени Старого Тракта", "Колокола Пепельной Гавани", "Корона Утонувших Королей",
+  "Тропа Стеклянного Ледника", "Оссуарий Пробуждённых Святых", "Знамя Восставшей Звезды",
+  "Могильник Трясинного Червя", "Осада Тлеющего Дозора", "Хроники Безмолвной Заставы",
+  "Дети Полуночного Двора", "Песни Утопленной Долины", "Печать Седьмого Замка",
+  "Гончие Багрового Тумана", "Завет Ледяного Пламени", "Шёпот Подземных Ярусов",
+  "Маяк на Краю Бурь",
+];
+
+function pickIdeas(): string[] {
+  const shuffled = [...NAME_IDEAS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 5);
+}
+
+function WelcomeScreen({ onCreate }: { onCreate: (name: string) => void }) {
+  const [name, setName] = useState("");
+  const [ideas, setIdeas] = useState<string[]>(() => pickIdeas());
+
+  return (
+    <div className="welcome-wrap">
+      <form className="welcome" onSubmit={(e) => { e.preventDefault(); onCreate(name); }}>
+        <h1 className="welcome-title">Добро пожаловать — создадим первую кампанию</h1>
+        <p className="welcome-sub">Назовите её, а дальше я помогу выстроить мир.</p>
+
+        <input
+          className="welcome-input"
+          aria-label="Название кампании"
+          placeholder="Как называется ваша кампания?"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+        />
+
+        <div className="welcome-spark-head">
+          <span className="welcome-spark-label"><Sparkles size={14} /> Нужна идея?</span>
+          <button type="button" className="welcome-refresh" onClick={() => setIdeas(pickIdeas())}>
+            <RefreshCw size={13} /> Обновить
+          </button>
+        </div>
+        <div className="welcome-ideas">
+          {ideas.map((idea) => (
+            <button key={idea} type="button" className="welcome-idea" onClick={() => setName(idea)}>{idea}</button>
+          ))}
+        </div>
+
+        <button type="submit" className="welcome-create" disabled={!name.trim()}>
+          <Plus size={18} strokeWidth={2} /> Создать кампанию
+        </button>
+
+        <div className="welcome-divider"><span>Дальше</span></div>
+        <ul className="welcome-steps">
+          <li><Sparkles size={16} /> Помощник откроется с идеями по вашему названию</li>
+          <li><MessageCircle size={16} /> Вы дорабатываете кампанию в коротком чате с ИИ</li>
+          <li><FileText size={16} /> Лучшие идеи станут первыми документами кампании</li>
+        </ul>
+      </form>
+    </div>
+  );
+}
+
 export function HomePage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    api.listCampaigns().then(setCampaigns).catch(() => showToast("Не удалось загрузить кампании"));
+    api.listCampaigns()
+      .then(setCampaigns)
+      .catch(() => showToast("Не удалось загрузить кампании"))
+      .finally(() => setLoaded(true));
   }, [showToast]);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
+  async function create(rawName: string) {
+    const n = rawName.trim();
+    if (!n) return;
     try {
-      const created = await api.createCampaign({ name: name.trim() });
-      setName("");
-      setCreating(false);
+      const created = await api.createCampaign({ name: n });
       navigate(`/campaigns/${created.id}/workshop`);
     } catch {
       showToast("Не удалось создать кампанию");
     }
   }
 
-  const sorted = [...campaigns].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    create(name);
+  }
+
+  const sorted = useMemo(
+    () => [...campaigns].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [campaigns],
+  );
+
+  // Нет кампаний — экран приветствия с созданием первой.
+  if (loaded && campaigns.length === 0) {
+    return <main className="home"><WelcomeScreen onCreate={create} /></main>;
+  }
 
   return (
     <main className="home">
       <h1 className="page-title">Продолжить</h1>
 
-      {sorted.length === 0 ? (
-        <p className="muted">Пока нет кампаний. Создайте первую.</p>
-      ) : (
-        <ul className="campaign-list">
-          {sorted.map((c) => (
-            <li key={c.id}>
-              <Link to={`/campaigns/${c.id}`} className="campaign-card">
-                <span className="campaign-card-body">
-                  <span className="campaign-card-name">{c.name}</span>
-                  <span className="campaign-card-meta">Обновлено {formatWhen(c.createdAt)}</span>
-                </span>
-                <span className="campaign-card-go" aria-hidden="true"><ArrowRight size={20} /></span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="campaign-list">
+        {sorted.map((c) => (
+          <li key={c.id}>
+            <Link to={`/campaigns/${c.id}`} className="campaign-card">
+              <span className="campaign-card-body">
+                <span className="campaign-card-name">{c.name}</span>
+                <span className="campaign-card-meta">Обновлено {formatWhen(c.createdAt)}</span>
+              </span>
+              <span className="campaign-card-go" aria-hidden="true"><ArrowRight size={20} /></span>
+            </Link>
+          </li>
+        ))}
+      </ul>
 
       <hr className="home-divider" />
 
