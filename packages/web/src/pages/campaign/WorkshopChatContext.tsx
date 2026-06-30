@@ -7,6 +7,8 @@ interface WorkshopChat {
   messages: ConversationMessage[];
   proposals: Proposal[];
   busy: boolean;
+  draft: string;
+  setDraft: (v: string) => void;
   send: (text: string) => void;
   approve: (id: string) => void;
   reject: (id: string) => void;
@@ -29,6 +31,8 @@ export function WorkshopChatProvider({
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [busy, setBusy] = useState(false);
+  // Черновик сообщения живёт здесь, чтобы не теряться при переключении вкладок.
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     api.getConversation(campaignId).then(setMessages).catch(() => showToast("Не удалось загрузить беседу"));
@@ -38,6 +42,7 @@ export function WorkshopChatProvider({
   const send = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
+    setDraft("");
     setMessages((prev) => [
       ...prev,
       { id: `u-${Date.now()}`, role: "user", content: trimmed, createdAt: new Date().toISOString() },
@@ -67,7 +72,7 @@ export function WorkshopChatProvider({
       .catch(() => showToast("Не удалось отклонить предложение"));
   }, [showToast]);
 
-  return <Ctx.Provider value={{ messages, proposals, busy, send, approve, reject }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ messages, proposals, busy, draft, setDraft, send, approve, reject }}>{children}</Ctx.Provider>;
 }
 
 export function useWorkshopChat(): WorkshopChat {

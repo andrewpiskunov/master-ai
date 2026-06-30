@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
 import type { MentionItem } from "../mentions.js";
@@ -6,8 +6,7 @@ import { useWorkshopChat } from "./campaign/WorkshopChatContext.js";
 import { TypeTag } from "./campaign/shared.js";
 
 export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
-  const { messages, busy, send } = useWorkshopChat();
-  const [input, setInput] = useState("");
+  const { messages, busy, send, draft, setDraft } = useWorkshopChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
 
@@ -20,7 +19,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
     el.style.height = `${Math.min(el.scrollHeight, max)}px`;
     el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
   }
-  useEffect(autoGrow, [input]);
+  useEffect(autoGrow, [draft]);
 
   // Держим чат прокрученным вниз — в т.ч. при возврате в раздел и при ответе ИИ.
   useEffect(() => {
@@ -30,10 +29,9 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
 
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
-    const text = input.trim();
+    const text = draft.trim();
     if (!text || busy) return;
     send(text);
-    setInput("");
   }
 
   return (
@@ -65,8 +63,8 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
           ref={textareaRef}
           rows={1}
           placeholder="Напишите сообщение… (@ — вставить сущность)"
-          value={input}
-          onChange={setInput}
+          value={draft}
+          onChange={setDraft}
           onEnter={() => submit({ preventDefault() {} })}
           mentions={(mentions ?? []).map((m) => ({ title: m.title, type: m.type }))}
           disabled={busy}
