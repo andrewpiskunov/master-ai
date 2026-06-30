@@ -394,6 +394,9 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn:hover { text-decoration: none; filter: brightness(1.07); color: var(--accent-fg); }
 .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-ghost:hover { border-color: var(--accent); color: var(--text-strong); }
+/* Иконочная кнопка удаления документа в шапке. */
+.doc-delete { display: inline-flex; align-items: center; padding: 9px 11px; color: var(--muted); }
+.doc-delete:hover { border-color: var(--danger); color: var(--danger); filter: none; }
 
 form { margin: 0; display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
 form button { align-self: flex-start; }

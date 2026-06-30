@@ -317,4 +317,26 @@ describe("жизненный цикл кампании", () => {
     const res = await app.inject({ method: "DELETE", url: "/api/campaigns/нет-такой" });
     expect(res.statusCode).toBe(404);
   });
+
+  it("DELETE удаляет документ и его связи", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const a = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "А" } })).json();
+    const b = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Б" } })).json();
+    await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/links`, payload: { campaignId: c.id, fromDocId: a.id, toDocId: b.id, kind: "знает" } });
+
+    const del = await app.inject({ method: "DELETE", url: `/api/documents/${a.id}` });
+    expect(del.statusCode).toBe(204);
+    expect((await app.inject({ method: "GET", url: `/api/documents/${a.id}` })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/documents` })).json()).toHaveLength(1);
+    // связь, ссылавшаяся на удалённый документ, тоже исчезла
+    const bLinks = (await app.inject({ method: "GET", url: `/api/documents/${b.id}/links` })).json();
+    expect(bLinks.incoming).toHaveLength(0);
+  });
+
+  it("DELETE несуществующего документа → 404", async () => {
+    const app = makeApp();
+    const res = await app.inject({ method: "DELETE", url: "/api/documents/нет-такой" });
+    expect(res.statusCode).toBe(404);
+  });
 });

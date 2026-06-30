@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { Document, NewDocument } from "@master-ai/shared";
-import { documents } from "../db/schema.js";
+import { documents, links } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
 
 type DocumentRow = typeof documents.$inferSelect;
@@ -86,5 +86,16 @@ export class DocumentService {
       });
     }
     return updated;
+  }
+
+  // Удаляет документ вместе с его связями и записью в полнотекстовом индексе.
+  delete(id: string): boolean {
+    if (!this.get(id)) return false;
+    this.db.transaction(() => {
+      this.db.run(sql`DELETE FROM documents_fts WHERE doc_id = ${id}`);
+      this.db.delete(links).where(or(eq(links.fromDocId, id), eq(links.toDocId, id))).run();
+      this.db.delete(documents).where(eq(documents.id, id)).run();
+    });
+    return true;
   }
 }

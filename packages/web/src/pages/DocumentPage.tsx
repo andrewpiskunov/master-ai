@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { generateJSON } from "@tiptap/core";
@@ -9,6 +9,7 @@ import { DocumentEditor, textToHtml, type DocumentEditorHandle } from "../editor
 import { useGoBack } from "../useGoBack.js";
 import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
+import { Modal } from "../ui/Modal.js";
 import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
 import { TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
@@ -44,6 +45,7 @@ export function DocumentPage() {
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<string>("");
   const [contentJson, setContentJson] = useState<unknown>(null);
+  const [deleting, setDeleting] = useState(false);
   const editorRef = useRef<DocumentEditorHandle>(null);
 
   useEffect(() => {
@@ -94,6 +96,19 @@ export function DocumentPage() {
     }
   }
 
+  // Удаляет документ и возвращает на предыдущую страницу.
+  async function remove() {
+    if (!documentId) return;
+    try {
+      await api.deleteDocument(documentId);
+      campaignCtx?.reload();
+      showToast("Документ удалён");
+      goBack();
+    } catch {
+      showToast("Не удалось удалить документ");
+    }
+  }
+
   if (!doc) return <div className="view"><p className="muted">…</p></div>;
 
   const t = getDocumentType(doc.type);
@@ -127,6 +142,9 @@ export function DocumentPage() {
               />
             )}
             <button type="button" onClick={save}>Сохранить</button>
+            <button type="button" className="btn-ghost doc-delete" onClick={() => setDeleting(true)} title="Удалить документ">
+              <Trash2 size={16} strokeWidth={1.8} />
+            </button>
           </header>
 
           <DocumentEditor
@@ -150,6 +168,18 @@ export function DocumentPage() {
           />
         </aside>
       </div>
+
+      {deleting && (
+        <Modal title="Удалить документ" onClose={() => setDeleting(false)}>
+          <p className="muted">
+            Документ «{title || doc.title}» ({t?.label ?? doc.type}) и его связи будут удалены безвозвратно.
+          </p>
+          <div className="modal-actions">
+            <button type="button" className="btn-danger" onClick={remove}>Удалить навсегда</button>
+            <button type="button" className="btn-ghost" onClick={() => setDeleting(false)}>Отмена</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

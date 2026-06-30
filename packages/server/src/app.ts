@@ -114,6 +114,12 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
     return doc;
   });
 
+  app.delete<IdParams>("/api/documents/:id", (req, reply) => {
+    const { id } = req.params;
+    if (!documentsSvc.delete(id)) return reply.code(404).send({ error: "документ не найден" });
+    return reply.code(204).send();
+  });
+
   app.patch<IdParams>("/api/documents/:id", (req, reply) => {
     const { id } = req.params;
     const parsed = DocumentPatchSchema.safeParse(req.body);

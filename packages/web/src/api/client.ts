@@ -57,6 +57,10 @@ export const api = {
   createDocument: (input: NewDocument) =>
     request<Document>("/api/documents", { method: "POST", body: JSON.stringify(input) }),
   getDocument: (id: string) => request<Document>(`/api/documents/${id}`),
+  deleteDocument: (id: string) =>
+    fetch(`/api/documents/${id}`, { method: "DELETE" }).then((res) => {
+      if (!res.ok) throw new ApiError(res.status, res.statusText);
+    }),
   updateDocument: (id: string, patch: DocumentPatch) =>
     request<Document>(`/api/documents/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   brainstorm: (campaignId: string, message: string) =>
