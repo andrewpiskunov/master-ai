@@ -158,12 +158,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           range.current = { from: range.current.from, to: editor.state.selection.to };
         },
       );
+      // Стрим завершён — превращаем markdown в оформленный текст (чтобы не висели «**» и «-»).
+      formatSuggestion();
     } catch (err) {
       // Fix 2: сохранить частичный стрим как предложение; удалять только если ничего не вставлено
       const { from, to } = range.current;
       editor.setEditable(true);
       if (to > from) {
-        // частичный стрим — оставить как предложение, Принять/Отклонить остаются доступны
+        // частичный стрим — тоже оформляем и оставляем как предложение
+        formatSuggestion();
         showToast("ИИ прервался — можно принять или отклонить начатое");
       } else {
         setSuggesting(false);
@@ -175,12 +178,25 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     }
   }
 
+  // Превращает markdown из стрима в оформленный текст и заново помечает диапазон
+  // как предложение — чтобы превью не висело с «**» и «-», а выглядело как итог.
+  function formatSuggestion() {
+    if (!editor) return;
+    const { from, to } = range.current;
+    if (to <= from) return;
+    const raw = editor.state.doc.textBetween(from, to, "\n").trim();
+    if (!raw) return;
+    editor.chain().deleteRange({ from, to }).insertContentAt(from, textToHtml(raw)).run();
+    const newTo = editor.state.selection.to;
+    editor.chain().setTextSelection({ from, to: newTo }).setMark("suggestion").run();
+    range.current = { from, to: newTo };
+  }
+
   function acceptSuggestion() {
     if (!editor) return;
     const { from, to } = range.current;
-    // Превращаем markdown-разметку из ответа ИИ в оформленный текст, а не оставляем «**» и «-».
-    const raw = editor.state.doc.textBetween(from, to, "\n").trim();
-    editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, textToHtml(raw)).run();
+    // Текст уже оформлен при завершении стрима — просто снимаем пометку «предложение».
+    if (to > from) editor.chain().focus().setTextSelection({ from, to }).unsetMark("suggestion").run();
     editor.setEditable(true);
     setSuggesting(false);
     // Fix 5: явный вызов onChange оставлен — onUpdate в jsdom не гарантирует вызов от chain().run()
