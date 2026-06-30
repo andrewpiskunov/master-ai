@@ -42,15 +42,24 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
     }
   });
 
-  function detect(text: string, caret: number) {
+  // resetIndex=true при изменении текста (новый запрос → курсор на первый пункт);
+  // false при перемещении каретки (стрелки/клик) — сохраняем выбранный пункт.
+  function detect(text: string, caret: number, resetIndex: boolean) {
     const before = text.slice(0, caret);
     const m = /(?:^|\s)@([^@\s]*)$/.exec(before);
     if (!m) { setMenu(null); return; }
     const query = m[1].toLowerCase();
     const items = mentions.filter((mn) => !query || mn.title.toLowerCase().includes(query)).slice(0, 8);
     if (!items.length) { setMenu(null); return; }
-    setMenu({ items, index: 0, start: caret - m[1].length - 1 });
+    const start = caret - m[1].length - 1;
+    setMenu((prev) => ({
+      items,
+      start,
+      index: resetIndex || !prev || prev.start !== start ? 0 : Math.min(prev.index, items.length - 1),
+    }));
   }
+
+  const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"]);
 
   function pick(item: MentionOption) {
     const el = innerRef.current;
@@ -81,9 +90,9 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
         placeholder={placeholder}
         value={value}
         disabled={disabled}
-        onChange={(e) => { onChange(e.target.value); detect(e.target.value, e.target.selectionStart); }}
-        onKeyUp={(e) => detect(e.currentTarget.value, e.currentTarget.selectionStart)}
-        onClick={(e) => detect(e.currentTarget.value, e.currentTarget.selectionStart)}
+        onChange={(e) => { onChange(e.target.value); detect(e.target.value, e.target.selectionStart, true); }}
+        onKeyUp={(e) => { if (!NAV_KEYS.has(e.key)) detect(e.currentTarget.value, e.currentTarget.selectionStart, false); }}
+        onClick={(e) => detect(e.currentTarget.value, e.currentTarget.selectionStart, false)}
         onBlur={() => setTimeout(() => setMenu(null), 120)}
         onKeyDown={onKeyDown}
       />
