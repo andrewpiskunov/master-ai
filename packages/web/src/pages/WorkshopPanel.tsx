@@ -91,11 +91,12 @@ export function WorkshopProposals() {
         {proposals.map((p) => (
           <div key={p.id} className="proposal">
             <div className="proposal-head">
+              {p.action === "update" && <span className="proposal-tag-update">Изменить</span>}
               <strong>{p.title}</strong> <TypeTag type={p.type} />
             </div>
             <div className="proposal-body"><Markdown>{p.content}</Markdown></div>
             <div className="proposal-actions">
-              <button type="button" onClick={() => approve(p.id)}>Принять</button>
+              <button type="button" onClick={() => approve(p.id)}>{p.action === "update" ? "Обновить" : "Принять"}</button>
               <button type="button" onClick={() => reject(p.id)}>Отклонить</button>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { createDb } from "../db/client.js";
 import { FakeProvider } from "../llm/fake.js";
 import { ConversationService } from "./conversations.js";
 import { ProposalService } from "./proposals.js";
+import { DocumentService } from "./documents.js";
 import { BrainstormService } from "./brainstorm.js";
 
 function make(reply: string) {
@@ -11,6 +12,7 @@ function make(reply: string) {
     llm: new FakeProvider([reply]),
     conversations: new ConversationService(db),
     proposals: new ProposalService(db),
+    documents: new DocumentService(db),
   });
 }
 

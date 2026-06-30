@@ -53,7 +53,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   const documentsSvc = new DocumentService(deps.db);
   const conversationsSvc = new ConversationService(deps.db);
   const proposalsSvc = new ProposalService(deps.db);
-  const brainstormSvc = new BrainstormService({ llm, conversations: conversationsSvc, proposals: proposalsSvc });
+  const brainstormSvc = new BrainstormService({ llm, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc });
   const linksSvc = new LinkService(deps.db);
   const searchSvc = new SearchService(deps.db);
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });

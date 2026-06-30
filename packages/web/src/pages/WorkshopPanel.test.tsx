@@ -27,7 +27,7 @@ describe("WorkshopPanel", () => {
     vi.mocked(api.brainstorm).mockResolvedValue({
       conversationId: "k1",
       reply: "Вот злодей.",
-      proposals: [{ id: "p1", campaignId: "c1", conversationId: "k1", type: "npc", title: "Барон", content: "Мрачный.", fields: {}, status: "pending", createdAt: "x" }],
+      proposals: [{ id: "p1", campaignId: "c1", conversationId: "k1", type: "npc", title: "Барон", content: "Мрачный.", fields: {}, action: "create", status: "pending", createdAt: "x" }],
     });
     vi.mocked(api.approveProposal).mockResolvedValue({
       id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: null, contentJson: null, fields: {}, createdAt: "x", updatedAt: "x",

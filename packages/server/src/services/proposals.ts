@@ -5,21 +5,62 @@ import type { Document, DraftProposal, Proposal, ProposalStatus } from "@master-
 import { proposals } from "../db/schema.js";
 import type { DocumentService } from "./documents.js";
 
-export function textToDoc(text: string): unknown {
-  const paragraphs = text.split("\n").filter((line) => line.trim().length > 0);
-  return {
-    type: "doc",
-    content: paragraphs.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })),
-  };
+// Инлайн-разметка (**жирный**, *курсив*) → текстовые узлы ProseMirror.
+function inlineNodes(text: string): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  const re = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push({ type: "text", text: text.slice(last, m.index) });
+    if (m[1] !== undefined) out.push({ type: "text", text: m[1], marks: [{ type: "bold" }] });
+    else out.push({ type: "text", text: m[2], marks: [{ type: "italic" }] });
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push({ type: "text", text: text.slice(last) });
+  return out.length ? out : [{ type: "text", text }];
+}
+
+// Markdown-текст → JSON-документ ProseMirror (заголовки, списки, жирный/курсив, абзацы).
+// Соответствует схеме StarterKit того же редактора, поэтому шаблоны рендерятся как структура.
+export function textToDoc(md: string): unknown {
+  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const content: Array<Record<string, unknown>> = [];
+  for (let i = 0; i < lines.length; ) {
+    const t = lines[i].trim();
+    if (t === "") { i++; continue; }
+    if (t.startsWith("### ")) { content.push({ type: "heading", attrs: { level: 3 }, content: inlineNodes(t.slice(4)) }); i++; continue; }
+    if (t.startsWith("## ")) { content.push({ type: "heading", attrs: { level: 2 }, content: inlineNodes(t.slice(3)) }); i++; continue; }
+    if (t.startsWith("# ")) { content.push({ type: "heading", attrs: { level: 2 }, content: inlineNodes(t.slice(2)) }); i++; continue; }
+    if (/^[-*]\s+/.test(t)) {
+      const items: Array<Record<string, unknown>> = [];
+      for (; i < lines.length && /^[-*]\s+/.test(lines[i].trim()); i++) {
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: inlineNodes(lines[i].trim().replace(/^[-*]\s+/, "")) }] });
+      }
+      content.push({ type: "bulletList", content: items });
+      continue;
+    }
+    if (/^\d+\.\s+/.test(t)) {
+      const items: Array<Record<string, unknown>> = [];
+      for (; i < lines.length && /^\d+\.\s+/.test(lines[i].trim()); i++) {
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: inlineNodes(lines[i].trim().replace(/^\d+\.\s+/, "")) }] });
+      }
+      content.push({ type: "orderedList", content: items });
+      continue;
+    }
+    content.push({ type: "paragraph", content: inlineNodes(t) });
+    i++;
+  }
+  return { type: "doc", content: content.length ? content : [{ type: "paragraph" }] };
 }
 
 interface ProposalRow {
   id: string; campaignId: string; conversationId: string; type: string;
-  title: string; content: string; fields: string; status: string; createdAt: string;
+  title: string; content: string; fields: string; action: string; status: string; createdAt: string;
 }
 
 function toProposal(r: ProposalRow): Proposal {
-  return { ...r, fields: JSON.parse(r.fields), status: r.status as ProposalStatus };
+  return { ...r, fields: JSON.parse(r.fields), action: (r.action as Proposal["action"]) ?? "create", status: r.status as ProposalStatus };
 }
 
 export class ProposalService {
@@ -34,6 +75,7 @@ export class ProposalService {
       title: input.draft.title,
       content: input.draft.content,
       fields: JSON.stringify(input.draft.fields ?? {}),
+      action: input.draft.action ?? "create",
       status: "pending",
       createdAt: new Date().toISOString(),
     };
@@ -57,13 +99,19 @@ export class ProposalService {
     const p = this.get(id);
     if (!p || p.status !== "pending") return undefined;
     return this.db.transaction(() => {
-      const doc = documents.create({
-        campaignId: p.campaignId,
-        type: p.type,
-        title: p.title,
-        contentJson: textToDoc(p.content),
-        fields: p.fields,
-      });
+      // Правка существующего документа: ищем по точному названию в кампании.
+      const existing = p.action === "update"
+        ? documents.listByCampaign(p.campaignId).find((d) => d.title.toLowerCase() === p.title.toLowerCase())
+        : undefined;
+      const doc = existing
+        ? documents.update(existing.id, { contentJson: textToDoc(p.content) })
+        : documents.create({
+            campaignId: p.campaignId,
+            type: p.type,
+            title: p.title,
+            contentJson: textToDoc(p.content),
+            fields: p.fields,
+          });
       this.db.update(proposals).set({ status: "approved" }).where(eq(proposals.id, id)).run();
       return doc;
     });

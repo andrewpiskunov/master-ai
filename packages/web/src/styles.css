@@ -576,6 +576,7 @@ form button { align-self: flex-start; }
 /* ---------- Предложения ---------- */
 /* Список предложений фиксированной высоты — при множестве карточек прокручивается внутри. */
 .proposals { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+.proposal-tag-update { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-hover); background: var(--accent-soft); border-radius: 5px; padding: 2px 6px; margin-right: 4px; }
 .proposal { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .proposal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
 .proposal-head strong { color: var(--text-strong); }

@@ -3,6 +3,9 @@ import { z } from "zod";
 export const ProposalStatusSchema = z.enum(["pending", "approved", "rejected"]);
 export type ProposalStatus = z.infer<typeof ProposalStatusSchema>;
 
+export const ProposalActionSchema = z.enum(["create", "update"]);
+export type ProposalAction = z.infer<typeof ProposalActionSchema>;
+
 export const ProposalSchema = z.object({
   id: z.string(),
   campaignId: z.string(),
@@ -11,6 +14,7 @@ export const ProposalSchema = z.object({
   title: z.string(),
   content: z.string(),
   fields: z.record(z.unknown()),
+  action: ProposalActionSchema,
   status: ProposalStatusSchema,
   createdAt: z.string(),
 });
@@ -21,6 +25,8 @@ export const DraftProposalSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
   fields: z.record(z.unknown()).optional(),
+  // "update" — изменить существующий документ с таким же title; по умолчанию "create".
+  action: ProposalActionSchema.optional(),
 });
 export type DraftProposal = z.infer<typeof DraftProposalSchema>;
 

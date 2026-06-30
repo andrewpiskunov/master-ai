@@ -6,7 +6,7 @@ describe("proposal schemas", () => {
     const v = {
       id: "p1", campaignId: "c1", conversationId: "k1",
       type: "npc", title: "Барон", content: "Мрачный аристократ.",
-      fields: {}, status: "pending", createdAt: "2026-06-29T00:00:00.000Z",
+      fields: {}, action: "create", status: "pending", createdAt: "2026-06-29T00:00:00.000Z",
     };
     expect(ProposalSchema.parse(v)).toEqual(v);
   });

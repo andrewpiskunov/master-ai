@@ -43,6 +43,7 @@ export const proposals = sqliteTable("proposals", {
   title: text("title").notNull(),
   content: text("content").notNull(),
   fields: text("fields").notNull().default("{}"),
+  action: text("action").notNull().default("create"),
   status: text("status").notNull().default("pending"),
   createdAt: text("created_at").notNull(),
 });
