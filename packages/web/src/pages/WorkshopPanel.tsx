@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Markdown } from "../ui/Markdown.js";
+import { MentionTextarea } from "../ui/MentionTextarea.js";
 import type { MentionItem } from "../mentions.js";
 import { useWorkshopChat } from "./campaign/WorkshopChatContext.js";
 import { TypeTag } from "./campaign/shared.js";
@@ -59,19 +60,15 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
 
       <form className="chat-form" onSubmit={submit}>
         <label htmlFor="brainstorm-input" className="sr-only">Сообщение</label>
-        <textarea
+        <MentionTextarea
           id="brainstorm-input"
           ref={textareaRef}
           rows={1}
-          placeholder="Напишите сообщение…"
+          placeholder="Напишите сообщение… (@ — вставить сущность)"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit(e);
-            }
-          }}
+          onChange={setInput}
+          onEnter={() => submit({ preventDefault() {} })}
+          mentions={(mentions ?? []).map((m) => ({ title: m.title, type: m.type }))}
           disabled={busy}
         />
         <button type="submit" disabled={busy}>Отправить</button>

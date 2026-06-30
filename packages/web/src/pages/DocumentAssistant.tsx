@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Plus, Send, Pencil } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { streamComplete } from "../api/stream.js";
 import { Markdown } from "../ui/Markdown.js";
+import { MentionTextarea } from "../ui/MentionTextarea.js";
 import { useToast } from "../ui/toast.js";
 import { TypeTag } from "./campaign/shared.js";
 
@@ -240,16 +241,15 @@ export function DocumentAssistant({
       </div>
       <form className="chat-form" onSubmit={send}>
         <label htmlFor="doc-assistant-input" className="sr-only">Сообщение помощнику</label>
-        <textarea
+        <MentionTextarea
           id="doc-assistant-input"
           ref={textareaRef}
           rows={2}
-          placeholder="Спросите про документ…"
+          placeholder="Спросите про документ… (@ — вставить сущность)"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(e); }
-          }}
+          onChange={setInput}
+          onEnter={() => send({ preventDefault() {} })}
+          mentions={documents}
           disabled={busy}
         />
         <button type="submit" className="chat-send" disabled={busy} title="Отправить">

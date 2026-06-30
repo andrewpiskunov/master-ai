@@ -800,6 +800,20 @@ a.mention:hover { filter: brightness(1.12); }
 .slash-title { color: var(--text-strong); font-weight: 600; font-size: 0.92rem; }
 .slash-hint { color: var(--muted); font-size: 0.78rem; }
 
+/* Автодополнение «@» в чатах (Мастерская, помощник) */
+.mention-input { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.mention-input textarea { width: 100%; }
+.mention-menu {
+  position: absolute; z-index: 70; bottom: calc(100% + 6px); left: 0; right: 0;
+  list-style: none; margin: 0; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.5); max-height: 240px; overflow-y: auto;
+}
+.mention-opt { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+.mention-opt:hover, .mention-opt.active { background: var(--surface-2); }
+.mention-opt-title { flex: 1 1 auto; min-width: 0; color: var(--text-strong); font-weight: 600; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mention-opt-type { flex: none; color: var(--muted); font-size: 0.74rem; }
+
 /* ---------- Помощник по документу ---------- */
 .doc-assistant { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .doc-assistant .doc-chat {
