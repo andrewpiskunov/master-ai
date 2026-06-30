@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
-import { Home, Lightbulb, BookOpen, Layers, Plus, PanelLeftClose, PanelLeftOpen, Trash2, Bookmark } from "lucide-react";
-import { DOCUMENT_TYPES, getTemplate, type Campaign, type Document } from "@master-ai/shared";
+import { Home, Lightbulb, BookOpen, Layers, Plus, PanelLeftClose, PanelLeftOpen, Bookmark, Settings, Wand2, Lightbulb as TipIcon } from "lucide-react";
+import { DOCUMENT_TYPES, getDocumentType, getTemplate, getTips, type Campaign, type Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { markdownToDoc } from "../../editor/DocumentEditor.js";
+import { streamComplete } from "../../api/stream.js";
 import { useToast } from "../../ui/toast.js";
 import { Modal } from "../../ui/Modal.js";
 import { Select } from "../../ui/Select.js";
@@ -31,19 +32,22 @@ export function CampaignWorkspace() {
   // Создание документа — через модалку, чтобы не плодить пустые документы.
   const [createType, setCreateType] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
 
   const reload = useCallback(() => {
     if (!campaignId) return;
     api.listCampaignDocuments(campaignId).then(setDocuments).catch(() => showToast("Не удалось загрузить документы"));
   }, [campaignId, showToast]);
 
-  useEffect(() => {
+  const reloadCampaign = useCallback(() => {
     if (!campaignId) return;
     api.getCampaign(campaignId).then(setCampaign).catch(() => showToast("Не удалось загрузить кампанию"));
+  }, [campaignId, showToast]);
+
+  useEffect(() => {
+    reloadCampaign();
     reload();
-  }, [campaignId, reload, showToast]);
+  }, [reloadCampaign, reload]);
 
   // Открывает окно создания (НЕ создаёт документ сразу).
   const createDocument = useCallback((type: string) => {
@@ -70,17 +74,30 @@ export function CampaignWorkspace() {
     }
   }
 
-  async function confirmDelete() {
-    if (!campaignId || !deleteConfirmed) return;
+  // Предложить название документа выбранного типа через ИИ.
+  async function suggestTitle() {
+    if (!createType || suggesting) return;
+    setSuggesting(true);
     try {
-      await api.deleteCampaign(campaignId);
-      navigate("/");
+      const label = getDocumentType(createType)?.label ?? createType;
+      let out = "";
+      await streamComplete(
+        {
+          system: `Ты помогаешь мастеру настольных ролевых игр. Предложи ОДНО короткое название (1–3 слова, без кавычек и пояснений) для нового документа типа «${label}»${campaign?.name ? ` в кампании «${campaign.name}»` : ""}. Верни только название.`,
+          messages: [{ role: "user", content: `Предложи название для документа типа «${label}».` }],
+        },
+        (c) => { out += c; },
+      );
+      const name = out.trim().split("\n")[0].replace(/^["'«»\s]+|["'«»\s]+$/g, "");
+      if (name) setNewTitle(name);
     } catch {
-      showToast("Не удалось удалить кампанию");
+      showToast("Не удалось предложить название");
+    } finally {
+      setSuggesting(false);
     }
   }
 
-  const ctx: CampaignContext = { campaignId: campaignId!, campaign, documents, reload, createDocument };
+  const ctx: CampaignContext = { campaignId: campaignId!, campaign, documents, reload, reloadCampaign, createDocument };
 
   return (
     <div className="workspace">
@@ -128,9 +145,9 @@ export function CampaignWorkspace() {
           <button type="button" className="ws-new" onClick={() => createDocument("note")} title="Новый документ">
             <Plus size={18} strokeWidth={2} /><span className="ws-label">Новый документ</span>
           </button>
-          <button type="button" className="ws-delete" onClick={() => { setDeleting(true); setDeleteConfirmed(false); }} title="Удалить кампанию">
-            <Trash2 size={16} strokeWidth={1.8} /><span className="ws-label">Удалить кампанию</span>
-          </button>
+          <NavLink to={`/campaigns/${campaignId}/manage`} className="ws-manage" title="Управление кампанией">
+            <Settings size={16} strokeWidth={1.8} /><span className="ws-label">Управление кампанией</span>
+          </NavLink>
         </div>
       </aside>
 
@@ -143,15 +160,7 @@ export function CampaignWorkspace() {
       {createType && (
         <Modal title="Новый документ" onClose={() => setCreateType(null)}>
           <form onSubmit={submitCreate}>
-            <label htmlFor="new-doc-title">Название</label>
-            <input
-              id="new-doc-title"
-              placeholder="Например, Барон фон Кройц"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              autoFocus
-            />
-            <label htmlFor="new-doc-type">Тип</label>
+            <label htmlFor="new-doc-type">Тип документа</label>
             <Select
               id="new-doc-type"
               ariaLabel="Тип"
@@ -159,30 +168,30 @@ export function CampaignWorkspace() {
               onChange={setCreateType}
               options={DOCUMENT_TYPES.map((t) => ({ value: t.key, label: t.label }))}
             />
+            <div className="field-head">
+              <label htmlFor="new-doc-title">Название</label>
+              <button type="button" className="suggest-btn" onClick={suggestTitle} disabled={suggesting}>
+                <Wand2 size={14} strokeWidth={1.9} /> {suggesting ? "Подбираю…" : "Предложить"}
+              </button>
+            </div>
+            <input
+              id="new-doc-title"
+              placeholder="Например, Барон фон Кройц"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              autoFocus
+            />
+            {getTips(createType).length > 0 && (
+              <div className="tips-box">
+                <div className="tips-head"><TipIcon size={15} strokeWidth={1.9} /> Совет: {getDocumentType(createType)?.label ?? createType}</div>
+                <ul>{getTips(createType).map((t, i) => <li key={i}>{t}</li>)}</ul>
+              </div>
+            )}
             <div className="modal-actions">
-              <button type="submit" disabled={!newTitle.trim()}>Создать</button>
+              <button type="submit" disabled={!newTitle.trim()}>Создать и открыть</button>
               <button type="button" className="btn-ghost" onClick={() => setCreateType(null)}>Отмена</button>
             </div>
           </form>
-        </Modal>
-      )}
-
-      {deleting && (
-        <Modal title="Удалить кампанию" onClose={() => setDeleting(false)}>
-          <p className="muted">
-            Кампания «{campaign?.name ?? ""}» и весь её контент — документы, связи, беседа —
-            будут удалены безвозвратно.
-          </p>
-          <label className="checkbox">
-            <input type="checkbox" checked={deleteConfirmed} onChange={(e) => setDeleteConfirmed(e.target.checked)} />
-            Я понимаю, что это нельзя отменить
-          </label>
-          <div className="modal-actions">
-            <button type="button" className="btn-danger" disabled={!deleteConfirmed} onClick={confirmDelete}>
-              Удалить навсегда
-            </button>
-            <button type="button" className="btn-ghost" onClick={() => setDeleting(false)}>Отмена</button>
-          </div>
         </Modal>
       )}
     </div>

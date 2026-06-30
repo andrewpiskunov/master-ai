@@ -27,7 +27,7 @@ function renderPage() {
 describe("HomePage", () => {
   it("показывает загруженные кампании", async () => {
     vi.mocked(api.listCampaigns).mockResolvedValue([
-      { id: "c1", name: "Город Солнца", system: null, description: null, createdAt: "2026-06-28T22:04:00.000Z" },
+      { id: "c1", name: "Город Солнца", system: null, description: null, realism: "balanced", createdAt: "2026-06-28T22:04:00.000Z" },
     ]);
     renderPage();
     expect(await screen.findByText("Город Солнца")).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe("HomePage", () => {
   it("создаёт кампанию через форму «Новая кампания»", async () => {
     vi.mocked(api.listCampaigns).mockResolvedValue([]);
     vi.mocked(api.createCampaign).mockResolvedValue({
-      id: "c2", name: "Новая", system: null, description: null, createdAt: "x",
+      id: "c2", name: "Новая", system: null, description: null, realism: "balanced", createdAt: "x",
     });
     renderPage();
     // форма скрыта за кнопкой «Новая кампания»

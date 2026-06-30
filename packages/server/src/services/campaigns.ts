@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import type { Campaign, NewCampaign } from "@master-ai/shared";
+import type { Campaign, CampaignPatch, NewCampaign } from "@master-ai/shared";
 import { campaigns, documents, links, proposals, conversations, messages } from "../db/schema.js";
 
 export class CampaignService {
@@ -13,6 +13,7 @@ export class CampaignService {
       name: input.name,
       system: input.system ?? null,
       description: input.description ?? null,
+      realism: input.realism ?? "balanced",
       createdAt: new Date().toISOString(),
     };
     this.db.insert(campaigns).values(row).run();
@@ -20,11 +21,23 @@ export class CampaignService {
   }
 
   list(): Campaign[] {
-    return this.db.select().from(campaigns).all();
+    return this.db.select().from(campaigns).all() as Campaign[];
   }
 
   get(id: string): Campaign | undefined {
-    return this.db.select().from(campaigns).where(eq(campaigns.id, id)).get();
+    return this.db.select().from(campaigns).where(eq(campaigns.id, id)).get() as Campaign | undefined;
+  }
+
+  update(id: string, patch: CampaignPatch): Campaign | undefined {
+    if (!this.get(id)) return undefined;
+    const updates: Partial<Campaign> = {};
+    if (patch.name !== undefined) updates.name = patch.name;
+    if (patch.description !== undefined) updates.description = patch.description;
+    if (patch.realism !== undefined) updates.realism = patch.realism;
+    if (Object.keys(updates).length) {
+      this.db.update(campaigns).set(updates).where(eq(campaigns.id, id)).run();
+    }
+    return this.get(id);
   }
 
   // Удаляет кампанию и весь связанный контент (документы, связи, предложения,

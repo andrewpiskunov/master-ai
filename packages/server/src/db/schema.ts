@@ -5,6 +5,7 @@ export const campaigns = sqliteTable("campaigns", {
   name: text("name").notNull(),
   system: text("system"),
   description: text("description"),
+  realism: text("realism").notNull().default("balanced"),
   createdAt: text("created_at").notNull(),
 });
 

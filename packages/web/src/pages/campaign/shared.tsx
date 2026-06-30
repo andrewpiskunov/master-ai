@@ -16,6 +16,7 @@ export interface CampaignContext {
   campaign: Campaign | null;
   documents: Document[];
   reload: () => void;
+  reloadCampaign: () => void;
   createDocument: (type: string) => void;
 }
 

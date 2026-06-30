@@ -31,7 +31,7 @@ function renderAt(path: string) {
 describe("CampaignWorkspace + KnowledgeBase", () => {
   it("показывает название кампании в сайдбаре и документы базы знаний", async () => {
     vi.mocked(api.getCampaign).mockResolvedValue({
-      id: "c1", name: "Город Солнца", system: null, description: null, createdAt: "x",
+      id: "c1", name: "Город Солнца", system: null, description: null, realism: "balanced", createdAt: "x",
     });
     vi.mocked(api.listCampaignDocuments).mockResolvedValue([
       { id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: null, contentJson: null, fields: {}, createdAt: "x", updatedAt: "x" },

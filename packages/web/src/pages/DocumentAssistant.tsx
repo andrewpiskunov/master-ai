@@ -77,6 +77,7 @@ export function DocumentAssistant({
   typeLabel,
   template,
   documents,
+  campaignBrief,
   getText,
   onApply,
   onCreateEntity,
@@ -87,6 +88,7 @@ export function DocumentAssistant({
   typeLabel: string;
   template?: string;
   documents: { title: string; type: string }[];
+  campaignBrief?: string;
   getText: () => string;
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => void;
@@ -129,7 +131,9 @@ export function DocumentAssistant({
         {
           system:
             `Ты — соавтор мастера настольных ролевых игр. Помогаешь дорабатывать документ кампании ` +
-            `(тип: ${typeLabel}, название: «${title}»). Текущий текст документа:\n${getText() || "(пусто)"}\n\n` +
+            `(тип: ${typeLabel}, название: «${title}»). ` +
+            (campaignBrief?.trim() ? `Бриф кампании (учитывай тон, жанр, мир, правила):\n${campaignBrief.trim()}\n\n` : "") +
+            `Текущий текст документа:\n${getText() || "(пусто)"}\n\n` +
             (template
               ? `Структура (шаблон) документов этого типа — заполняй и дорабатывай по ней, ` +
                 `сохраняя заголовки и подписи разделов:\n${template}\n\n`

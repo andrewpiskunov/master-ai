@@ -1,6 +1,7 @@
 import type {
   Campaign,
   NewCampaign,
+  CampaignPatch,
   Document,
   NewDocument,
   DocumentTypeDef,
@@ -48,6 +49,8 @@ export const api = {
   createCampaign: (input: NewCampaign) =>
     request<Campaign>("/api/campaigns", { method: "POST", body: JSON.stringify(input) }),
   getCampaign: (id: string) => request<Campaign>(`/api/campaigns/${id}`),
+  updateCampaign: (id: string, patch: CampaignPatch) =>
+    request<Campaign>(`/api/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteCampaign: (id: string) =>
     fetch(`/api/campaigns/${id}`, { method: "DELETE" }).then((res) => {
       if (!res.ok) throw new ApiError(res.status, res.statusText);

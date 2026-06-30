@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import {
   NewCampaignSchema,
+  CampaignPatchSchema,
   NewDocumentSchema,
   DOCUMENT_TYPES,
   getDocumentType,
@@ -53,7 +54,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   const documentsSvc = new DocumentService(deps.db);
   const conversationsSvc = new ConversationService(deps.db);
   const proposalsSvc = new ProposalService(deps.db);
-  const brainstormSvc = new BrainstormService({ llm, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc });
+  const brainstormSvc = new BrainstormService({ llm, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc });
   const linksSvc = new LinkService(deps.db);
   const searchSvc = new SearchService(deps.db);
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });
@@ -83,6 +84,15 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
     const campaign = campaignsSvc.get(id);
     if (!campaign) return reply.code(404).send({ error: "not found" });
     return campaign;
+  });
+
+  app.patch<IdParams>("/api/campaigns/:id", (req, reply) => {
+    const { id } = req.params;
+    const parsed = CampaignPatchSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    const updated = campaignsSvc.update(id, parsed.data);
+    if (!updated) return reply.code(404).send({ error: "кампания не найдена" });
+    return updated;
   });
 
   app.get<IdParams>("/api/campaigns/:id/documents", (req) => {

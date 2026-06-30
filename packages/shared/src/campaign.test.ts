@@ -8,6 +8,7 @@ describe("CampaignSchema", () => {
       name: "Город Солнца",
       system: "Hunter: The Vigil",
       description: null,
+      realism: "balanced",
       createdAt: "2026-06-29T00:00:00.000Z",
     };
     expect(CampaignSchema.parse(value)).toEqual(value);

@@ -1,6 +1,7 @@
-import { DOCUMENT_TEMPLATES, type BrainstormResponse, type LlmMessage, type Proposal } from "@master-ai/shared";
+import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type LlmMessage, type Proposal } from "@master-ai/shared";
 import type { LLMProvider } from "../llm/provider.js";
 import { parseProposals } from "../llm/parse-proposals.js";
+import type { CampaignService } from "./campaigns.js";
 import type { ConversationService } from "./conversations.js";
 import type { DocumentService } from "./documents.js";
 import type { ProposalService } from "./proposals.js";
@@ -46,11 +47,11 @@ const SYSTEM_PROMPT = [
 
 export class BrainstormService {
   constructor(
-    private deps: { llm: LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService },
+    private deps: { llm: LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService },
   ) {}
 
   async respond(campaignId: string, userMessage: string): Promise<BrainstormResponse> {
-    const { conversations, proposals, documents, llm } = this.deps;
+    const { conversations, proposals, documents, campaigns, llm } = this.deps;
     const conv = conversations.getOrCreateForCampaign(campaignId);
     conversations.addMessage(conv.id, "user", userMessage);
 
@@ -58,12 +59,19 @@ export class BrainstormService {
       .listMessages(conv.id)
       .map((m) => ({ role: m.role, content: m.content }));
 
+    // Настройки кампании — постоянный бриф (описание) и тон (реализм) идут в промт.
+    const campaign = campaigns.get(campaignId);
+    const brief = campaign?.description?.trim()
+      ? `\n\nБриф кампании (учитывай во всех предложениях — тон, жанр, мир, домашние правила):\n${campaign.description.trim()}`
+      : "";
+    const tone = `\n\n${realismHint(campaign?.realism ?? "balanced")}`;
+
     // Список существующих документов — чтобы ИИ менял их (action: update), а не плодил дубликаты.
     const existing = documents.listByCampaign(campaignId);
     const docList = existing.length
       ? existing.slice(0, 120).map((d) => `«${d.title}» (${d.type})`).join(", ")
       : "(пока нет)";
-    const system = `${SYSTEM_PROMPT}\n\nУже существующие документы кампании (для action: update используй их точные названия): ${docList}.`;
+    const system = `${SYSTEM_PROMPT}${brief}${tone}\n\nУже существующие документы кампании (для action: update используй их точные названия): ${docList}.`;
 
     let full = "";
     for await (const chunk of llm.complete({ system, messages: history })) {

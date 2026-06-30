@@ -315,6 +315,7 @@ export function DocumentPage() {
                 typeLabel={t?.label ?? doc.type}
                 template={getTemplate(doc.type)}
                 documents={allDocuments.map((d) => ({ title: d.title, type: d.type }))}
+                campaignBrief={campaignCtx?.campaign?.description ?? undefined}
                 getText={() => pmText(contentJson).trim()}
                 onApply={(text) => editorRef.current?.applyText(text)}
                 onCreateEntity={createEntity}
