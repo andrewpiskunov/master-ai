@@ -48,6 +48,7 @@ export function DocumentAssistant({
   docId,
   title,
   typeLabel,
+  template,
   getText,
   onApply,
   onCreateEntity,
@@ -55,6 +56,7 @@ export function DocumentAssistant({
   docId: string;
   title: string;
   typeLabel: string;
+  template?: string;
   getText: () => string;
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => void;
@@ -97,6 +99,10 @@ export function DocumentAssistant({
           system:
             `Ты — соавтор мастера настольных ролевых игр. Помогаешь дорабатывать документ кампании ` +
             `(тип: ${typeLabel}, название: «${title}»). Текущий текст документа:\n${getText() || "(пусто)"}\n\n` +
+            (template
+              ? `Структура (шаблон) документов этого типа — заполняй и дорабатывай по ней, ` +
+                `сохраняя заголовки и подписи разделов:\n${template}\n\n`
+              : "") +
             `Когда пользователь просит изменить, переписать или дополнить ЭТОТ документ — верни ПОЛНУЮ новую версию ` +
             `текста документа внутри блока \`\`\`doc и \`\`\` (обычный текст; при необходимости «## Заголовок», списки «- »). ` +
             `Вне блока коротко, по-русски, поясни, что изменил.\n\n` +

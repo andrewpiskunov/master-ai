@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
 import { Home, Lightbulb, BookOpen, Layers, Plus, PanelLeftClose, PanelLeftOpen, Trash2 } from "lucide-react";
-import { DOCUMENT_TYPES, type Campaign, type Document } from "@master-ai/shared";
+import { DOCUMENT_TYPES, getTemplate, type Campaign, type Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
+import { markdownToDoc } from "../../editor/DocumentEditor.js";
 import { useToast } from "../../ui/toast.js";
 import { Modal } from "../../ui/Modal.js";
 import { Select } from "../../ui/Select.js";
@@ -51,7 +52,13 @@ export function CampaignWorkspace() {
     e.preventDefault();
     if (!campaignId || !createType || !newTitle.trim()) return;
     try {
-      const doc = await api.createDocument({ campaignId, type: createType, title: newTitle.trim() });
+      const template = getTemplate(createType);
+      const doc = await api.createDocument({
+        campaignId,
+        type: createType,
+        title: newTitle.trim(),
+        contentJson: template ? markdownToDoc(template) : undefined,
+      });
       setCreateType(null);
       setNewTitle("");
       navigate(`/campaigns/${campaignId}/documents/${doc.id}`);

@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Trash2 } from "lucide-react";
-import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
+import { getDocumentType, getTemplate, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
-import { generateJSON } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import { DocumentEditor, textToHtml, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
+import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
 import { useGoBack } from "../useGoBack.js";
 import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
@@ -13,12 +11,6 @@ import { Modal } from "../ui/Modal.js";
 import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
 import { ChangeTypeMenu, TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
-
-// Собирает JSON-документ ProseMirror из текста с разметкой — тем же путём
-// (textToHtml → generateJSON), что и редактор, чтобы заголовки/списки отрисовались.
-function textToDoc(text: string): unknown {
-  return generateJSON(textToHtml(text) || "<p></p>", [StarterKit]);
-}
 
 // Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
 function pmText(node: unknown): string {
@@ -85,7 +77,7 @@ export function DocumentPage() {
         campaignId: doc.campaignId,
         type,
         title: entity.title,
-        contentJson: textToDoc(entity.text),
+        contentJson: markdownToDoc(entity.text),
       });
       await api.createLink({ campaignId: doc.campaignId, fromDocId: doc.id, toDocId: created.id, kind: "упоминает" }).catch(() => {});
       campaignCtx?.reload();
@@ -177,6 +169,7 @@ export function DocumentPage() {
             docId={doc.id}
             title={title}
             typeLabel={t?.label ?? doc.type}
+            template={getTemplate(doc.type)}
             getText={() => pmText(contentJson).trim()}
             onApply={(text) => editorRef.current?.applyText(text)}
             onCreateEntity={createEntity}

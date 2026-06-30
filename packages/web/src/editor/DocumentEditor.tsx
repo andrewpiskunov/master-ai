@@ -1,4 +1,5 @@
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { generateJSON } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { streamComplete } from "../api/stream.js";
@@ -16,27 +17,51 @@ export interface DocumentEditorHandle {
   applyText: (text: string) => void;
 }
 
-// Лёгкая конвертация текста (с базовой разметкой) в HTML для вставки в редактор.
+// Построчная конвертация markdown-ишного текста в HTML для вставки в редактор:
+// заголовки — отдельными блоками, подряд идущие пункты группируются в списки,
+// подряд идущие текстовые строки — в абзац. Заголовок без пустой строки перед
+// списком больше не «съедает» пункты.
 export function textToHtml(text: string): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const inline = (s: string) =>
     esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");
-  return text
-    .split(/\n\s*\n/)
-    .map((block) => {
-      const t = block.trim();
-      if (!t) return "";
-      if (t.startsWith("### ")) return `<h3>${inline(t.slice(4))}</h3>`;
-      if (t.startsWith("## ")) return `<h2>${inline(t.slice(3))}</h2>`;
-      if (t.startsWith("# ")) return `<h2>${inline(t.slice(2))}</h2>`;
-      const lines = t.split("\n");
-      if (lines.every((l) => /^[-*]\s+/.test(l)))
-        return `<ul>${lines.map((l) => `<li>${inline(l.replace(/^[-*]\s+/, ""))}</li>`).join("")}</ul>`;
-      if (lines.every((l) => /^\d+\.\s+/.test(l)))
-        return `<ol>${lines.map((l) => `<li>${inline(l.replace(/^\d+\.\s+/, ""))}</li>`).join("")}</ol>`;
-      return `<p>${lines.map(inline).join("<br>")}</p>`;
-    })
-    .join("");
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const out: string[] = [];
+  let para: string[] = [];
+  const flush = () => { if (para.length) { out.push(`<p>${para.map(inline).join("<br>")}</p>`); para = []; } };
+
+  for (let i = 0; i < lines.length; ) {
+    const t = lines[i].trim();
+    if (t === "") { flush(); i++; continue; }
+    if (t.startsWith("### ")) { flush(); out.push(`<h3>${inline(t.slice(4))}</h3>`); i++; continue; }
+    if (t.startsWith("## ")) { flush(); out.push(`<h2>${inline(t.slice(3))}</h2>`); i++; continue; }
+    if (t.startsWith("# ")) { flush(); out.push(`<h2>${inline(t.slice(2))}</h2>`); i++; continue; }
+    if (/^[-*]\s+/.test(t)) {
+      flush();
+      const items: string[] = [];
+      for (; i < lines.length && /^[-*]\s+/.test(lines[i].trim()); i++)
+        items.push(`<li>${inline(lines[i].trim().replace(/^[-*]\s+/, ""))}</li>`);
+      out.push(`<ul>${items.join("")}</ul>`);
+      continue;
+    }
+    if (/^\d+\.\s+/.test(t)) {
+      flush();
+      const items: string[] = [];
+      for (; i < lines.length && /^\d+\.\s+/.test(lines[i].trim()); i++)
+        items.push(`<li>${inline(lines[i].trim().replace(/^\d+\.\s+/, ""))}</li>`);
+      out.push(`<ol>${items.join("")}</ol>`);
+      continue;
+    }
+    para.push(t);
+    i++;
+  }
+  flush();
+  return out.join("");
+}
+
+// Markdown-текст → JSON-документ ProseMirror (для шаблонов и создаваемых сущностей).
+export function markdownToDoc(text: string): unknown {
+  return generateJSON(textToHtml(text) || "<p></p>", [StarterKit]);
 }
 
 interface SlashCommand { title: string; hint: string; keywords: string[]; run: (e: Editor) => void }
