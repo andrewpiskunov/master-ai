@@ -1,10 +1,14 @@
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import type { CompleteInput } from "@master-ai/shared";
 import { type LLMProvider, LlmError } from "./provider.js";
 
 export interface CliProviderConfig {
   command: string;
   args: string[];
+  // Рабочая директория для CLI. По умолчанию — нейтральный temp, чтобы инструменты
+  // вроде `claude` не подхватывали проектный CLAUDE.md и не подмешивали его в ответ.
+  cwd?: string;
 }
 
 export function renderPrompt(input: CompleteInput): string {
@@ -20,6 +24,7 @@ export class CliProvider implements LLMProvider {
   async *complete(input: CompleteInput): AsyncIterable<string> {
     const child = spawn(this.config.command, this.config.args, {
       stdio: ["pipe", "pipe", "pipe"],
+      cwd: this.config.cwd ?? tmpdir(),
     });
 
     // StringDecoder будет хранить незавершённые многобайтовые последовательности между чанками
