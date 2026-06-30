@@ -92,10 +92,20 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   ref,
 ) {
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [bubble, setBubble] = useState<{ top: number; left: number } | null>(null);
   const mentionsRef = useRef<MentionItem[]>(mentions ?? []);
   mentionsRef.current = mentions ?? [];
   const activeRef = useRef<HTMLLIElement>(null);
   useEffect(() => { activeRef.current?.scrollIntoView({ block: "nearest" }); }, [menu?.index]);
+
+  // Плавающая панель форматирования над выделенным текстом.
+  function detectBubble(ed: Editor) {
+    const sel = ed.state.selection;
+    if (sel.empty || !ed.isFocused) { setBubble(null); return; }
+    const a = ed.view.coordsAtPos(sel.from);
+    const b = ed.view.coordsAtPos(sel.to);
+    setBubble({ top: Math.min(a.top, b.top) - 10, left: (a.left + b.right) / 2 });
+  }
 
   // Меню по «/» (команды) и «@» (вставка сущностей кампании).
   function detectMenu(ed: Editor) {
@@ -140,8 +150,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const editor = useEditor({
     extensions: [StarterKit, MentionHighlight, Placeholder],
     content: (content as object) ?? "",
-    onUpdate: ({ editor }) => { onChange(editor.getJSON()); detectMenu(editor); },
-    onSelectionUpdate: ({ editor }) => detectMenu(editor),
+    onUpdate: ({ editor }) => { onChange(editor.getJSON()); detectMenu(editor); detectBubble(editor); },
+    onSelectionUpdate: ({ editor }) => { detectMenu(editor); detectBubble(editor); },
+    onBlur: () => setTimeout(() => setBubble(null), 150),
   });
 
   useImperativeHandle(ref, () => ({
@@ -187,10 +198,33 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     return () => window.removeEventListener("keydown", onKey, true);
   }, [menu]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fmtActive = (name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false;
+  const run = (fn: (c: ReturnType<NonNullable<typeof editor>["chain"]>) => void) => {
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    fn(chain);
+    detectBubble(editor);
+  };
+
   return (
     <div className="editor">
       <EditorContent editor={editor} />
       <p className="editor-hint">Введите «@», чтобы вставить или связать сущность кампании</p>
+      {bubble && editor && (
+        <div className="bubble-menu" style={{ top: bubble.top, left: bubble.left }} onMouseDown={(e) => e.preventDefault()}>
+          <button type="button" className={fmtActive("paragraph") ? "active" : ""} title="Текст" onClick={() => run((c) => c.setParagraph().run())}>T</button>
+          <button type="button" className={fmtActive("heading", { level: 2 }) ? "active" : ""} title="Заголовок" onClick={() => run((c) => c.toggleHeading({ level: 2 }).run())}>H2</button>
+          <button type="button" className={fmtActive("heading", { level: 3 }) ? "active" : ""} title="Подзаголовок" onClick={() => run((c) => c.toggleHeading({ level: 3 }).run())}>H3</button>
+          <span className="bubble-sep" />
+          <button type="button" className={fmtActive("bold") ? "active" : ""} title="Жирный" onClick={() => run((c) => c.toggleBold().run())}><strong>Ж</strong></button>
+          <button type="button" className={fmtActive("italic") ? "active" : ""} title="Курсив" onClick={() => run((c) => c.toggleItalic().run())}><em>К</em></button>
+          <button type="button" className={fmtActive("strike") ? "active" : ""} title="Зачёркнутый" onClick={() => run((c) => c.toggleStrike().run())}><s>S</s></button>
+          <span className="bubble-sep" />
+          <button type="button" className={fmtActive("bulletList") ? "active" : ""} title="Список" onClick={() => run((c) => c.toggleBulletList().run())}>•</button>
+          <button type="button" className={fmtActive("orderedList") ? "active" : ""} title="Нумерованный список" onClick={() => run((c) => c.toggleOrderedList().run())}>1.</button>
+          <button type="button" className={fmtActive("blockquote") ? "active" : ""} title="Цитата" onClick={() => run((c) => c.toggleBlockquote().run())}>❝</button>
+        </div>
+      )}
       {menu && (
         <ul className="slash-menu" role="listbox" style={{ top: menu.top, left: menu.left }}>
           {menu.items.map((c, i) => (

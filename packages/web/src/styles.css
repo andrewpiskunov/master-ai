@@ -923,6 +923,21 @@ form button { align-self: flex-start; }
 .editor { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 .editor > div { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 .ProseMirror { flex: 1 1 auto; min-height: 320px; padding: 26px 30px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); line-height: 1.65; font-size: 1.02rem; }
+/* Плавающая панель форматирования над выделением */
+.bubble-menu {
+  position: fixed; z-index: 75; transform: translate(-50%, -100%);
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.bubble-menu button {
+  min-width: 30px; height: 30px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: 7px; color: var(--text); font-size: 0.85rem; font-weight: 600;
+}
+.bubble-menu button:hover { filter: none; background: var(--surface-2); }
+.bubble-menu button.active { background: var(--accent-soft); color: var(--accent-hover); }
+.bubble-sep { width: 1px; height: 20px; background: var(--border-soft); margin: 0 3px; }
+
 /* Подсказка в пустом блоке под курсором */
 .ProseMirror .pm-empty::before {
   content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--muted);
