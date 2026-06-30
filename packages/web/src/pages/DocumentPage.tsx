@@ -8,7 +8,7 @@ import { useGoBack } from "../useGoBack.js";
 import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
 import { Modal } from "../ui/Modal.js";
-import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
+import { DocumentAssistant, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
 import { PlayPanel } from "./PlayPanel.js";
 import { ChangeTypeMenu, typeColor, typeColors, useCampaign } from "./campaign/shared.js";
 import { isBookmarked, toggleBookmark } from "../bookmarks.js";
@@ -128,6 +128,23 @@ export function DocumentPage() {
       navigate(`/campaigns/${doc.campaignId}/documents/${created.id}`);
     } catch {
       showToast("Не удалось создать сущность");
+    }
+  }
+
+  // Применяет предложенную ИИ правку существующего документа (переименование/новый текст).
+  async function editEntity(edit: EditEntity) {
+    const target = allDocuments.find((d) => d.title.toLowerCase() === edit.title.toLowerCase());
+    if (!target) { showToast(`Не найден документ «${edit.title}»`); return; }
+    const patch: { title?: string; contentJson?: unknown } = {};
+    if (edit.rename && edit.rename !== target.title) patch.title = edit.rename;
+    if (edit.text) patch.contentJson = markdownToDoc(edit.text);
+    if (patch.title === undefined && patch.contentJson === undefined) { showToast("Нечего менять"); return; }
+    try {
+      await api.updateDocument(target.id, patch);
+      campaignCtx?.reload();
+      showToast(`Обновлено: «${edit.rename ?? target.title}»`);
+    } catch {
+      showToast("Не удалось обновить документ");
     }
   }
 
@@ -297,9 +314,11 @@ export function DocumentPage() {
                 title={title}
                 typeLabel={t?.label ?? doc.type}
                 template={getTemplate(doc.type)}
+                documents={allDocuments.map((d) => ({ title: d.title, type: d.type }))}
                 getText={() => pmText(contentJson).trim()}
                 onApply={(text) => editorRef.current?.applyText(text)}
                 onCreateEntity={createEntity}
+                onEditEntity={editEntity}
               />
             ) : (
               <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />
