@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
-import { Home, Lightbulb, BookOpen, Layers, Plus, PanelLeftClose, PanelLeftOpen, Trash2 } from "lucide-react";
+import { Home, Lightbulb, BookOpen, Layers, Plus, PanelLeftClose, PanelLeftOpen, Trash2, Bookmark } from "lucide-react";
 import { DOCUMENT_TYPES, getTemplate, type Campaign, type Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { markdownToDoc } from "../../editor/DocumentEditor.js";
@@ -9,7 +9,9 @@ import { Modal } from "../../ui/Modal.js";
 import { Select } from "../../ui/Select.js";
 import { SearchBox } from "../SearchBox.js";
 import type { CampaignContext } from "./shared.js";
+import { TypeBadge } from "./shared.js";
 import { WorkshopChatProvider } from "./WorkshopChatContext.js";
+import { useBookmarks } from "../../bookmarks.js";
 
 export function CampaignWorkspace() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -17,6 +19,7 @@ export function CampaignWorkspace() {
   const { showToast } = useToast();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const bookmarks = useBookmarks(campaignId);
 
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("ws-collapsed") === "1"; } catch { return false; }
@@ -102,6 +105,20 @@ export function CampaignWorkspace() {
           <NavLink to={`/campaigns/${campaignId}/knowledge`} title="База знаний"><BookOpen size={18} strokeWidth={1.8} /><span className="ws-label">База знаний</span></NavLink>
           <NavLink to={`/campaigns/${campaignId}/play`} title="Игровые материалы"><Layers size={18} strokeWidth={1.8} /><span className="ws-label">Игровые материалы</span></NavLink>
         </nav>
+
+        {bookmarks.length > 0 && (
+          <div className="ws-bookmarks">
+            <div className="ws-bookmarks-head"><Bookmark size={14} strokeWidth={1.8} /><span className="ws-label">Закладки</span></div>
+            <nav className="ws-bookmarks-list">
+              {bookmarks.map((b) => (
+                <NavLink key={b.id} to={`/campaigns/${campaignId}/documents/${b.id}`} className="ws-bookmark" title={b.title}>
+                  <TypeBadge type={b.type} size={20} />
+                  <span className="ws-label ws-bookmark-title">{b.title}</span>
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        )}
 
         <div className="ws-search">
           <SearchBox campaignId={campaignId!} />

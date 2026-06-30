@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -12,6 +12,7 @@ import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
 import { PlayPanel } from "./PlayPanel.js";
 import { ChangeTypeMenu, TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
+import { isBookmarked, toggleBookmark } from "../bookmarks.js";
 
 // Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
 function pmText(node: unknown): string {
@@ -40,7 +41,15 @@ export function DocumentPage() {
   const [contentJson, setContentJson] = useState<unknown>(null);
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<"assistant" | "play">("assistant");
+  const [marked, setMarked] = useState(false);
   const editorRef = useRef<DocumentEditorHandle>(null);
+
+  useEffect(() => { if (documentId) setMarked(isBookmarked(documentId)); }, [documentId]);
+
+  function toggleMark() {
+    if (!doc) return;
+    setMarked(toggleBookmark({ id: doc.id, campaignId: doc.campaignId, title: doc.title, type: doc.type }));
+  }
 
   useEffect(() => {
     if (!documentId) return;
@@ -158,6 +167,9 @@ export function DocumentPage() {
               />
             )}
             <button type="button" onClick={save}>Сохранить</button>
+            <button type="button" className={`btn-ghost icon-btn doc-bookmark${marked ? " active" : ""}`} onClick={toggleMark} title={marked ? "Убрать из закладок" : "В закладки"} aria-pressed={marked}>
+              <BookmarkIcon size={16} strokeWidth={1.8} fill={marked ? "currentColor" : "none"} />
+            </button>
             <ChangeTypeMenu current={doc.type} onChange={changeType} />
             <button type="button" className="btn-ghost doc-delete" onClick={() => setDeleting(true)} title="Удалить документ">
               <Trash2 size={16} strokeWidth={1.8} />

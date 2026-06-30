@@ -125,6 +125,28 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .ws-nav a.active { background: var(--accent-soft); color: var(--accent-hover); }
 
 .ws-search .search-box { margin: 0; }
+
+/* Закладки — быстрый доступ к документам в сайдбаре */
+.ws-bookmarks { display: flex; flex-direction: column; gap: 4px; }
+.ws-bookmarks-head {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 4px;
+}
+.ws-bookmarks-list { display: flex; flex-direction: column; gap: 2px; }
+.ws-bookmark {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: var(--radius-sm); color: var(--text); font-size: 13px;
+}
+.ws-bookmark:hover { text-decoration: none; background: var(--surface); color: var(--text-strong); }
+.ws-bookmark.active { background: var(--accent-soft); color: var(--accent-hover); }
+.ws-bookmark-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar.collapsed .ws-bookmarks-head { justify-content: center; }
+.sidebar.collapsed .ws-bookmark { justify-content: center; padding: 6px; }
+
+/* Кнопка-закладка на странице документа */
+.doc-bookmark.active { color: var(--accent); border-color: var(--accent); }
+
 .ws-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
 .ws-new {
   width: 100%;
