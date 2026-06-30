@@ -974,6 +974,13 @@ a.mention:hover { filter: brightness(1.12); }
 .mention.mention-reference { background: #172554; color: #bfdbfe; }
 .mention.mention-note { background: #1e293b; color: #cbd5e1; }
 .editor-hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
+.editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.editor-footer .editor-hint { flex: 1 1 auto; }
+.autocomplete-toggle { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 4px 9px; font-size: 0.78rem; font-weight: 600; background: transparent; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
+.autocomplete-toggle:hover { filter: none; color: var(--text); }
+.autocomplete-toggle.on { background: var(--accent-soft); border-color: rgba(59,130,246,0.32); color: var(--accent-hover); }
+/* Призрачный текст-подсказка ИИ */
+.ghost-text { color: var(--muted); opacity: 0.55; pointer-events: none; white-space: pre-wrap; }
 
 /* ---------- Меню команд «/» ---------- */
 .slash-menu {

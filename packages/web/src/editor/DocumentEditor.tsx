@@ -2,9 +2,12 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { getDocumentType } from "@master-ai/shared";
+import { streamComplete } from "../api/stream.js";
 import { MentionHighlight, mentionKey, type MentionItem } from "./MentionHighlight.js";
 import { Placeholder } from "./Placeholder.js";
+import { GhostText, ghostKey } from "./GhostText.js";
 
 interface DocumentEditorProps {
   content: unknown;
@@ -93,6 +96,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
 ) {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [bubble, setBubble] = useState<{ top: number; left: number } | null>(null);
+  const [autocomplete, setAutocomplete] = useState(() => {
+    try { return localStorage.getItem("ai-autocomplete") !== "off"; } catch { return true; }
+  });
+  const ghostTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ghostToken = useRef(0);
+  const autocompleteRef = useRef(autocomplete);
+  autocompleteRef.current = autocomplete;
   const mentionsRef = useRef<MentionItem[]>(mentions ?? []);
   mentionsRef.current = mentions ?? [];
   const activeRef = useRef<HTMLLIElement>(null);
@@ -147,10 +157,44 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     setMenu(null);
   }
 
+  // Запрос ИИ-продолжения (ghost-текст) после паузы в наборе.
+  function scheduleGhost(ed: Editor) {
+    if (ghostTimer.current) clearTimeout(ghostTimer.current);
+    if (!autocompleteRef.current) return;
+    ghostTimer.current = setTimeout(() => {
+      const sel = ed.state.selection;
+      if (!sel.empty) return;
+      const $head = sel.$from;
+      if ($head.parentOffset !== $head.parent.content.size) return; // только в конце блока
+      const before = ed.state.doc.textBetween(0, sel.head, "\n", " ");
+      if (before.trim().length < 20) return;
+      const token = ++ghostToken.current;
+      const head = sel.head;
+      const size = ed.state.doc.content.size;
+      let out = "";
+      streamComplete(
+        {
+          system: "Ты — соавтор мастера настольных ролевых игр. Продолжи текст ОДНИМ коротким фрагментом (полфразы–одна фраза), естественно стыкуясь с уже написанным. Не повторяй написанное, без кавычек и пояснений. Верни только продолжение.",
+          messages: [{ role: "user", content: `Текст:\n${before}\n\nПродолжи с этого места.` }],
+        },
+        (c) => { out += c; },
+      ).then(() => {
+        if (token !== ghostToken.current) return;
+        const cur = ed.state.selection;
+        if (!cur.empty || cur.head !== head || ed.state.doc.content.size !== size) return;
+        let text = out.trim();
+        if (!text) return;
+        if (/\s$/.test(before) && /^\s/.test(text)) text = text.replace(/^\s+/, "");
+        else if (!/\s$/.test(before) && !/^\s/.test(text)) text = ` ${text}`;
+        ed.view.dispatch(ed.state.tr.setMeta(ghostKey, text));
+      }).catch(() => {});
+    }, 900);
+  }
+
   const editor = useEditor({
-    extensions: [StarterKit, MentionHighlight, Placeholder],
+    extensions: [StarterKit, MentionHighlight, Placeholder, GhostText],
     content: (content as object) ?? "",
-    onUpdate: ({ editor }) => { onChange(editor.getJSON()); detectMenu(editor); detectBubble(editor); },
+    onUpdate: ({ editor }) => { onChange(editor.getJSON()); detectMenu(editor); detectBubble(editor); scheduleGhost(editor); },
     onSelectionUpdate: ({ editor }) => { detectMenu(editor); detectBubble(editor); },
     onBlur: () => setTimeout(() => setBubble(null), 150),
   });
@@ -209,7 +253,22 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   return (
     <div className="editor">
       <EditorContent editor={editor} />
-      <p className="editor-hint">Введите «@», чтобы вставить или связать сущность кампании</p>
+      <div className="editor-footer">
+        <p className="editor-hint">Введите «@», чтобы вставить или связать сущность · «/» — команды · Tab — принять подсказку ИИ</p>
+        <button
+          type="button"
+          className={`autocomplete-toggle${autocomplete ? " on" : ""}`}
+          title="ИИ-автодополнение текста"
+          onClick={() => {
+            const next = !autocomplete;
+            setAutocomplete(next);
+            try { localStorage.setItem("ai-autocomplete", next ? "on" : "off"); } catch { /* ignore */ }
+            if (!next && editor) editor.view.dispatch(editor.state.tr.setMeta(ghostKey, ""));
+          }}
+        >
+          <Sparkles size={13} /> Автодополнение: {autocomplete ? "вкл" : "выкл"}
+        </button>
+      </div>
       {bubble && editor && (
         <div className="bubble-menu" style={{ top: bubble.top, left: bubble.left }} onMouseDown={(e) => e.preventDefault()}>
           <button type="button" className={fmtActive("paragraph") ? "active" : ""} title="Текст" onClick={() => run((c) => c.setParagraph().run())}>T</button>
