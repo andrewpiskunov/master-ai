@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createDb } from "../db/client.js";
 import { DocumentService } from "./documents.js";
+import { ConversationService } from "./conversations.js";
 
 function makeService() {
   const { db } = createDb(":memory:");
@@ -43,5 +44,19 @@ describe("DocumentService", () => {
   it("get возвращает undefined для несуществующего id", () => {
     const svc = makeService();
     expect(svc.get("nope")).toBeUndefined();
+  });
+
+  it("delete удаляет беседу ассистента и её сообщения вместе с документом", () => {
+    const { db } = createDb(":memory:");
+    const docs = new DocumentService(db);
+    const convs = new ConversationService(db);
+    const doc = docs.create({ campaignId: "c1", type: "npc", title: "Глеб" });
+    const conv = convs.getOrCreateForDocument("c1", doc.id);
+    convs.addMessage(conv.id, "user", "привет");
+
+    expect(docs.delete(doc.id)).toBe(true);
+    // беседа документа и её сообщения должны исчезнуть — не остаётся «висячих» строк
+    expect(convs.listMessages(conv.id)).toHaveLength(0);
+    expect(convs.getOrCreateForDocument("c1", doc.id).id).not.toBe(conv.id);
   });
 });

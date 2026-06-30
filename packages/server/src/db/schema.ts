@@ -25,6 +25,8 @@ export const documents = sqliteTable("documents", {
 export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),
   campaignId: text("campaign_id").notNull(),
+  // null — беседа Мастерской (на всю кампанию); иначе — чат ассистента по документу
+  documentId: text("document_id"),
   createdAt: text("created_at").notNull(),
 });
 

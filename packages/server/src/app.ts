@@ -79,6 +79,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   const linksSvc = new LinkService(deps.db);
   const searchSvc = new SearchService(deps.db);
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });
+  const NewMessageSchema = z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1) });
 
   app.get("/api/document-types", () => DOCUMENT_TYPES);
 
@@ -227,6 +228,24 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
     const { id } = req.params as { id: string };
     const conv = conversationsSvc.getOrCreateForCampaign(id);
     return conversationsSvc.listMessages(conv.id);
+  });
+
+  app.get<IdParams>("/api/documents/:id/conversation", (req, reply) => {
+    const { id } = req.params;
+    const doc = documentsSvc.get(id);
+    if (!doc) return reply.code(404).send({ error: "документ не найден" });
+    const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
+    return conversationsSvc.listMessages(conv.id);
+  });
+
+  app.post<IdParams>("/api/documents/:id/conversation/messages", (req, reply) => {
+    const { id } = req.params;
+    const parsed = NewMessageSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    const doc = documentsSvc.get(id);
+    if (!doc) return reply.code(404).send({ error: "документ не найден" });
+    const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
+    return reply.code(201).send(conversationsSvc.addMessage(conv.id, parsed.data.role, parsed.data.content));
   });
 
   app.post("/api/proposals/:id/approve", (req, reply) => {

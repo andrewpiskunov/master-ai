@@ -12,6 +12,7 @@ beforeEach(() => vi.resetAllMocks());
 beforeEach(() => {
   vi.mocked(api.listDocumentLinks).mockResolvedValue({ outgoing: [], incoming: [] });
   vi.mocked(api.listCampaignDocuments).mockResolvedValue([]);
+  vi.mocked(api.getDocumentConversation).mockResolvedValue([]);
 });
 
 function renderAt(id: string) {

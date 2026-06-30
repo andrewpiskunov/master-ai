@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Plus, Send, Pencil } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
+import { api } from "../api/client.js";
 import { streamComplete } from "../api/stream.js";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
@@ -31,9 +32,6 @@ function parseEdits(content: string): { edits: EditEntity[]; rest: string } {
   }
   return { edits, rest };
 }
-
-// Беседы по документам переживают переключение между карточками в рамках сессии.
-const chatCache = new Map<string, Msg[]>();
 
 // Разбирает блок ```new-doc … ``` с предложением создать новую сущность.
 function parseNewDoc(block: string): NewEntity | null {
@@ -96,13 +94,20 @@ export function DocumentAssistant({
   onEditEntity: (edit: EditEntity) => void;
 }) {
   const { showToast } = useToast();
-  const [messages, setMessages] = useState<Msg[]>(() => chatCache.get(docId) ?? []);
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { chatCache.set(docId, messages); }, [docId, messages]);
+  // История беседы по документу хранится на сервере — загружаем её при открытии.
+  useEffect(() => {
+    let cancelled = false;
+    api.getDocumentConversation(docId)
+      .then((msgs) => { if (!cancelled) setMessages(msgs.map((m) => ({ role: m.role, content: m.content }))); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [docId]);
 
   function autoGrow() {
     const el = textareaRef.current;
@@ -127,6 +132,9 @@ export function DocumentAssistant({
     setMessages([...history, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
+    // Сохраняем вопрос сразу; ответ — после завершения стрима, чтобы порядок реплик не сбился.
+    const userSaved = api.addDocumentMessage(docId, "user", text).catch(() => {});
+    let reply = "";
     try {
       await streamComplete(
         {
@@ -159,6 +167,7 @@ export function DocumentAssistant({
           messages: history,
         },
         (chunk) => {
+          reply += chunk;
           setMessages((prev) => {
             const copy = prev.slice();
             const last = copy[copy.length - 1];
@@ -167,6 +176,10 @@ export function DocumentAssistant({
           });
         },
       );
+      if (reply.trim()) {
+        await userSaved;
+        api.addDocumentMessage(docId, "assistant", reply).catch(() => {});
+      }
     } catch {
       showToast("Не удалось получить ответ ИИ");
       setMessages((prev) => prev.filter((m, i) => !(i === prev.length - 1 && m.content === "")));

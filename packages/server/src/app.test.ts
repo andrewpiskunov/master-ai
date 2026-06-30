@@ -361,3 +361,30 @@ describe("жизненный цикл кампании", () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe("беседа ассистента по документу", () => {
+  it("сохраняет реплики и отдаёт их в порядке добавления", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+
+    expect((await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json()).toHaveLength(0);
+
+    await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "user", content: "добавь фамилию" } });
+    await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "assistant", content: "Глеб Двукоготь" } });
+
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json();
+    expect(msgs.map((m: { role: string }) => m.role)).toEqual(["user", "assistant"]);
+    expect(msgs[1].content).toBe("Глеб Двукоготь");
+
+    // беседа Мастерской не загрязнена репликами по документу
+    const workshop = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` })).json();
+    expect(workshop.every((m: { content: string }) => m.content !== "добавь фамилию")).toBe(true);
+  });
+
+  it("по несуществующему документу → 404", async () => {
+    const app = makeApp();
+    expect((await app.inject({ method: "GET", url: "/api/documents/нет/conversation" })).statusCode).toBe(404);
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/conversation/messages", payload: { role: "user", content: "x" } })).statusCode).toBe(404);
+  });
+});

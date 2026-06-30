@@ -43,6 +43,13 @@
       "when": 1782758800000,
       "tag": "0005_campaign_realism",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1782758900000,
+      "tag": "0006_conversation_document",
+      "breakpoints": true
     }
   ]
 }

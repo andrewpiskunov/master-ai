@@ -76,6 +76,13 @@ export const api = {
     request<Proposal>(`/api/proposals/${id}/reject`, { method: "POST" }),
   getConversation: (campaignId: string) =>
     request<ConversationMessage[]>(`/api/campaigns/${campaignId}/conversation`),
+  getDocumentConversation: (docId: string) =>
+    request<ConversationMessage[]>(`/api/documents/${docId}/conversation`),
+  addDocumentMessage: (docId: string, role: "user" | "assistant", content: string) =>
+    request<ConversationMessage>(`/api/documents/${docId}/conversation/messages`, {
+      method: "POST",
+      body: JSON.stringify({ role, content }),
+    }),
   worldSummary: (campaignId: string) =>
     request<{ summary: string; question: string }>(`/api/campaigns/${campaignId}/world`),
   search: (campaignId: string, q: string) =>

@@ -89,12 +89,14 @@ export class DocumentService {
     return updated;
   }
 
-  // Удаляет документ вместе с его связями и записью в полнотекстовом индексе.
+  // Удаляет документ вместе с его связями, беседой ассистента и записью в полнотекстовом индексе.
   delete(id: string): boolean {
     if (!this.get(id)) return false;
     this.db.transaction(() => {
       this.db.run(sql`DELETE FROM documents_fts WHERE doc_id = ${id}`);
       this.db.delete(links).where(or(eq(links.fromDocId, id), eq(links.toDocId, id))).run();
+      this.db.run(sql`DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE document_id = ${id})`);
+      this.db.run(sql`DELETE FROM conversations WHERE document_id = ${id}`);
       this.db.delete(documents).where(eq(documents.id, id)).run();
     });
     return true;
