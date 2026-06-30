@@ -82,6 +82,7 @@ export function DocumentAssistant({
   onCreateEntity,
   onEditEntity,
   onMessage,
+  onProposeDoc,
 }: {
   docId: string;
   title: string;
@@ -96,6 +97,9 @@ export function DocumentAssistant({
   // Вызывается с текстом каждой завершённой реплики (вопрос и ответ) —
   // режим игры использует это, чтобы открывать обсуждаемые документы в просмотрщике.
   onMessage?: (content: string) => void;
+  // Вызывается, когда ассистент предлагает создать новую сущность — режим игры
+  // показывает её превью в просмотрщике (документа ещё нет в базе).
+  onProposeDoc?: (entity: NewEntity) => void;
 }) {
   const { showToast } = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -183,6 +187,8 @@ export function DocumentAssistant({
       );
       if (reply.trim()) {
         onMessage?.(reply);
+        const proposed = parseAssistant(reply).newDoc;
+        if (proposed) onProposeDoc?.(proposed);
         await userSaved;
         api.addDocumentMessage(docId, "assistant", reply).catch(() => {});
       }

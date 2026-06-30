@@ -5,8 +5,10 @@ import { generateHTML } from "@tiptap/core";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
+import { Markdown } from "../ui/Markdown.js";
 import { baseExtensions } from "../editor/extensions.js";
-import { DocumentAssistant } from "./DocumentAssistant.js";
+import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
+import { TypeTag } from "./campaign/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
 
 function contentToHtml(content: unknown): string {
@@ -68,6 +70,8 @@ export function PlaySession() {
   const contentRef = useRef<HTMLDivElement>(null);
   // История просмотрщика связанных документов.
   const [view, setView] = useState<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
+  // Предлагаемые ассистентом к созданию сущности (документа ещё нет в базе) — по синтетическому id.
+  const [proposed, setProposed] = useState<Record<string, NewEntity>>({});
 
   useEffect(() => {
     if (!documentId) return;
@@ -125,8 +129,16 @@ export function PlaySession() {
     }
   }
 
+  // Показывает превью предлагаемой к созданию сущности (реального документа ещё нет).
+  function showProposedDoc(entity: NewEntity) {
+    const id = `proposed:${entity.title}`;
+    setProposed((p) => ({ ...p, [id]: entity }));
+    openDoc(id);
+  }
+
   const viewerId = view.idx >= 0 ? view.stack[view.idx] : null;
-  const viewerDoc = docs.find((d) => d.id === viewerId) ?? null;
+  const viewerDoc = (viewerId && docs.find((d) => d.id === viewerId)) || null;
+  const viewerProposed = viewerId && !viewerDoc ? proposed[viewerId] ?? null : null;
 
   function exit() {
     navigate(`/campaigns/${campaignId}`, { replace: true });
@@ -165,10 +177,16 @@ export function PlaySession() {
               <button type="button" disabled={view.idx <= 0} onClick={() => setView((v) => ({ ...v, idx: v.idx - 1 }))}><ArrowLeft size={15} /></button>
               <button type="button" disabled={view.idx >= view.stack.length - 1} onClick={() => setView((v) => ({ ...v, idx: v.idx + 1 }))}><ArrowRight size={15} /></button>
               {viewerDoc && <span className="play-viewer-title">{viewerDoc.title}</span>}
+              {viewerProposed && <span className="play-viewer-title">{viewerProposed.title} <span className="play-proposed-tag">предлагается создать</span></span>}
             </div>
             <div className="play-viewer-body">
               {viewerDoc ? (
                 <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(viewerDoc.contentJson) }} />
+              ) : viewerProposed ? (
+                <div className="play-proposed">
+                  <div className="play-proposed-head"><TypeTag type={viewerProposed.type} /></div>
+                  {viewerProposed.text ? <Markdown>{viewerProposed.text}</Markdown> : <p className="muted">Описание появится после создания.</p>}
+                </div>
               ) : (
                 <p className="muted play-viewer-empty">Кликните по ссылке в сессии, чтобы открыть документ здесь.</p>
               )}
@@ -201,6 +219,7 @@ export function PlaySession() {
                   onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
                   onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
                   onMessage={openMentionedDocs}
+                  onProposeDoc={showProposedDoc}
                 />
               </div>
             )}
