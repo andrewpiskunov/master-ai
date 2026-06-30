@@ -81,6 +81,7 @@ export function DocumentAssistant({
   onApply,
   onCreateEntity,
   onEditEntity,
+  onMessage,
 }: {
   docId: string;
   title: string;
@@ -92,6 +93,9 @@ export function DocumentAssistant({
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => void;
   onEditEntity: (edit: EditEntity) => void;
+  // Вызывается с текстом каждой завершённой реплики (вопрос и ответ) —
+  // режим игры использует это, чтобы открывать обсуждаемые документы в просмотрщике.
+  onMessage?: (content: string) => void;
 }) {
   const { showToast } = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -132,6 +136,7 @@ export function DocumentAssistant({
     setMessages([...history, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
+    onMessage?.(text);
     // Сохраняем вопрос сразу; ответ — после завершения стрима, чтобы порядок реплик не сбился.
     const userSaved = api.addDocumentMessage(docId, "user", text).catch(() => {});
     let reply = "";
@@ -177,6 +182,7 @@ export function DocumentAssistant({
         },
       );
       if (reply.trim()) {
+        onMessage?.(reply);
         await userSaved;
         api.addDocumentMessage(docId, "assistant", reply).catch(() => {});
       }

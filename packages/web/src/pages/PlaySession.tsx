@@ -111,10 +111,18 @@ export function PlaySession() {
   function openDoc(id: string) {
     if (!id) return;
     setView((v) => {
+      if (v.idx >= 0 && v.stack[v.idx] === id) return v; // уже открыт — не дублируем
       const stack = v.stack.slice(0, v.idx + 1);
       stack.push(id);
       return { stack, idx: stack.length - 1 };
     });
+  }
+
+  // Открывает в просмотрщике документы кампании, упомянутые в реплике чата с ассистентом.
+  function openMentionedDocs(text: string) {
+    for (const span of matchMentions(text, prepared)) {
+      if (span.href) openDoc(span.href);
+    }
   }
 
   const viewerId = view.idx >= 0 ? view.stack[view.idx] : null;
@@ -192,6 +200,7 @@ export function PlaySession() {
                   onApply={() => showToast("В режиме игры правка документа недоступна")}
                   onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
                   onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
+                  onMessage={openMentionedDocs}
                 />
               </div>
             )}
