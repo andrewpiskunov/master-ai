@@ -14,7 +14,7 @@ export function WorkshopView() {
     [campaignId, documents],
   );
   return (
-    <div className="view">
+    <div className="view view-wide">
       <header className="view-head">
         <Lightbulb size={24} strokeWidth={1.8} className="view-head-icon" />
         <div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Drama } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Drama, Plus } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -42,6 +42,8 @@ export function DocumentPage() {
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<"assistant" | "play">("assistant");
   const [marked, setMarked] = useState(false);
+  const [addingTag, setAddingTag] = useState(false);
+  const [tagInput, setTagInput] = useState("");
   const editorRef = useRef<DocumentEditorHandle>(null);
   // Снимок последнего сохранённого состояния — чтобы автосохранение не дёргало сервер зря.
   const savedRef = useRef<{ title: string; content: string } | null>(null);
@@ -93,6 +95,20 @@ export function DocumentPage() {
     } catch {
       showToast("Не удалось сохранить");
     }
+  }
+
+  // Теги документа хранятся в fields.tags.
+  function addTag() {
+    const v = tagInput.trim();
+    const cur = Array.isArray(fields.tags) ? (fields.tags as string[]) : [];
+    setAddingTag(false);
+    setTagInput("");
+    if (!v || cur.includes(v)) return;
+    patchDoc({ fields: { ...fields, tags: [...cur, v] } });
+  }
+  function removeTag(t: string) {
+    const cur = Array.isArray(fields.tags) ? (fields.tags as string[]) : [];
+    patchDoc({ fields: { ...fields, tags: cur.filter((x) => x !== t) } });
   }
 
   // Создаёт новую сущность по предложению ИИ и связывает её с текущим документом.
@@ -157,6 +173,7 @@ export function DocumentPage() {
   const disposition = typeof fields.disposition === "string" ? fields.disposition : "";
   const dispDef = getDisposition(disposition);
   const gmOnly = fields.gmOnly === true;
+  const tags = Array.isArray(fields.tags) ? (fields.tags as string[]) : [];
   const railColors = typeColors(doc.type);
 
   return (
@@ -192,42 +209,66 @@ export function DocumentPage() {
                   </button>
                 </div>
               </div>
-              {(hasDisposition(doc.type) || statuses.length > 0) && (
-                <div className="doc-tags">
-                  {hasDisposition(doc.type) && (
-                    <Select
-                      ariaLabel="Отношение к партии"
-                      value={disposition}
-                      onChange={(v) => patchDoc({ fields: { ...fields, disposition: v } })}
-                      placeholder="Отношение"
-                      tag
-                      dotColor={dispDef?.color}
-                      options={[{ value: "", label: "Без отношения" }, ...DISPOSITIONS.map((d) => ({ value: d.key, label: d.label }))]}
+              <div className="doc-tags">
+                {hasDisposition(doc.type) && (
+                  <Select
+                    ariaLabel="Отношение к партии"
+                    value={disposition}
+                    onChange={(v) => patchDoc({ fields: { ...fields, disposition: v } })}
+                    placeholder="Отношение"
+                    tag
+                    dotColor={dispDef?.color}
+                    options={[{ value: "", label: "Без отношения" }, ...DISPOSITIONS.map((d) => ({ value: d.key, label: d.label }))]}
+                  />
+                )}
+                {statuses.length > 0 && (
+                  <Select
+                    ariaLabel="Статус"
+                    value={status}
+                    onChange={(v) => patchDoc({ status: v === "" ? null : v })}
+                    placeholder="Статус"
+                    tag
+                    options={[{ value: "", label: "Без статуса" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
+                  />
+                )}
+                {hasDisposition(doc.type) && (
+                  <button
+                    type="button"
+                    className={`tag-toggle${gmOnly ? " active" : ""}`}
+                    onClick={() => patchDoc({ fields: { ...fields, gmOnly: !gmOnly } })}
+                    title="Скрыто от игроков — пометка для мастера"
+                    aria-pressed={gmOnly}
+                  >
+                    <EyeOff size={13} strokeWidth={1.8} /> Только мастер
+                  </button>
+                )}
+                <div className="doc-tags-right">
+                  {tags.map((t) => (
+                    <span key={t} className="doc-tag">
+                      {t}
+                      <button type="button" className="doc-tag-x" onClick={() => removeTag(t)} aria-label={`Удалить тег ${t}`}>×</button>
+                    </span>
+                  ))}
+                  {addingTag ? (
+                    <input
+                      className="doc-tag-input"
+                      autoFocus
+                      value={tagInput}
+                      placeholder="Тег…"
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); addTag(); }
+                        else if (e.key === "Escape") { setAddingTag(false); setTagInput(""); }
+                      }}
+                      onBlur={addTag}
                     />
-                  )}
-                  {statuses.length > 0 && (
-                    <Select
-                      ariaLabel="Статус"
-                      value={status}
-                      onChange={(v) => patchDoc({ status: v === "" ? null : v })}
-                      placeholder="Статус"
-                      tag
-                      options={[{ value: "", label: "Без статуса" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
-                    />
-                  )}
-                  {hasDisposition(doc.type) && (
-                    <button
-                      type="button"
-                      className={`tag-toggle${gmOnly ? " active" : ""}`}
-                      onClick={() => patchDoc({ fields: { ...fields, gmOnly: !gmOnly } })}
-                      title="Скрыто от игроков — пометка для мастера"
-                      aria-pressed={gmOnly}
-                    >
-                      <EyeOff size={13} strokeWidth={1.8} /> Только мастер
+                  ) : (
+                    <button type="button" className="doc-tag-add" onClick={() => setAddingTag(true)} title="Добавить тег">
+                      <Plus size={14} strokeWidth={2} />
                     </button>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           </header>
 

@@ -204,6 +204,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .view { max-width: 1100px; }
+.view-wide { max-width: none; }
 .view-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
 .view-head-icon { color: var(--accent-hover); margin-top: 4px; flex: none; }
 .view-sub { margin: 0; color: var(--muted); }
@@ -408,7 +409,11 @@ label { display: block; margin: 14px 0 5px; color: var(--muted); font-size: 0.85
   border-radius: 999px; background: var(--surface);
 }
 .select-tag .select-value { max-width: 140px; }
-.select-tag .select-menu { right: auto; min-width: 190px; }
+/* Компактное меню — по размеру текста, а не широкое */
+.select-tag .select-menu { right: auto; min-width: max-content; padding: 4px; }
+.select-tag .select-option { padding: 5px 8px; gap: 6px; font-size: 0.82rem; }
+.select-tag .select-check { width: 14px; }
+.select-tag .select-check svg { width: 13px; height: 13px; }
 .select-tag .select-option .select-label { white-space: nowrap; }
 
 /* Кнопка-пометка в стиле тега (Только мастер) */
@@ -597,6 +602,29 @@ form button { align-self: flex-start; }
 /* Ряд тегов под заголовком */
 .doc-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .doc-tags .select { flex: none; }
+/* Теги документа — справа в ряду тегов */
+.doc-tags-right { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.doc-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 4px 4px 10px; font-size: 0.78rem; font-weight: 600; border-radius: 999px;
+  color: #f0c97a; background: rgba(217, 160, 60, 0.16); border: 1px solid rgba(217, 160, 60, 0.35);
+}
+.doc-tag-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; padding: 0; font-size: 0.95rem; line-height: 1;
+  background: transparent; border: none; color: inherit; opacity: 0.7; border-radius: 50%;
+}
+.doc-tag-x:hover { filter: none; opacity: 1; background: rgba(217, 160, 60, 0.25); }
+.doc-tag-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  background: transparent; border: 1px dashed var(--border); border-radius: 50%; color: var(--muted);
+}
+.doc-tag-add:hover { filter: none; border-color: var(--accent); color: var(--text-strong); border-style: solid; }
+.doc-tag-input {
+  width: 110px; padding: 4px 10px; font-size: 0.8rem;
+  background: var(--surface-2); border: 1px solid var(--accent); border-radius: 999px; color: var(--text);
+}
 .doc-view { max-width: none; }
 .doc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
 .doc-main { min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - var(--header-h) - 28px); }
