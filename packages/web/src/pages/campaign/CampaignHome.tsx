@@ -3,6 +3,7 @@ import { Bookmark, Clock, Plus, FileText, Play, ArrowRight } from "lucide-react"
 import { DOCUMENT_TYPES, getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { useBookmarks } from "../../bookmarks.js";
 import { DocCard, TypeBadge, TypeTag, TypeSection, useCampaign } from "./shared.js";
+import { CampaignOnboarding } from "./CampaignOnboarding.js";
 
 // Порядок разделов на «Обзоре». «session» выведен отдельной вкладкой сверху.
 const SECTION_ORDER = ["pc", "npc", "location", "faction", "arc", "scene", "encounter", "secret", "item", "lore", "reference", "note"];
@@ -94,6 +95,9 @@ export function CampaignHome() {
         </div>
       </header>
 
+      {documents.length === 0 ? (
+        <CampaignOnboarding campaignId={campaignId} campaign={campaign} documents={documents} createDocument={createDocument} />
+      ) : (
       <div className="home2">
         <div className="home2-main">
           <section className="type-section">
@@ -186,6 +190,7 @@ export function CampaignHome() {
           </section>
         </aside>
       </div>
+      )}
     </div>
   );
 }

@@ -6,7 +6,8 @@ import type { LLMProvider } from "./llm/provider.js";
 
 function makeApp() {
   const { db } = createDb(":memory:");
-  return buildApp({ db });
+  // Фейковый LLM: приветствие кампании теперь генерируется ИИ — не дёргаем настоящий CLI в тестах.
+  return buildApp({ db, llm: new FakeProvider(["Приветствую! Готов помочь с кампанией."]) });
 }
 
 describe("REST API", () => {
@@ -292,14 +293,14 @@ describe("LLM endpoint", () => {
 });
 
 describe("жизненный цикл кампании", () => {
-  it("создание заводит беседу с приветствием, упоминающим название", async () => {
+  it("создание заводит беседу с приветствием от ИИ", async () => {
     const app = makeApp();
     const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "Авалон" } })).json();
     const conv = await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` });
     const msgs = conv.json();
     expect(msgs.length).toBeGreaterThanOrEqual(1);
     expect(msgs[0].role).toBe("assistant");
-    expect(msgs[0].content).toContain("Авалон");
+    expect(msgs[0].content).toContain("Приветствую");
   });
 
   it("DELETE удаляет кампанию и её документы", async () => {

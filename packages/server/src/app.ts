@@ -37,6 +37,27 @@ function buildWelcome(name: string): string {
   ].join("\n");
 }
 
+// Приветствие подбирается ИИ под название кампании; при сбое — статичный текст.
+async function generateWelcome(llm: LLMProvider, name: string): Promise<string> {
+  try {
+    let out = "";
+    for await (const chunk of llm.complete({
+      system:
+        "Ты — ассистент-соавтор мастера настольных ролевых игр. Напиши короткое тёплое приветствие по-русски (2–3 абзаца, без списков и заголовков) для НОВОЙ кампании. " +
+        `1) Поздоровайся и скажи, что поможешь подготовить кампанию «${name}» к первой игре; цель — не расписывать тонны лора, а уверенно вести сессии за столом. ` +
+        "2) Сделай короткую догадку о сеттинге, теме или тоне ИМЕННО по названию кампании. " +
+        "3) Задай 1–2 открытых вопроса: как мастер видит игру на практике, кем будут герои и какая завязка столкнёт их на первой сессии. " +
+        "Пиши живо и по делу, обращайся на «вы».",
+      messages: [{ role: "user", content: `Название кампании: «${name}». Напиши приветствие.` }],
+    })) {
+      out += chunk;
+    }
+    return out.trim() || buildWelcome(name);
+  } catch {
+    return buildWelcome(name);
+  }
+}
+
 const DocumentPatchSchema = z.object({
   type: z.string().optional(),
   title: z.string().min(1).optional(),
@@ -63,13 +84,13 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
 
   app.get("/api/campaigns", () => campaignsSvc.list());
 
-  app.post("/api/campaigns", (req, reply) => {
+  app.post("/api/campaigns", async (req, reply) => {
     const parsed = NewCampaignSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     const campaign = campaignsSvc.create(parsed.data);
-    // Сразу заводим беседу с приветствием — игрок попадает в готовый чат.
+    // Сразу заводим беседу с приветствием, подобранным ИИ под название кампании.
     const conv = conversationsSvc.getOrCreateForCampaign(campaign.id);
-    conversationsSvc.addMessage(conv.id, "assistant", buildWelcome(campaign.name));
+    conversationsSvc.addMessage(conv.id, "assistant", await generateWelcome(llm, campaign.name));
     return reply.code(201).send(campaign);
   });
 

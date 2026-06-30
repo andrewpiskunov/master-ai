@@ -28,7 +28,7 @@ function pickIdeas(): string[] {
   return shuffled.slice(0, 5);
 }
 
-function WelcomeScreen({ onCreate }: { onCreate: (name: string) => void }) {
+function WelcomeScreen({ onCreate, busy }: { onCreate: (name: string) => void; busy: boolean }) {
   const [name, setName] = useState("");
   const [ideas, setIdeas] = useState<string[]>(() => pickIdeas());
 
@@ -59,8 +59,8 @@ function WelcomeScreen({ onCreate }: { onCreate: (name: string) => void }) {
           ))}
         </div>
 
-        <button type="submit" className="welcome-create" disabled={!name.trim()}>
-          <Plus size={18} strokeWidth={2} /> Создать кампанию
+        <button type="submit" className="welcome-create" disabled={!name.trim() || busy}>
+          <Plus size={18} strokeWidth={2} /> {busy ? "Создаём кампанию…" : "Создать кампанию"}
         </button>
 
         <div className="welcome-divider"><span>Дальше</span></div>
@@ -81,6 +81,7 @@ export function HomePage() {
   const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api.listCampaigns()
@@ -91,12 +92,14 @@ export function HomePage() {
 
   async function create(rawName: string) {
     const n = rawName.trim();
-    if (!n) return;
+    if (!n || busy) return;
+    setBusy(true);
     try {
       const created = await api.createCampaign({ name: n });
       navigate(`/campaigns/${created.id}/workshop`);
     } catch {
       showToast("Не удалось создать кампанию");
+      setBusy(false);
     }
   }
 
@@ -112,7 +115,7 @@ export function HomePage() {
 
   // Нет кампаний — экран приветствия с созданием первой.
   if (loaded && campaigns.length === 0) {
-    return <main className="home"><WelcomeScreen onCreate={create} /></main>;
+    return <main className="home"><WelcomeScreen onCreate={create} busy={busy} /></main>;
   }
 
   return (
@@ -146,7 +149,7 @@ export function HomePage() {
             autoFocus
           />
           <div className="home-actions">
-            <button type="submit">Создать</button>
+            <button type="submit" disabled={busy}>{busy ? "Создаём…" : "Создать"}</button>
             <button type="button" className="btn-ghost" onClick={() => { setCreating(false); setName(""); }}>
               Отмена
             </button>
