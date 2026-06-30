@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer } from "lucide-react";
-import { getDocumentType, getTemplate, statusLabel, type Document } from "@master-ai/shared";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff } from "lucide-react";
+import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
 import { useGoBack } from "../useGoBack.js";
@@ -39,6 +39,7 @@ export function DocumentPage() {
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<string>("");
   const [contentJson, setContentJson] = useState<unknown>(null);
+  const [fields, setFields] = useState<Record<string, unknown>>({});
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<"assistant" | "play">("assistant");
   const [marked, setMarked] = useState(false);
@@ -61,6 +62,7 @@ export function DocumentPage() {
       setTitle(d.title);
       setStatus(d.status ?? "");
       setContentJson(d.contentJson);
+      setFields(d.fields ?? {});
     }).catch(() => showToast("Не удалось загрузить документ"));
   }, [documentId, showToast]);
 
@@ -74,6 +76,20 @@ export function DocumentPage() {
       });
       setDoc(updated);
       showToast("Сохранено");
+    } catch {
+      showToast("Не удалось сохранить");
+    }
+  }
+
+  // Мгновенно сохраняет «тег» (статус, отношение, пометку) — как в Arks, без кнопки «Сохранить».
+  async function patchDoc(p: { status?: string | null; fields?: Record<string, unknown> }) {
+    if (!documentId) return;
+    try {
+      const updated = await api.updateDocument(documentId, p);
+      setDoc(updated);
+      setStatus(updated.status ?? "");
+      setFields(updated.fields ?? {});
+      campaignCtx?.reload();
     } catch {
       showToast("Не удалось сохранить");
     }
@@ -138,33 +154,61 @@ export function DocumentPage() {
 
   const t = getDocumentType(doc.type);
   const statuses = t?.statuses ?? [];
+  const disposition = typeof fields.disposition === "string" ? fields.disposition : "";
+  const dispDef = getDisposition(disposition);
+  const gmOnly = fields.gmOnly === true;
 
   return (
     <div className="view doc-view" style={{ "--doc-accent": typeColor(doc.type) } as CSSProperties}>
       <div className="doc-grid">
         <div className="doc-main">
           <header className="view-head doc-head">
-            <TypeBadge type={doc.type} size={40} />
-            <div className="doc-head-main">
-              <button type="button" className="doc-back" onClick={goBack}>
-                <ArrowLeft size={15} /> Назад
-              </button>
-              <input
-                id="doc-title"
-                aria-label="Заголовок"
-                className="doc-title-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
+            <div className="doc-head-top">
+              <TypeBadge type={doc.type} size={40} />
+              <div className="doc-head-main">
+                <button type="button" className="doc-back" onClick={goBack}>
+                  <ArrowLeft size={15} /> Назад
+                </button>
+                <input
+                  id="doc-title"
+                  aria-label="Заголовок"
+                  className="doc-title-input"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
             </div>
+            {hasDisposition(doc.type) && (
+              <Select
+                ariaLabel="Отношение к партии"
+                value={disposition}
+                onChange={(v) => patchDoc({ fields: { ...fields, disposition: v } })}
+                placeholder="Отношение"
+                tag
+                dotColor={dispDef?.color}
+                options={[{ value: "", label: "Без отношения" }, ...DISPOSITIONS.map((d) => ({ value: d.key, label: d.label }))]}
+              />
+            )}
             {statuses.length > 0 && (
               <Select
                 ariaLabel="Статус"
                 value={status}
-                onChange={setStatus}
+                onChange={(v) => patchDoc({ status: v === "" ? null : v })}
                 placeholder="Статус"
+                tag
                 options={[{ value: "", label: "Без статуса" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
               />
+            )}
+            {hasDisposition(doc.type) && (
+              <button
+                type="button"
+                className={`tag-toggle${gmOnly ? " active" : ""}`}
+                onClick={() => patchDoc({ fields: { ...fields, gmOnly: !gmOnly } })}
+                title="Скрыто от игроков — пометка для мастера"
+                aria-pressed={gmOnly}
+              >
+                <EyeOff size={13} strokeWidth={1.8} /> Только мастер
+              </button>
             )}
             <button type="button" onClick={save}>Сохранить</button>
             <button type="button" className={`btn-ghost icon-btn doc-bookmark${marked ? " active" : ""}`} onClick={toggleMark} title={marked ? "Убрать из закладок" : "В закладки"} aria-pressed={marked}>

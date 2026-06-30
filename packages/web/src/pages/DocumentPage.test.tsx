@@ -29,11 +29,11 @@ function renderAt(id: string) {
 describe("DocumentPage", () => {
   it("грузит документ и сохраняет изменения title", async () => {
     vi.mocked(api.getDocument).mockResolvedValue({
-      id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: "alive",
+      id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: "active",
       contentJson: { type: "doc", content: [] }, fields: {}, createdAt: "x", updatedAt: "x",
     });
     vi.mocked(api.updateDocument).mockResolvedValue({
-      id: "d1", campaignId: "c1", type: "npc", title: "Барон фон Кройц", status: "alive",
+      id: "d1", campaignId: "c1", type: "npc", title: "Барон фон Кройц", status: "active",
       contentJson: { type: "doc", content: [] }, fields: {}, createdAt: "x", updatedAt: "y",
     });
     renderAt("d1");

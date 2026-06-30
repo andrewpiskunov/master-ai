@@ -11,6 +11,8 @@ export function Select({
   id,
   ariaLabel,
   placeholder = "—",
+  tag = false,
+  dotColor,
 }: {
   value: string;
   options: SelectOption[];
@@ -18,6 +20,8 @@ export function Select({
   id?: string;
   ariaLabel?: string;
   placeholder?: string;
+  tag?: boolean;
+  dotColor?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -38,7 +42,7 @@ export function Select({
   }, [open]);
 
   return (
-    <div className="select" ref={ref}>
+    <div className={`select${tag ? " select-tag" : ""}`} ref={ref}>
       <button
         type="button"
         id={id}
@@ -48,8 +52,9 @@ export function Select({
         className="select-trigger"
         onClick={() => setOpen((v) => !v)}
       >
+        {dotColor && <span className="select-dot" style={{ background: dotColor }} />}
         <span className={`select-value${current ? "" : " select-placeholder"}`}>{current?.label ?? placeholder}</span>
-        <ChevronDown size={16} className="select-caret" />
+        <ChevronDown size={tag ? 14 : 16} className="select-caret" />
       </button>
       {open && (
         <ul className="select-menu" role="listbox" aria-label={ariaLabel}>

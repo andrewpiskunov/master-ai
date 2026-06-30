@@ -136,7 +136,7 @@ describe("REST API", () => {
       const res = await app.inject({
         method: "POST",
         url: "/api/documents",
-        payload: { campaignId: c.id, type: "npc", title: "X", status: "alive" },
+        payload: { campaignId: c.id, type: "npc", title: "X", status: "active" },
       });
       expect(res.statusCode).toBe(201);
     });
@@ -343,8 +343,8 @@ describe("жизненный цикл кампании", () => {
   it("PATCH меняет тип и сбрасывает несовместимый статус", async () => {
     const app = makeApp();
     const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
-    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб", status: "alive" } })).json();
-    // location не имеет статусов — статус "alive" должен сброситься
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб", status: "active" } })).json();
+    // location не имеет статусов — статус "active" должен сброситься
     const res = await app.inject({ method: "PATCH", url: `/api/documents/${d.id}`, payload: { type: "location" } });
     expect(res.statusCode).toBe(200);
     const updated = res.json();

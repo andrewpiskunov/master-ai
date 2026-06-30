@@ -400,6 +400,23 @@ label { display: block; margin: 14px 0 5px; color: var(--muted); font-size: 0.85
 .select-trigger[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
 .select-caret { color: var(--muted); flex: none; }
 .select-placeholder { color: var(--muted); }
+.select-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+
+/* Компактный «тег» вместо обычной выпадашки — статус, отношение к партии */
+.select-tag .select-trigger {
+  width: auto; gap: 6px; padding: 5px 10px; font-size: 0.82rem; font-weight: 500;
+  border-radius: 999px; background: var(--surface);
+}
+.select-tag .select-value { max-width: 140px; }
+
+/* Кнопка-пометка в стиле тега (Только мастер) */
+.tag-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; font-size: 0.82rem; font-weight: 500;
+  border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+}
+.tag-toggle:hover { filter: none; border-color: var(--accent); color: var(--text); }
+.tag-toggle.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-hover); }
 .select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-menu {
   position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; right: 0;
@@ -538,7 +555,8 @@ form button { align-self: flex-start; }
 .md a { color: var(--accent-hover); }
 
 /* ---------- Страница документа ---------- */
-.doc-head { align-items: center; gap: 14px; border-left: 3px solid var(--doc-accent, var(--accent)); padding-left: 14px; }
+.doc-head { align-items: center; flex-wrap: wrap; gap: 10px 12px; border-left: 3px solid var(--doc-accent, var(--accent)); padding-left: 14px; }
+.doc-head-top { display: flex; align-items: center; gap: 14px; flex: 1 1 100%; min-width: 0; }
 .doc-head-main { flex: 1 1 auto; min-width: 0; }
 .doc-back {
   display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--muted);
@@ -553,6 +571,7 @@ form button { align-self: flex-start; }
 }
 .doc-title-input:hover { border-color: var(--border-soft); }
 .doc-head .select { flex: none; min-width: 150px; }
+.doc-head .select-tag { min-width: 0; }
 .doc-head button { flex: none; }
 .doc-view { max-width: none; }
 .doc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
