@@ -708,9 +708,9 @@ form button { align-self: flex-start; }
 
 /* ---------- Предложения ---------- */
 /* Список предложений фиксированной высоты — при множестве карточек прокручивается внутри. */
-.proposals-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.proposals-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .proposals-head h3 { margin: 0; }
-.proposals-bulk { display: flex; gap: 6px; flex: none; }
+.proposals-bulk { display: flex; gap: 6px; flex: none; margin-left: auto; }
 .proposals-bulk button { padding: 4px 10px; font-size: 0.75rem; font-weight: 600; border-radius: 7px; border: 1px solid transparent; }
 .bulk-accept { background: var(--accent-soft); color: var(--accent-hover); border-color: rgba(59, 130, 246, 0.32); }
 .bulk-accept:hover { filter: none; background: var(--accent); color: var(--accent-fg); border-color: transparent; }
