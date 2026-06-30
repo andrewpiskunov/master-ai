@@ -66,6 +66,11 @@ export function typeColor(type: string): string {
   return TYPE_COLORS[type]?.fg ?? "var(--accent)";
 }
 
+// Пара цветов типа (текст + фон) — для вертикальной «корешковой» подписи типа.
+export function typeColors(type: string): { fg: string; bg: string } {
+  return TYPE_COLORS[type] ?? { fg: "var(--muted)", bg: "var(--surface-3)" };
+}
+
 export function TypeBadge({ type, size = 40 }: { type: string; size?: number }) {
   const t = getDocumentType(type);
   const c = TYPE_COLORS[type] ?? { fg: "var(--muted)", bg: "var(--surface-3)" };

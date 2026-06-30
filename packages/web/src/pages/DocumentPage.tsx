@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, Save } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -8,10 +8,9 @@ import { useGoBack } from "../useGoBack.js";
 import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
 import { Modal } from "../ui/Modal.js";
-import { LinksPanel } from "./LinksPanel.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
 import { PlayPanel } from "./PlayPanel.js";
-import { ChangeTypeMenu, TypeBadge, typeColor, useCampaign } from "./campaign/shared.js";
+import { ChangeTypeMenu, typeColor, typeColors, useCampaign } from "./campaign/shared.js";
 import { isBookmarked, toggleBookmark } from "../bookmarks.js";
 
 // Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
@@ -157,17 +156,20 @@ export function DocumentPage() {
   const disposition = typeof fields.disposition === "string" ? fields.disposition : "";
   const dispDef = getDisposition(disposition);
   const gmOnly = fields.gmOnly === true;
+  const railColors = typeColors(doc.type);
 
   return (
     <div className="view doc-view" style={{ "--doc-accent": typeColor(doc.type) } as CSSProperties}>
       <div className="doc-grid">
         <div className="doc-main">
-          <header className="view-head doc-head">
-            <div className="doc-head-top">
-              <TypeBadge type={doc.type} size={40} />
-              <div className="doc-head-main">
-                <button type="button" className="doc-back" onClick={goBack}>
-                  <ArrowLeft size={15} /> Назад
+          <header className="doc-head">
+            <span className="doc-rail" style={{ color: railColors.fg, background: railColors.bg }}>
+              {t?.label ?? doc.type}
+            </span>
+            <div className="doc-head-body">
+              <div className="doc-head-row">
+                <button type="button" className="doc-back" onClick={goBack} title="Назад">
+                  <ArrowLeft size={16} />
                 </button>
                 <input
                   id="doc-title"
@@ -176,51 +178,59 @@ export function DocumentPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
+                <div className="doc-actions">
+                  <button type="button" className="icon-btn doc-save" onClick={save} title="Сохранить">
+                    <Save size={15} strokeWidth={1.8} />
+                  </button>
+                  <button type="button" className={`icon-btn doc-bookmark${marked ? " active" : ""}`} onClick={toggleMark} title={marked ? "Убрать из закладок" : "В закладки"} aria-pressed={marked}>
+                    <BookmarkIcon size={15} strokeWidth={1.8} fill={marked ? "currentColor" : "none"} />
+                  </button>
+                  <button type="button" className="icon-btn" onClick={() => navigate(`/campaigns/${doc.campaignId}/documents/${doc.id}/print`)} title="Печать">
+                    <Printer size={15} strokeWidth={1.8} />
+                  </button>
+                  <ChangeTypeMenu current={doc.type} onChange={changeType} />
+                  <button type="button" className="icon-btn doc-delete" onClick={() => setDeleting(true)} title="Удалить документ">
+                    <Trash2 size={15} strokeWidth={1.8} />
+                  </button>
+                </div>
               </div>
+              {(hasDisposition(doc.type) || statuses.length > 0) && (
+                <div className="doc-tags">
+                  {hasDisposition(doc.type) && (
+                    <Select
+                      ariaLabel="Отношение к партии"
+                      value={disposition}
+                      onChange={(v) => patchDoc({ fields: { ...fields, disposition: v } })}
+                      placeholder="Отношение"
+                      tag
+                      dotColor={dispDef?.color}
+                      options={[{ value: "", label: "Без отношения" }, ...DISPOSITIONS.map((d) => ({ value: d.key, label: d.label }))]}
+                    />
+                  )}
+                  {statuses.length > 0 && (
+                    <Select
+                      ariaLabel="Статус"
+                      value={status}
+                      onChange={(v) => patchDoc({ status: v === "" ? null : v })}
+                      placeholder="Статус"
+                      tag
+                      options={[{ value: "", label: "Без статуса" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
+                    />
+                  )}
+                  {hasDisposition(doc.type) && (
+                    <button
+                      type="button"
+                      className={`tag-toggle${gmOnly ? " active" : ""}`}
+                      onClick={() => patchDoc({ fields: { ...fields, gmOnly: !gmOnly } })}
+                      title="Скрыто от игроков — пометка для мастера"
+                      aria-pressed={gmOnly}
+                    >
+                      <EyeOff size={13} strokeWidth={1.8} /> Только мастер
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            {hasDisposition(doc.type) && (
-              <Select
-                ariaLabel="Отношение к партии"
-                value={disposition}
-                onChange={(v) => patchDoc({ fields: { ...fields, disposition: v } })}
-                placeholder="Отношение"
-                tag
-                dotColor={dispDef?.color}
-                options={[{ value: "", label: "Без отношения" }, ...DISPOSITIONS.map((d) => ({ value: d.key, label: d.label }))]}
-              />
-            )}
-            {statuses.length > 0 && (
-              <Select
-                ariaLabel="Статус"
-                value={status}
-                onChange={(v) => patchDoc({ status: v === "" ? null : v })}
-                placeholder="Статус"
-                tag
-                options={[{ value: "", label: "Без статуса" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
-              />
-            )}
-            {hasDisposition(doc.type) && (
-              <button
-                type="button"
-                className={`tag-toggle${gmOnly ? " active" : ""}`}
-                onClick={() => patchDoc({ fields: { ...fields, gmOnly: !gmOnly } })}
-                title="Скрыто от игроков — пометка для мастера"
-                aria-pressed={gmOnly}
-              >
-                <EyeOff size={13} strokeWidth={1.8} /> Только мастер
-              </button>
-            )}
-            <button type="button" onClick={save}>Сохранить</button>
-            <button type="button" className={`btn-ghost icon-btn doc-bookmark${marked ? " active" : ""}`} onClick={toggleMark} title={marked ? "Убрать из закладок" : "В закладки"} aria-pressed={marked}>
-              <BookmarkIcon size={16} strokeWidth={1.8} fill={marked ? "currentColor" : "none"} />
-            </button>
-            <button type="button" className="btn-ghost icon-btn" onClick={() => navigate(`/campaigns/${doc.campaignId}/documents/${doc.id}/print`)} title="Печать">
-              <Printer size={16} strokeWidth={1.8} />
-            </button>
-            <ChangeTypeMenu current={doc.type} onChange={changeType} />
-            <button type="button" className="btn-ghost doc-delete" onClick={() => setDeleting(true)} title="Удалить документ">
-              <Trash2 size={16} strokeWidth={1.8} />
-            </button>
           </header>
 
           <DocumentEditor
@@ -230,7 +240,6 @@ export function DocumentPage() {
             onChange={setContentJson}
             mentions={mentions}
           />
-          <LinksPanel campaignId={doc.campaignId} documentId={doc.id} />
         </div>
 
         <aside className="doc-side">
