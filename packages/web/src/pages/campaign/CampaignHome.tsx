@@ -1,8 +1,18 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, Clock, Plus, FileText, Play, ArrowRight } from "lucide-react";
+import { Bookmark, Clock, Plus, FileText, Play, ArrowRight, ExternalLink } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { useBookmarks } from "../../bookmarks.js";
+import { prepareMentions, matchMentions } from "../../mentions.js";
 import { DocCard, TypeBadge, TypeTag, TypeSection, useCampaign } from "./shared.js";
+
+function pmText(node: unknown): string {
+  if (!node || typeof node !== "object") return "";
+  const n = node as { text?: string; content?: unknown[]; type?: string };
+  if (typeof n.text === "string") return n.text;
+  const inner = Array.isArray(n.content) ? n.content.map(pmText).join("") : "";
+  return n.type && n.type !== "text" ? inner + "\n" : inner;
+}
 import { CampaignOnboarding, foundationDoneCount } from "./CampaignOnboarding.js";
 
 // Порядок разделов на «Обзоре». «session» выведен отдельной вкладкой сверху.
@@ -28,12 +38,21 @@ function SessionStatus({ status }: { status: string | null }) {
 }
 
 // Панель сессий (как в Arks): предыдущая + текущая, кнопка запуска и список всех.
-function SessionsBoard({ campaignId, sessions, onNew }: { campaignId: string; sessions: Document[]; onNew: () => void }) {
+function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId: string; sessions: Document[]; documents: Document[]; onNew: () => void }) {
   const sorted = [...sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const current = sorted[0];
   const previous = sorted[1];
   const docHref = (id: string) => `/campaigns/${campaignId}/documents/${id}`;
   const playHref = (id: string) => `/campaigns/${campaignId}/sessions/${id}/play`;
+  const [selectedId, setSelectedId] = useState(current?.id);
+  const selected = sorted.find((s) => s.id === selectedId) ?? current;
+  // Документы, упомянутые (@) в выбранной сессии — её «связанные документы».
+  const linked = (() => {
+    if (!selected) return [] as Document[];
+    const prepared = prepareMentions(documents.filter((d) => d.id !== selected.id).map((d) => ({ title: d.title, type: d.type, href: d.id })));
+    const ids = new Set(matchMentions(pmText(selected.contentJson), prepared).map((m) => m.href));
+    return documents.filter((d) => ids.has(d.id));
+  })();
 
   return (
     <div className="sessions-board">
@@ -64,15 +83,39 @@ function SessionsBoard({ campaignId, sessions, onNew }: { campaignId: string; se
         </div>
         <ul className="sessions-list">
           {sorted.map((s) => (
-            <li key={s.id} className="sessions-row">
+            <li key={s.id} className={`sessions-row${s.id === selectedId ? " selected" : ""}`} onClick={() => setSelectedId(s.id)}>
               <FileText size={16} strokeWidth={1.7} className="sessions-row-icon" />
               <span className="sessions-row-title">{s.title}</span>
               <SessionStatus status={s.status} />
-              <Link to={playHref(s.id)} className="sessions-row-run"><Play size={13} /> Запустить</Link>
-              <Link to={docHref(s.id)} className="sessions-row-open">Открыть</Link>
+              <Link to={playHref(s.id)} className="sessions-row-run" onClick={(e) => e.stopPropagation()}><Play size={13} /> Запустить</Link>
+              <Link to={docHref(s.id)} className="sessions-row-open" onClick={(e) => e.stopPropagation()}>Открыть</Link>
             </li>
           ))}
         </ul>
+
+        {selected && (
+          <div className="sessions-preview">
+            <div className="sessions-preview-head">
+              <span className="sessions-preview-label">Связанные документы — {selected.title}</span>
+              <Link to={docHref(selected.id)} className="sessions-preview-open"><ExternalLink size={13} /> Открыть сессию</Link>
+            </div>
+            {linked.length === 0 ? (
+              <p className="muted sessions-preview-empty">Свяжите документы через «@»-упоминания в тексте сессии — и они появятся здесь.</p>
+            ) : (
+              <ul className="sessions-linked">
+                {linked.map((d) => (
+                  <li key={d.id}>
+                    <Link to={docHref(d.id)} className="sessions-linked-item">
+                      <TypeBadge type={d.type} size={20} />
+                      <span className="sessions-linked-title">{d.title}</span>
+                      <TypeTag type={d.type} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -109,7 +152,7 @@ export function CampaignHome() {
               {sessions.length > 0 && <span className="count-badge">{sessions.length}</span>}
             </div>
             {sessions.length > 0 ? (
-              <SessionsBoard campaignId={campaignId} sessions={sessions} onNew={() => createDocument("session")} />
+              <SessionsBoard campaignId={campaignId} sessions={sessions} documents={documents} onNew={() => createDocument("session")} />
             ) : (
               <div className="session-empty">
                 <FileText size={34} strokeWidth={1.6} />
