@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Drama, Plus } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Drama, Plus, Check, Loader } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -47,6 +47,7 @@ export function DocumentPage() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   // Снимок последнего сохранённого состояния — чтобы автосохранение не дёргало сервер зря.
   const savedRef = useRef<{ title: string; content: string } | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   useEffect(() => { if (documentId) setMarked(isBookmarked(documentId)); }, [documentId]);
 
@@ -76,9 +77,10 @@ export function DocumentPage() {
     const content = JSON.stringify(contentJson);
     if (savedRef.current && savedRef.current.title === title && savedRef.current.content === content) return;
     const timer = setTimeout(() => {
+      setSaveState("saving");
       api.updateDocument(documentId, { title, contentJson })
-        .then((updated) => { savedRef.current = { title: updated.title, content: JSON.stringify(updated.contentJson) }; })
-        .catch(() => showToast("Не удалось сохранить"));
+        .then((updated) => { savedRef.current = { title: updated.title, content: JSON.stringify(updated.contentJson) }; setSaveState("saved"); })
+        .catch(() => { showToast("Не удалось сохранить"); setSaveState("idle"); });
     }, 700);
     return () => clearTimeout(timer);
   }, [title, contentJson, doc, documentId, showToast]);
@@ -214,6 +216,13 @@ export function DocumentPage() {
                   onChange={(e) => setTitle(e.target.value)}
                 />
                 <div className="doc-actions">
+                  {saveState !== "idle" && (
+                    <span className={`save-status save-${saveState}`}>
+                      {saveState === "saving"
+                        ? <><Loader size={13} className="spin" /> Сохранение…</>
+                        : <><Check size={13} strokeWidth={2.4} /> Сохранено</>}
+                    </span>
+                  )}
                   <button type="button" className={`icon-btn doc-bookmark${marked ? " active" : ""}`} onClick={toggleMark} title={marked ? "Убрать из закладок" : "В закладки"} aria-pressed={marked}>
                     <BookmarkIcon size={15} strokeWidth={1.8} fill={marked ? "currentColor" : "none"} />
                   </button>
