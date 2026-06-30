@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { Bookmark, Clock, Plus, FileText } from "lucide-react";
-import { DOCUMENT_TYPES, getDocumentType, type Document } from "@master-ai/shared";
+import { Bookmark, Clock, Plus, FileText, Play, ArrowRight } from "lucide-react";
+import { DOCUMENT_TYPES, getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { useBookmarks } from "../../bookmarks.js";
 import { DocCard, TypeBadge, TypeTag, TypeSection, useCampaign } from "./shared.js";
 
@@ -20,6 +20,59 @@ function relTime(iso: string): string {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d} дн назад`;
   return new Date(iso).toLocaleDateString("ru-RU");
+}
+
+function SessionStatus({ status }: { status: string | null }) {
+  return <span className="session-status">{status ? statusLabel(status) : "Без даты"}</span>;
+}
+
+// Панель сессий (как в Arks): предыдущая + текущая, кнопка запуска и список всех.
+function SessionsBoard({ campaignId, sessions, onNew }: { campaignId: string; sessions: Document[]; onNew: () => void }) {
+  const sorted = [...sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const current = sorted[0];
+  const previous = sorted[1];
+  const docHref = (id: string) => `/campaigns/${campaignId}/documents/${id}`;
+
+  return (
+    <div className="sessions-board">
+      <div className="sessions-top">
+        {previous && (
+          <Link to={docHref(previous.id)} className="session-card session-prev">
+            <span className="session-label">Предыдущая</span>
+            <span className="session-title">{previous.title}</span>
+            <SessionStatus status={previous.status} />
+          </Link>
+        )}
+        <div className={`session-card session-current${previous ? "" : " session-solo"}`}>
+          <div className="session-current-head">
+            <span className="session-label">Текущая сессия</span>
+            <Link to={docHref(current.id)} className="session-continue">Продолжить <ArrowRight size={14} /></Link>
+          </div>
+          <span className="session-title">{current.title}</span>
+          <SessionStatus status={current.status} />
+          <span className="session-edited">Изменено: {relTime(current.updatedAt)}</span>
+          <Link to={docHref(current.id)} className="btn session-run"><Play size={15} /> Открыть сессию</Link>
+        </div>
+      </div>
+
+      <div className="sessions-all panel">
+        <div className="sessions-all-head">
+          <h3>Все сессии</h3>
+          <button type="button" className="sessions-new" onClick={onNew}><Plus size={14} strokeWidth={2} /> Новая</button>
+        </div>
+        <ul className="sessions-list">
+          {sorted.map((s) => (
+            <li key={s.id} className="sessions-row">
+              <FileText size={16} strokeWidth={1.7} className="sessions-row-icon" />
+              <span className="sessions-row-title">{s.title}</span>
+              <SessionStatus status={s.status} />
+              <Link to={docHref(s.id)} className="sessions-row-open">Открыть</Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
 }
 
 export function CampaignHome() {
@@ -50,9 +103,7 @@ export function CampaignHome() {
               {sessions.length > 0 && <span className="count-badge">{sessions.length}</span>}
             </div>
             {sessions.length > 0 ? (
-              <ul className="doc-cards grid">
-                {sessions.map((d) => <li key={d.id}><DocCard doc={d} variant="tile" /></li>)}
-              </ul>
+              <SessionsBoard campaignId={campaignId} sessions={sessions} onNew={() => createDocument("session")} />
             ) : (
               <div className="session-empty">
                 <FileText size={34} strokeWidth={1.6} />
