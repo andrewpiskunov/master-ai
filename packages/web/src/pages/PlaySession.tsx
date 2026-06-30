@@ -7,6 +7,7 @@ import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
 import { Markdown } from "../ui/Markdown.js";
 import { baseExtensions } from "../editor/extensions.js";
+import { markdownToDoc } from "../editor/DocumentEditor.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
 import { TypeTag } from "./campaign/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
@@ -129,6 +130,14 @@ export function PlaySession() {
     }
   }
 
+  // Применяет предложенный ассистентом текст к самому документу сессии и обновляет левую панель.
+  function applyToSession(text: string) {
+    if (!doc || !documentId) return;
+    api.updateDocument(documentId, { contentJson: markdownToDoc(text) })
+      .then((updated) => { setDoc(updated); showToast("Документ обновлён"); })
+      .catch(() => showToast("Не удалось обновить документ"));
+  }
+
   // Показывает превью предлагаемой к созданию сущности (реального документа ещё нет).
   function showProposedDoc(entity: NewEntity) {
     const id = `proposed:${entity.title}`;
@@ -215,7 +224,7 @@ export function PlaySession() {
                   documents={docs.map((d) => ({ title: d.title, type: d.type }))}
                   campaignBrief={`Идёт игровая сессия «${doc.title}». Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пока пусто)"}`}
                   getText={() => pmText(doc.contentJson).trim()}
-                  onApply={() => showToast("В режиме игры правка документа недоступна")}
+                  onApply={applyToSession}
                   onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
                   onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
                   onMessage={openMentionedDocs}

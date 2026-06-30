@@ -226,7 +226,7 @@ export function DocumentAssistant({
                     {doc && (
                       <div className="apply-card">
                         <div className="apply-preview">{doc}</div>
-                        <button type="button" className="apply-btn" onClick={() => { onApply(doc); showToast("Текст применён — не забудьте сохранить"); }}>
+                        <button type="button" className="apply-btn" onClick={() => onApply(doc)}>
                           <Check size={15} /> Применить к документу
                         </button>
                       </div>
