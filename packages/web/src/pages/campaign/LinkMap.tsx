@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Waypoints } from "lucide-react";
 import { getDocumentType } from "@master-ai/shared";
@@ -9,9 +9,12 @@ import { typeColor, useCampaign } from "./shared.js";
 // Карта связей кампании: узлы — документы, рёбра — упоминания одного в тексте другого.
 // Раскладка круговая, рендер — inline SVG (без внешних зависимостей).
 export function LinkMap() {
-  const { campaignId, documents } = useCampaign();
+  const { campaignId, documents, reload } = useCampaign();
   const navigate = useNavigate();
   const [hover, setHover] = useState<string | null>(null);
+
+  // Обновляем документы при открытии карты, чтобы она отражала свежие связи/правки.
+  useEffect(() => { reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { nodes, edges, size } = useMemo(() => {
     const docs = documents;
