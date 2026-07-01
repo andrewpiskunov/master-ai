@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, X, Dices, ChevronRight, Swords } from "lucide-react";
+import { Plus, X, Dices, ChevronRight, Swords, Sparkles } from "lucide-react";
 import { rollDice, type DiceResult } from "../dice.js";
 
 export interface Combatant {
@@ -20,7 +20,15 @@ const QUICK_DICE = ["d20", "d100", "d12", "d10", "d8", "d6", "d4"];
 
 // Боевой трекер за столом: инициатива, раунды, HP/состояния и бросок кубов.
 // Состояние боя персистентно (хранится в fields.combat), броски — эфемерны.
-export function CombatTracker({ combat, onChange }: { combat: CombatState | null; onChange: (c: CombatState | null) => void }) {
+export function CombatTracker({
+  combat, onChange, candidates = [], onAiFill, aiBusy = false,
+}: {
+  combat: CombatState | null;
+  onChange: (c: CombatState | null) => void;
+  candidates?: { id: string; title: string; type: string }[];
+  onAiFill?: () => void;
+  aiBusy?: boolean;
+}) {
   const [name, setName] = useState("");
   const [init, setInit] = useState("");
   const [formula, setFormula] = useState("d20");
@@ -32,12 +40,15 @@ export function CombatTracker({ combat, onChange }: { combat: CombatState | null
   const update = (next: CombatState) => onChange(next);
   const sortByInit = (cs: Combatant[]) => [...cs].sort((a, b) => b.init - a.init);
 
+  function addNamed(rawName: string, initVal = 0) {
+    const n = rawName.trim();
+    if (!n) return;
+    const c: Combatant = { id: crypto.randomUUID(), name: n, init: initVal, hp: 10, maxHp: 10, conditions: "" };
+    update({ ...state, combatants: sortByInit([...list, c]) });
+  }
   function addCombatant(e: { preventDefault: () => void }) {
     e.preventDefault();
-    const n = name.trim();
-    if (!n) return;
-    const c: Combatant = { id: crypto.randomUUID(), name: n, init: Number(init) || 0, hp: 10, maxHp: 10, conditions: "" };
-    update({ ...state, combatants: sortByInit([...list, c]) });
+    addNamed(name, Number(init) || 0);
     setName("");
     setInit("");
   }
@@ -95,6 +106,25 @@ export function CombatTracker({ combat, onChange }: { combat: CombatState | null
         <input className="combat-add-init" placeholder="иниц." value={init} onChange={(e) => setInit(e.target.value)} />
         <button type="submit" className="combat-add-btn" title="Добавить"><Plus size={15} /></button>
       </form>
+
+      <div className="combat-sources">
+        {candidates.length > 0 && (
+          <select
+            className="combat-pick"
+            value=""
+            onChange={(e) => { const c = candidates.find((x) => x.id === e.target.value); if (c) addNamed(c.title); e.currentTarget.value = ""; }}
+            title="Добавить из существующих персонажей кампании"
+          >
+            <option value="">+ Из кампании…</option>
+            {candidates.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+        )}
+        {onAiFill && (
+          <button type="button" className="combat-ai" onClick={onAiFill} disabled={aiBusy} title="Собрать участников боя из чата и текста сессии">
+            <Sparkles size={13} /> {aiBusy ? "Собираю…" : "Из чата"}
+          </button>
+        )}
+      </div>
 
       <div className="combat-dice">
         <div className="combat-dice-quick">

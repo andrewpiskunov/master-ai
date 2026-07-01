@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
+import { streamComplete } from "../api/stream.js";
 import { useToast } from "../ui/toast.js";
 import { Markdown } from "../ui/Markdown.js";
 import { contentToHtml } from "../editor/contentToHtml.js";
@@ -58,6 +59,29 @@ function splitSections(content: unknown): { heading: string | null; doc: unknown
   return groups.map((g) => ({ heading: g.heading, doc: { type: "doc", content: g.nodes } }));
 }
 
+// Разбор JSON со списком участников боя из ответа ИИ (терпим к обрамлению).
+function parseCombatants(text: string): { name: string; init: number; hp: number }[] {
+  const fence = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
+  const raw = (fence ? fence[1] : text).trim();
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end < 0) return [];
+  try {
+    const parsed = JSON.parse(raw.slice(start, end + 1)) as { combatants?: unknown[] };
+    const arr = Array.isArray(parsed.combatants) ? parsed.combatants : [];
+    return arr
+      .filter((x): x is { name: string } => !!x && typeof (x as { name?: unknown }).name === "string")
+      .map((x) => ({
+        name: String(x.name).trim(),
+        init: Number((x as { init?: unknown }).init) || 0,
+        hp: Number((x as { hp?: unknown }).hp) || 10,
+      }))
+      .filter((c) => c.name);
+  } catch {
+    return [];
+  }
+}
+
 // Режим прогона сессии за столом: текст сессии, просмотрщик связанных документов, лог и ассистент.
 export function PlaySession() {
   const { campaignId, documentId } = useParams<{ campaignId: string; documentId: string }>();
@@ -80,6 +104,7 @@ export function PlaySession() {
   // Предлагаемые ассистентом к созданию сущности (документа ещё нет в базе) — по синтетическому id.
   const [proposed, setProposed] = useState<Record<string, NewEntity>>({});
   const [nextBusy, setNextBusy] = useState(false);
+  const [combatAiBusy, setCombatAiBusy] = useState(false);
   // Режим показа игрокам — прячет секции, помеченные «только мастер».
   const [playerView, setPlayerView] = useState(false);
 
@@ -172,6 +197,41 @@ export function PlaySession() {
     const id = `proposed:${entity.title}`;
     setProposed((p) => ({ ...p, [id]: entity }));
     openDoc(id);
+  }
+
+  // Собрать участников боя из чата ассистента + текста и лога сессии через ИИ.
+  async function aiFillCombat() {
+    if (!doc || !documentId || combatAiBusy) return;
+    setCombatAiBusy(true);
+    try {
+      const conv = await api.getDocumentConversation(documentId).catch(() => []);
+      const chat = conv.map((m) => `${m.role === "user" ? "Мастер" : "ИИ"}: ${m.content}`).join("\n");
+      let out = "";
+      await streamComplete(
+        {
+          system:
+            "Ты — ассистент мастера НРИ. Определи участников БОЯ (враги и союзники, вступающие в схватку) из контекста ниже. " +
+            "Верни ТОЛЬКО JSON {\"combatants\":[{\"name\":\"Имя\",\"init\":0,\"hp\":10}]}. init и hp можешь оценить по описанию (иначе 0 и 10). " +
+            "Только тех, кто реально дерётся; если участников нет — {\"combatants\":[]}.",
+          messages: [{ role: "user", content: `Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пусто)"}\n\nЧат с ассистентом:\n${chat || "(пусто)"}` }],
+        },
+        (c) => { out += c; },
+      );
+      const found = parseCombatants(out);
+      if (!found.length) { showToast("ИИ не нашёл участников боя"); return; }
+      const cur = (docRef.current?.fields?.combat as CombatState) ?? { round: 1, turn: 0, combatants: [] };
+      const existing = new Set(cur.combatants.map((c) => c.name.toLowerCase()));
+      const added = found
+        .filter((f) => !existing.has(f.name.toLowerCase()))
+        .map((f) => ({ id: crypto.randomUUID(), name: f.name, init: f.init, hp: f.hp, maxHp: f.hp, conditions: "" }));
+      const combatants = [...cur.combatants, ...added].sort((a, b) => b.init - a.init);
+      await patchFields({ combat: { ...cur, combatants } });
+      showToast(added.length ? `Добавлено участников: ${added.length}` : "Все участники уже в списке");
+    } catch {
+      showToast("Не удалось собрать участников боя");
+    } finally {
+      setCombatAiBusy(false);
+    }
   }
 
   // Пины — часто нужные под рукой документы этой сессии (хранятся в fields.pins).
@@ -334,7 +394,13 @@ export function PlaySession() {
               />
             </div>
             <div className="play-combat-wrap" style={{ display: tab === "combat" ? undefined : "none" }}>
-              <CombatTracker combat={(doc.fields?.combat as CombatState) ?? null} onChange={(c) => void patchFields({ combat: c })} />
+              <CombatTracker
+                combat={(doc.fields?.combat as CombatState) ?? null}
+                onChange={(c) => void patchFields({ combat: c })}
+                candidates={docs.filter((d) => d.type === "pc" || d.type === "npc").map((d) => ({ id: d.id, title: d.title, type: d.type }))}
+                onAiFill={aiFillCombat}
+                aiBusy={combatAiBusy}
+              />
             </div>
           </div>
         </aside>

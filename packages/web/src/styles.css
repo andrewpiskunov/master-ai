@@ -594,6 +594,10 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .combat-add-name { flex: 1 1 auto; }
 .combat-add-init { width: 60px; text-align: center; }
 .combat-add-btn { flex: none; padding: 0 10px; }
+.combat-sources { display: flex; flex-wrap: wrap; gap: 6px; }
+.combat-pick { flex: 1 1 140px; padding: 6px 8px; font-size: 0.8rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); color-scheme: dark; }
+.combat-ai { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; font-size: 0.8rem; font-weight: 500; background: var(--accent-soft); border: 1px solid rgba(59,130,246,0.32); border-radius: 8px; color: var(--accent-hover); }
+.combat-ai:disabled { opacity: 0.6; }
 .combat-dice { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .combat-dice-quick { display: flex; flex-wrap: wrap; gap: 5px; }
 .combat-dice-quick button { padding: 3px 9px; font-size: 0.78rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text); }
