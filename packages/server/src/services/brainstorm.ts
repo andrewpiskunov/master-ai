@@ -68,6 +68,9 @@ const SYSTEM_PROMPT = [
 ].join("\n");
 
 export class BrainstormService {
+  // Кэш проверки противоречий по хэшу документов — повторный запуск без изменений мгновенный.
+  private consistencyCache = new Map<string, { hash: string; result: { issues: ConsistencyIssue[] } }>();
+
   constructor(
     private deps: { llm: LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService },
   ) {}
@@ -149,6 +152,10 @@ export class BrainstormService {
     const { documents, llm } = this.deps;
     const docs = documents.listByCampaign(campaignId);
     if (docs.length < 2) return { issues: [] };
+    // Хэш содержимого — если ничего не менялось, отдаём кэш без тяжёлого запроса к ИИ.
+    const hash = docs.map((d) => `${d.id}:${d.updatedAt}:${d.status ?? ""}`).sort().join("|");
+    const cached = this.consistencyCache.get(campaignId);
+    if (cached && cached.hash === hash) return cached.result;
     const digest = docs.slice(0, 80).map((d) => {
       const body = proseMirrorToText(d.contentJson).replace(/\s+/g, " ").trim().slice(0, 300);
       const status = d.status ? `, статус: ${d.status}` : "";
@@ -167,7 +174,9 @@ export class BrainstormService {
     })) {
       out += chunk;
     }
-    return { issues: parseIssues(out) };
+    const result = { issues: parseIssues(out) };
+    this.consistencyCache.set(campaignId, { hash, result });
+    return result;
   }
 
   // Итоговая сводка сыгранной сессии: ИТОГИ (что было) + ЗАДЕЛ (крючки на следующую).
