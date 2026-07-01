@@ -184,8 +184,9 @@ export class BrainstormService {
     const { documents, llm } = this.deps;
     const sess = documents.get(sessionId);
     if (!sess) return { summary: "", seed: "" };
-    const log = typeof sess.fields?.sessionLog === "string" ? sess.fields.sessionLog : "";
-    const text = proseMirrorToText(sess.contentJson).trim();
+    // Ограничиваем объём входа, чтобы время генерации сводки не росло на больших сессиях.
+    const log = (typeof sess.fields?.sessionLog === "string" ? sess.fields.sessionLog : "").slice(0, 4000);
+    const text = proseMirrorToText(sess.contentJson).trim().slice(0, 4000);
 
     let out = "";
     for await (const chunk of llm.complete({

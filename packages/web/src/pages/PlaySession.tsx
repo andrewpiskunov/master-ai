@@ -254,6 +254,7 @@ export function PlaySession() {
   async function endAndCreateNext() {
     if (!documentId || nextBusy) return;
     setNextBusy(true);
+    showToast("Подводим итоги сессии и готовим следующую — это может занять до минуты…");
     try {
       const next = await api.nextSession(documentId);
       showToast(`Создана «${next.title}» — итоги и пересказ готовы`);
