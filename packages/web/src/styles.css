@@ -459,6 +459,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .session-empty h3 { margin: 4px 0 0; color: var(--text-strong); font-size: 1.1rem; }
 .session-empty p { margin: 0; max-width: 420px; }
 .session-empty .btn { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; }
+.session-empty.grad svg { color: var(--accent-hover); opacity: 1; }
+.grad-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
+.grad-count { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; font-size: 0.8rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; }
 
 /* Пустое состояние раздела библиотеки */
 .lib-empty {

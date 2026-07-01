@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, Clock, Plus, FileText, Play, ArrowRight, ExternalLink } from "lucide-react";
+import { Bookmark, Clock, Plus, FileText, Play, ArrowRight, ExternalLink, PartyPopper } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { useBookmarks } from "../../bookmarks.js";
 import { prepareMentions, matchMentions } from "../../mentions.js";
@@ -164,10 +164,22 @@ export function CampaignHome() {
             {sessions.length > 0 ? (
               <SessionsBoard campaignId={campaignId} sessions={sessions} documents={documents} onNew={() => createDocument("session")} />
             ) : (
-              <div className="session-empty">
-                <FileText size={34} strokeWidth={1.6} />
-                <h3>Пока нет сессий</h3>
-                <p className="muted">Создайте первую сессию, чтобы планировать и вести кампанию.</p>
+              <div className="session-empty grad">
+                <PartyPopper size={34} strokeWidth={1.6} />
+                <h3>Основа кампании готова</h3>
+                <p className="muted">Вы наполнили Базу знаний — теперь превратите основу в подготовку к столу и создайте первую сессию.</p>
+                {(() => {
+                  const built = ["pc", "npc", "location", "faction", "arc", "lore"]
+                    .map((t) => ({ t, n: documents.filter((d) => d.type === t).length }))
+                    .filter((x) => x.n > 0);
+                  return built.length ? (
+                    <div className="grad-counts">
+                      {built.map((b) => (
+                        <span key={b.t} className="grad-count"><TypeBadge type={b.t} size={16} /> {getDocumentType(b.t)?.label ?? b.t} {b.n}</span>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
                 <button type="button" className="btn" onClick={() => createDocument("session")}>
                   <Plus size={16} strokeWidth={2} /> Создать первую сессию
                 </button>
