@@ -46,6 +46,27 @@ export function statusLabel(value: string): string {
   return STATUS_LABELS[value] ?? value;
 }
 
+// Цвета статусов для меток на карточках (чипы). Ключи — те же, что в STATUS_LABELS.
+export const STATUS_COLORS: Record<string, string> = {
+  active: "#4ade80",
+  completed: "#4ade80",
+  revealed: "#4ade80",
+  played: "#4ade80",
+  used: "#94a3b8",
+  retired: "#94a3b8",
+  deceased: "#f87171",
+  hidden: "#fbbf24",
+  planned: "#38bdf8",
+  // Прежние статусы персонажей.
+  alive: "#4ade80",
+  dead: "#f87171",
+  unknown: "#94a3b8",
+};
+
+export function statusColor(value: string): string {
+  return STATUS_COLORS[value] ?? "#94a3b8";
+}
+
 // Отношение персонажа к партии (как «Disposition» в Campaign Arks) — хранится
 // в fields.disposition. Применимо к npc и pc.
 export interface DispositionDef {

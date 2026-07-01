@@ -352,6 +352,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .doc-card-body { display: flex; flex-direction: column; min-width: 0; }
 .doc-card-title { color: var(--text-strong); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doc-card-type { color: var(--muted); font-size: 0.78rem; }
+.doc-card-snippet { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Чипы статуса/отношения на карточках */
+.doc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.doc-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: rgba(148, 163, 184, 0.12); white-space: nowrap; }
+.doc-chip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 
 /* Цветная плитка-иконка типа */
 .type-tile { display: inline-flex; align-items: center; justify-content: center; flex: none; }
@@ -370,6 +375,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 .doc-tile:hover { text-decoration: none; border-color: var(--accent); background: var(--surface-2); }
 .doc-tile-title { color: var(--text-strong); font-weight: 600; font-size: 0.95rem; line-height: 1.35; }
+.doc-tile-snippet { color: var(--muted); font-size: 0.78rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.doc-tile .doc-chips { justify-content: center; }
 
 /* Раздел типа: заголовок с цветной иконкой + счётчик */
 .type-section { margin-top: 6px; }

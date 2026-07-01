@@ -5,7 +5,8 @@ import {
   Swords, Milestone, Replace, LayoutGrid, List,
   type LucideIcon,
 } from "lucide-react";
-import { DOCUMENT_TYPES, getDocumentType, type Campaign, type Document } from "@master-ai/shared";
+import { DOCUMENT_TYPES, getDocumentType, getDisposition, hasDisposition, statusLabel, statusColor, type Campaign, type Document } from "@master-ai/shared";
+import { pmText } from "../../prosemirror-text.js";
 
 // Деление типов документов на разделы — как в Campaign Arks.
 export const KNOWLEDGE_TYPES = ["pc", "npc", "location", "faction", "lore", "reference", "note"];
@@ -97,13 +98,64 @@ export function TypeTag({ type }: { type: string }) {
   );
 }
 
+const clip = (s: string, max = 120) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
+
+// Краткое описание документа для карточки: первое заполненное поле шаблона
+// («Метка: значение») или первый содержательный абзац; заголовки разделов и
+// пустые поля пропускаем. Работает по структуре ProseMirror, а не по markdown.
+export function docSnippet(content: unknown): string {
+  const node = content as { content?: unknown[]; type?: string } | null;
+  const nodes = node && Array.isArray(node.content) ? node.content : null;
+  if (!nodes) return "";
+  for (const raw of nodes) {
+    const n = raw as { type?: string };
+    if (n.type === "heading") continue; // заголовок раздела шаблона
+    if (n.type === "bulletList" || n.type === "orderedList" || n.type === "listItem") {
+      const inner = docSnippet(raw); // спускаемся в пункты списка
+      if (inner) return inner;
+      continue;
+    }
+    const text = pmText(raw).replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    const colon = text.indexOf(":");
+    if (colon >= 0 && colon <= 40) {
+      const value = text.slice(colon + 1).trim();
+      if (value) return clip(value); // заполненное поле
+      continue; // «Метка:» без значения — пропускаем
+    }
+    return clip(text); // обычный абзац
+  }
+  return "";
+}
+
+// Цветные чипы статуса и отношения — для быстрого сканирования карточек.
+function DocChips({ doc }: { doc: Document }) {
+  const chips: { label: string; color: string }[] = [];
+  const disp = hasDisposition(doc.type) ? getDisposition(String(doc.fields?.disposition ?? "")) : undefined;
+  if (disp) chips.push({ label: disp.label, color: disp.color });
+  if (doc.status) chips.push({ label: statusLabel(doc.status), color: statusColor(doc.status) });
+  if (!chips.length) return null;
+  return (
+    <span className="doc-chips">
+      {chips.map((c) => (
+        <span key={c.label} className="doc-chip" style={{ color: c.color }}>
+          <span className="doc-chip-dot" style={{ background: c.color }} />{c.label}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function DocCard({ doc, variant = "row" }: { doc: Document; variant?: "row" | "tile" }) {
   const t = getDocumentType(doc.type);
+  const snippet = docSnippet(doc.contentJson);
   if (variant === "tile") {
     return (
       <Link to={`/campaigns/${doc.campaignId}/documents/${doc.id}`} className="doc-tile">
         <TypeBadge type={doc.type} size={40} />
         <span className="doc-tile-title">{doc.title}</span>
+        {snippet && <span className="doc-tile-snippet">{snippet}</span>}
+        <DocChips doc={doc} />
       </Link>
     );
   }
@@ -112,7 +164,10 @@ export function DocCard({ doc, variant = "row" }: { doc: Document; variant?: "ro
       <TypeBadge type={doc.type} size={32} />
       <span className="doc-card-body">
         <span className="doc-card-title">{doc.title}</span>
-        <span className="doc-card-type">{t?.label ?? doc.type}</span>
+        {snippet
+          ? <span className="doc-card-snippet">{snippet}</span>
+          : <span className="doc-card-type">{t?.label ?? doc.type}</span>}
+        <DocChips doc={doc} />
       </span>
     </Link>
   );
