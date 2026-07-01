@@ -1231,6 +1231,15 @@ a.mention:hover { filter: brightness(1.12); }
   padding: 10px 12px; max-height: 160px; overflow-y: auto;
   background: var(--surface); color: var(--muted); font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap;
 }
+/* Превью изменений (diff) в карточке «Применить» */
+.apply-diff { white-space: normal; padding: 8px 0; }
+.apply-diff-empty { font-style: italic; }
+.diff-line { display: flex; gap: 6px; padding: 1px 12px; white-space: pre-wrap; }
+.diff-sign { flex: none; width: 10px; text-align: center; opacity: 0.7; }
+.diff-add { background: rgba(74, 222, 128, 0.12); color: #bbf7d0; }
+.diff-del { background: rgba(248, 113, 113, 0.12); color: #fecaca; }
+.diff-same { color: var(--muted); opacity: 0.7; }
+.diff-collapse { padding: 3px 12px; color: var(--muted); font-size: 0.75rem; text-align: center; opacity: 0.6; }
 .apply-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
 .apply-new-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
 .apply-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; border-radius: 0; }

@@ -5,6 +5,7 @@ import { api } from "../api/client.js";
 import { streamComplete } from "../api/stream.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
 import { pmText } from "../prosemirror-text.js";
+import { lineDiff } from "../lineDiff.js";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
 import { useToast } from "../ui/toast.js";
@@ -78,6 +79,34 @@ function parseAssistant(content: string): { intro: string; doc: string | null; n
 }
 
 const TYPE_LIST = DOCUMENT_TYPES.map((t) => `${t.key} (${t.label})`).join(", ");
+
+// Превью изменений блока ```doc``` относительно текущего документа: только изменённые
+// строки (+/−) с короткими неизменными участками; длинные — сворачиваем.
+function DiffPreview({ current, proposed }: { current: string; proposed: string }) {
+  const diff = lineDiff(current, proposed);
+  if (!diff.some((l) => l.type !== "same")) {
+    return <div className="apply-preview apply-diff-empty">Изменений нет — текст совпадает с документом.</div>;
+  }
+  const rows: ({ collapse: number } | { type: "add" | "del" | "same"; text: string })[] = [];
+  let sameRun: string[] = [];
+  const flush = () => {
+    if (sameRun.length > 3) rows.push({ collapse: sameRun.length });
+    else sameRun.forEach((t) => rows.push({ type: "same", text: t }));
+    sameRun = [];
+  };
+  for (const l of diff) {
+    if (l.type === "same") sameRun.push(l.text);
+    else { flush(); rows.push(l); }
+  }
+  flush();
+  return (
+    <div className="apply-preview apply-diff">
+      {rows.map((r, i) => "collapse" in r
+        ? <div key={i} className="diff-collapse">··· {r.collapse} строк без изменений ···</div>
+        : <div key={i} className={`diff-line diff-${r.type}`}><span className="diff-sign">{r.type === "add" ? "+" : r.type === "del" ? "−" : " "}</span>{r.text || " "}</div>)}
+    </div>
+  );
+}
 
 export function DocumentAssistant({
   docId,
@@ -247,7 +276,7 @@ export function DocumentAssistant({
                         <div className="apply-done"><Check size={15} /> Применено к документу</div>
                       ) : (
                         <div className="apply-card">
-                          <div className="apply-preview">{doc}</div>
+                          <DiffPreview current={currentText} proposed={pmText(markdownToDoc(doc)).trim()} />
                           <button type="button" className="apply-btn" onClick={() => { onApply(doc); setAppliedLocal((s) => new Set(s).add(doc)); }}>
                             <Check size={15} /> Применить к документу
                           </button>
