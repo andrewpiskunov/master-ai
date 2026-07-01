@@ -14,6 +14,17 @@ import { MentionedInPanel } from "./MentionedInPanel.js";
 import { ChangeTypeMenu, typeColor, typeColors, useCampaign } from "./campaign/shared.js";
 import { isBookmarked, toggleBookmark } from "../bookmarks.js";
 import { pmText } from "../prosemirror-text.js";
+import { streamComplete } from "../api/stream.js";
+
+// Извлекает блок полей раздела из markdown-шаблона (строки под «## Заголовок» до следующего «## »).
+function sectionFieldBlock(template: string, heading: string): string {
+  const lines = template.split("\n");
+  const start = lines.findIndex((l) => l.trim() === `## ${heading.trim()}`);
+  if (start === -1) return "";
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => l.startsWith("## "));
+  return (end === -1 ? rest : rest.slice(0, end)).join("\n").trim();
+}
 
 export function DocumentPage() {
   const { campaignId, documentId } = useParams<{ campaignId: string; documentId: string }>();
@@ -143,6 +154,37 @@ export function DocumentPage() {
       showToast(`Обновлено: «${edit.rename ?? target.title}»`);
     } catch {
       showToast("Не удалось обновить документ");
+    }
+  }
+
+  // «Заполнить с ИИ» один раздел: стримим содержимое и точечно заменяем раздел в редакторе.
+  async function fillSection(heading: string) {
+    if (!doc) return;
+    const typeLabel = getDocumentType(doc.type)?.label ?? doc.type;
+    const brief = campaignCtx?.campaign?.description?.trim();
+    const block = sectionFieldBlock(getTemplate(doc.type) ?? "", heading);
+    showToast(`ИИ заполняет раздел «${heading}»…`);
+    let out = "";
+    try {
+      await streamComplete(
+        {
+          system:
+            `Ты — соавтор мастера настольных ролевых игр. Заполни ТОЛЬКО раздел «${heading}» документа ` +
+            `(тип: ${typeLabel}, название: «${title}»). Верни ЛИШЬ содержимое раздела — подписи полей и вписанные значения; ` +
+            `НЕ повторяй строку заголовка «## ${heading}». Пиши по-русски, кратко и по делу, в тоне кампании. ` +
+            `Учитывай остальной текст документа, чтобы не противоречить ему.` +
+            (brief ? `\n\nБриф кампании:\n${brief}` : "") +
+            (block ? `\n\nСтруктура раздела (заполни по ней, сохраняя подписи полей):\n${block}` : "") +
+            `\n\nВесь текущий текст документа:\n${pmText(contentJson).trim() || "(пусто)"}`,
+          messages: [{ role: "user", content: `Заполни раздел «${heading}».` }],
+        },
+        (chunk) => { out += chunk; },
+      );
+      if (!out.trim()) { showToast("ИИ не вернул текст"); return; }
+      if (editorRef.current?.applySection(heading, out.trim())) showToast(`Раздел «${heading}» заполнен`);
+      else showToast(`Не удалось найти раздел «${heading}»`);
+    } catch {
+      showToast("Не удалось заполнить раздел");
     }
   }
 
@@ -310,6 +352,7 @@ export function DocumentPage() {
             content={contentJson}
             onChange={setContentJson}
             mentions={mentions}
+            onFillSection={fillSection}
           />
         </div>
 

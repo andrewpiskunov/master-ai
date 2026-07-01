@@ -9,16 +9,22 @@ import { baseExtensions } from "./extensions.js";
 import { MentionHighlight, mentionKey, type MentionItem } from "./MentionHighlight.js";
 import { Placeholder } from "./Placeholder.js";
 import { GhostText, ghostKey } from "./GhostText.js";
+import { FillSection } from "./FillSection.js";
 
 interface DocumentEditorProps {
   content: unknown;
   onChange: (json: unknown) => void;
   mentions?: MentionItem[];
+  // Заполнить раздел (по заголовку) с ИИ — обрабатывается на странице документа.
+  onFillSection?: (heading: string) => void;
 }
 
 export interface DocumentEditorHandle {
   applyText: (text: string) => void;
   insertReference: (title: string) => void;
+  // Заменяет содержимое раздела (по заголовку 2-го уровня) на новый markdown.
+  // Возвращает false, если раздел с таким заголовком не найден.
+  applySection: (heading: string, bodyMarkdown: string) => boolean;
 }
 
 // Построчная конвертация markdown-ишного текста в HTML для вставки в редактор:
@@ -108,9 +114,12 @@ const SLASH_KEYWORDS: Record<string, string[]> = {
 interface MenuState { kind: "slash" | "mention"; items: MenuItem[]; index: number; top: number; left: number; queryLen: number; triggerLen: number }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { content, onChange, mentions },
+  { content, onChange, mentions, onFillSection },
   ref,
 ) {
+  // Держим актуальный колбэк заполнения в ref — расширение конфигурируется один раз.
+  const fillSectionRef = useRef(onFillSection);
+  fillSectionRef.current = onFillSection;
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [bubble, setBubble] = useState<{ top: number; left: number; below: boolean } | null>(null);
   const [autocomplete, setAutocomplete] = useState(() => {
@@ -215,7 +224,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   }
 
   const editor = useEditor({
-    extensions: [...baseExtensions, MentionHighlight, Placeholder, GhostText],
+    extensions: [
+      ...baseExtensions, MentionHighlight, Placeholder, GhostText,
+      FillSection.configure({ onFill: (heading: string) => fillSectionRef.current?.(heading) }),
+    ],
     content: (content as object) ?? "",
     onUpdate: ({ editor }) => { onChange(editor.getJSON()); detectMenu(editor); detectBubble(editor); scheduleGhost(editor); },
     onSelectionUpdate: ({ editor }) => { detectMenu(editor); detectBubble(editor); },
@@ -233,6 +245,27 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       if (!editor) return;
       editor.chain().focus().insertContent(`${title} `).run();
       onChange(editor.getJSON());
+    },
+    applySection(heading: string, bodyMarkdown: string): boolean {
+      if (!editor) return false;
+      const { doc } = editor.state;
+      const target = heading.trim();
+      let start = -1; // позиция начала содержимого раздела (сразу после заголовка)
+      let end = -1;   // позиция начала следующего заголовка 2-го уровня или конец документа
+      doc.forEach((node, offset) => {
+        const isH2 = node.type.name === "heading" && node.attrs.level === 2;
+        if (start === -1 && isH2 && node.textContent.trim() === target) {
+          start = offset + node.nodeSize;
+        } else if (start !== -1 && end === -1 && isH2) {
+          end = offset;
+        }
+      });
+      if (start === -1) return false; // раздел не найден
+      if (end === -1) end = doc.content.size;
+      const body = generateJSON(textToHtml(bodyMarkdown) || "<p></p>", baseExtensions) as { content?: unknown[] };
+      editor.chain().focus().insertContentAt({ from: start, to: end }, body.content ?? []).run();
+      onChange(editor.getJSON());
+      return true;
     },
   }), [editor, onChange]);
 

@@ -1054,6 +1054,10 @@ a.mention:hover { filter: brightness(1.12); }
 .autocomplete-toggle { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 4px 9px; font-size: 0.78rem; font-weight: 600; background: transparent; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
 .autocomplete-toggle:hover { filter: none; color: var(--text); }
 .autocomplete-toggle.on { background: var(--accent-soft); border-color: rgba(59,130,246,0.32); color: var(--accent-hover); }
+/* Кнопка «заполнить раздел с ИИ» у заголовков — видна при наведении на строку */
+.fill-section-btn { margin-left: 10px; padding: 1px 7px; font-size: 0.8rem; line-height: 1.4; vertical-align: middle; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; opacity: 0; transition: opacity 0.12s; }
+.ProseMirror h2:hover .fill-section-btn, .fill-section-btn:hover, .fill-section-btn:focus { opacity: 1; }
+.fill-section-btn:hover { border-color: var(--accent); }
 .editor-help { flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 4px; background: none; border: none; color: var(--muted); border-radius: 6px; }
 .editor-help:hover { filter: none; color: var(--text-strong); }
 /* Одноразовая карточка-подсказка о возможностях редактора */
