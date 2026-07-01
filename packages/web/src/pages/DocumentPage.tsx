@@ -414,7 +414,7 @@ export function DocumentPage() {
                 documents={allDocuments.map((d) => ({ title: d.title, type: d.type }))}
                 campaignBrief={campaignCtx?.campaign?.description ?? undefined}
                 getText={() => pmText(contentJson).trim()}
-                onApply={(text) => { editorRef.current?.applyText(text); showToast("Текст применён — не забудьте сохранить"); }}
+                onApply={(text) => { editorRef.current?.applyText(text); showToast("Текст применён"); }}
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
               />
