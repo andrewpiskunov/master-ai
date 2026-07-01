@@ -145,6 +145,8 @@ export function DocumentAssistant({
   const [busy, setBusy] = useState(false);
   // Оптимистичная отметка «применено» сразу после клика (по тексту блока).
   const [appliedLocal, setAppliedLocal] = useState<Set<string>>(() => new Set());
+  // Оптимистичная отметка «создано» сразу после клика (по типу+названию сущности).
+  const [createdLocal, setCreatedLocal] = useState<Set<string>>(() => new Set());
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -247,6 +249,11 @@ export function DocumentAssistant({
     if (appliedLocal.has(block)) return true;
     try { return pmText(markdownToDoc(block)).trim() === currentText; } catch { return false; }
   };
+  // Сущность считаем созданной, если её отметили локально или документ с таким названием
+  // уже есть в кампании — это переживает перезаход без отдельного хранилища.
+  const entityKey = (e: NewEntity) => `${e.type}:${e.title.trim().toLowerCase()}`;
+  const isCreated = (nd: NewEntity): boolean =>
+    createdLocal.has(entityKey(nd)) || documents.some((d) => d.title.trim().toLowerCase() === nd.title.trim().toLowerCase());
 
   return (
     <div className="doc-assistant">
@@ -284,16 +291,20 @@ export function DocumentAssistant({
                       )
                     )}
                     {newDocs.map((nd, ni) => (
-                      <div className="apply-card" key={`nd-${ni}`}>
-                        <div className="apply-head">
-                          <TypeTag type={nd.type} />
-                          <span className="apply-new-title">{nd.title}</span>
+                      isCreated(nd) ? (
+                        <div className="apply-done" key={`nd-${ni}`}><Check size={15} /> Сущность «{nd.title}» создана</div>
+                      ) : (
+                        <div className="apply-card" key={`nd-${ni}`}>
+                          <div className="apply-head">
+                            <TypeTag type={nd.type} />
+                            <span className="apply-new-title">{nd.title}</span>
+                          </div>
+                          {nd.text && <div className="apply-preview">{nd.text}</div>}
+                          <button type="button" className="apply-btn" onClick={() => { onCreateEntity(nd); setCreatedLocal((s) => new Set(s).add(entityKey(nd))); }}>
+                            <Plus size={15} /> Создать сущность «{nd.title}»
+                          </button>
                         </div>
-                        {nd.text && <div className="apply-preview">{nd.text}</div>}
-                        <button type="button" className="apply-btn" onClick={() => onCreateEntity(nd)}>
-                          <Plus size={15} /> Создать сущность «{nd.title}»
-                        </button>
-                      </div>
+                      )
                     ))}
                     {edits.map((e, ei) => (
                       <div className="apply-card" key={ei}>
