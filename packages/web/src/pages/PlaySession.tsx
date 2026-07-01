@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff, Sparkles } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { streamComplete } from "../api/stream.js";
@@ -105,6 +105,7 @@ export function PlaySession() {
   const [proposed, setProposed] = useState<Record<string, NewEntity>>({});
   const [nextBusy, setNextBusy] = useState(false);
   const [combatAiBusy, setCombatAiBusy] = useState(false);
+  const [logAiBusy, setLogAiBusy] = useState(false);
   // Режим показа игрокам — прячет секции, помеченные «только мастер».
   const [playerView, setPlayerView] = useState(false);
 
@@ -197,6 +198,38 @@ export function PlaySession() {
     const id = `proposed:${entity.title}`;
     setProposed((p) => ({ ...p, [id]: entity }));
     openDoc(id);
+  }
+
+  // ИИ дописывает в лог важные события из чата и текста сессии (не перезаписывая).
+  async function aiAppendLog() {
+    if (!doc || !documentId || logAiBusy) return;
+    setLogAiBusy(true);
+    try {
+      const conv = await api.getDocumentConversation(documentId).catch(() => []);
+      const chat = conv.map((m) => `${m.role === "user" ? "Мастер" : "ИИ"}: ${m.content}`).join("\n");
+      let out = "";
+      await streamComplete(
+        {
+          system:
+            "Ты — ассистент мастера НРИ, ведёшь лог игровой сессии. По тексту сессии, чату с ассистентом и текущему логу " +
+            "выпиши КРАТКИЕ строки о важных событиях, которых ЕЩЁ НЕТ в логе: решения игроков, бой и его исход, находки/добыча, " +
+            "изменения статусов NPC, новые зацепки. Каждое событие — с новой строки, начиная с «- ». По-русски, лаконично. " +
+            "Если ничего нового нет — верни пустую строку.",
+          messages: [{ role: "user", content: `Текст сессии:\n${pmText(doc.contentJson).trim() || "(пусто)"}\n\nЧат с ассистентом:\n${chat || "(пусто)"}\n\nТекущий лог:\n${log || "(пусто)"}` }],
+        },
+        (c) => { out += c; },
+      );
+      // Берём только строки-события (маркер списка), отсекая пояснения ИИ вроде «Ничего нового…».
+      const lines = out.split("\n").map((l) => l.trim()).filter((l) => /^[-•*]\s+/.test(l));
+      if (!lines.length) { showToast("ИИ не нашёл новых событий для лога"); return; }
+      const add = lines.join("\n");
+      setLog((prev) => (prev.trim() ? `${prev.trimEnd()}\n${add}` : add));
+      showToast("Лог дополнен ИИ");
+    } catch {
+      showToast("Не удалось дополнить лог");
+    } finally {
+      setLogAiBusy(false);
+    }
   }
 
   // Собрать участников боя из чата ассистента + текста и лога сессии через ИИ.
@@ -372,13 +405,19 @@ export function PlaySession() {
             </div>
             {/* Обе панели смонтированы всегда — переключение прячет, а не размонтирует,
                 чтобы не терялись состояние ассистента (например, «применено») и черновик. */}
-            <textarea
-              className="play-log"
-              style={{ display: tab === "log" ? undefined : "none" }}
-              placeholder="Записывайте, что происходит — имена, решения, добыча. Введите «@», чтобы сослаться на что угодно в кампании."
-              value={log}
-              onChange={(e) => setLog(e.target.value)}
-            />
+            <div className="play-log-wrap" style={{ display: tab === "log" ? undefined : "none" }}>
+              <textarea
+                className="play-log"
+                placeholder="Записывайте, что происходит — имена, решения, добыча. Введите «@», чтобы сослаться на что угодно в кампании."
+                value={log}
+                onChange={(e) => setLog(e.target.value)}
+              />
+              <div className="play-log-bar">
+                <button type="button" className="play-log-ai" onClick={aiAppendLog} disabled={logAiBusy} title="ИИ выпишет важные события из чата и текста сессии и допишет их в лог">
+                  <Sparkles size={13} /> {logAiBusy ? "Дописываю…" : "Дописать в лог с ИИ"}
+                </button>
+              </div>
+            </div>
             <div className="play-assistant" style={{ display: tab === "assistant" ? undefined : "none" }}>
               <DocumentAssistant
                 docId={doc.id}
