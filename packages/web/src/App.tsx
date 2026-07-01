@@ -3,6 +3,7 @@ import { HomePage } from "./pages/HomePage.js";
 import { DocumentPage } from "./pages/DocumentPage.js";
 import { PrintReader } from "./pages/PrintReader.js";
 import { PlaySession } from "./pages/PlaySession.js";
+import { CampaignExport } from "./pages/CampaignExport.js";
 import { CampaignWorkspace } from "./pages/campaign/CampaignWorkspace.js";
 import { CampaignHome } from "./pages/campaign/CampaignHome.js";
 import { WorkshopView } from "./pages/campaign/WorkshopView.js";
@@ -32,6 +33,7 @@ export function App() {
           </Route>
           <Route path="/campaigns/:campaignId/documents/:documentId/print" element={<PrintReader />} />
           <Route path="/campaigns/:campaignId/sessions/:documentId/play" element={<PlaySession />} />
+          <Route path="/campaigns/:campaignId/export" element={<CampaignExport />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>

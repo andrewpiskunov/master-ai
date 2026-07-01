@@ -232,6 +232,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .manage-danger { border-color: var(--danger); }
 .manage-danger h2 { color: #fca5a5; }
 .manage-delete { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; }
+.manage-export { display: inline-flex; align-items: center; gap: 8px; }
+.print-count { color: var(--muted); font-size: 0.85rem; margin-right: auto; }
 .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .workspace-main {

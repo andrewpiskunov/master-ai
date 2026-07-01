@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, Check, Loader } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Trash2, Check, Loader, Download } from "lucide-react";
 import type { Realism } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { useToast } from "../../ui/toast.js";
@@ -130,6 +130,12 @@ export function ManageCampaign() {
           ))}
         </div>
         <p className="muted manage-hint">{REALISM.find((r) => r.key === realism)?.hint}</p>
+      </section>
+
+      <section className="panel manage-section">
+        <h2>Экспорт</h2>
+        <p className="muted manage-hint">Собрать всю кампанию в один документ — для печати, сохранения в PDF или выгрузки в Markdown.</p>
+        <Link to={`/campaigns/${campaignId}/export`} className="btn manage-export"><Download size={16} strokeWidth={1.8} /> Экспорт кампании</Link>
       </section>
 
       <section className="panel manage-danger">
