@@ -33,6 +33,10 @@ export function DocumentPage() {
   const [fields, setFields] = useState<Record<string, unknown>>({});
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<"assistant" | "play" | "mentions">("assistant");
+  // Одноразовая подсказка о назначении вкладок правой панели.
+  const [tabsHint, setTabsHint] = useState(() => {
+    try { return localStorage.getItem("master-ai:doc-tabs-hint-seen") !== "1"; } catch { return true; }
+  });
   const [marked, setMarked] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -302,16 +306,26 @@ export function DocumentPage() {
         <aside className="doc-side">
           <div className="side-panel">
             <div className="panel-tabs">
-              <button type="button" className={panel === "assistant" ? "active" : ""} onClick={() => setPanel("assistant")}>
+              <button type="button" className={panel === "assistant" ? "active" : ""} onClick={() => setPanel("assistant")} title="ИИ дописывает, переписывает и создаёт сущности по этому документу">
                 <MessageCircle size={15} strokeWidth={1.8} /> Помощник
               </button>
-              <button type="button" className={panel === "play" ? "active" : ""} onClick={() => setPanel("play")}>
+              <button type="button" className={panel === "play" ? "active" : ""} onClick={() => setPanel("play")} title="Быстрые ссылки на игровые материалы для вставки в текст">
                 <Layers size={15} strokeWidth={1.8} /> Материалы
               </button>
               <button type="button" className={panel === "mentions" ? "active" : ""} onClick={() => setPanel("mentions")} title="Где ещё упоминается этот документ">
                 <Link2 size={15} strokeWidth={1.8} /> Связи
               </button>
             </div>
+            {tabsHint && (
+              <div className="panel-tabs-hint">
+                <span>
+                  {panel === "assistant" ? "Помощник ИИ: дописывает, переписывает и создаёт сущности по этому документу."
+                    : panel === "play" ? "Материалы: ссылки на сцены, столкновения, секреты и предметы для вставки в текст."
+                    : "Связи: документы кампании, где упоминается этот."}
+                </span>
+                <button type="button" className="panel-tabs-hint-x" aria-label="Скрыть подсказку" onClick={() => { setTabsHint(false); try { localStorage.setItem("master-ai:doc-tabs-hint-seen", "1"); } catch { /* приватный режим */ } }}>×</button>
+              </div>
+            )}
             {panel === "assistant" ? (
               <DocumentAssistant
                 docId={doc.id}

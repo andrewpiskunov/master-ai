@@ -955,6 +955,10 @@ form button { align-self: flex-start; }
 .panel-tabs button { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 10px; font-size: 0.84rem; background: none; border: none; border-radius: 7px; color: var(--muted); font-weight: 600; }
 .panel-tabs button:hover { filter: none; color: var(--text); }
 .panel-tabs button.active { background: var(--accent); color: var(--accent-fg); }
+.panel-tabs-hint { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding: 7px 10px; font-size: 0.78rem; color: var(--muted); background: var(--surface-2); border-radius: 8px; }
+.panel-tabs-hint span { flex: 1 1 auto; }
+.panel-tabs-hint-x { flex: none; padding: 0 4px; background: none; border: none; color: var(--muted); font-size: 1rem; line-height: 1; }
+.panel-tabs-hint-x:hover { filter: none; color: var(--text-strong); }
 
 /* Панель «Играть». */
 .doc-play { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -1045,6 +1049,14 @@ a.mention:hover { filter: brightness(1.12); }
 .autocomplete-toggle { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 4px 9px; font-size: 0.78rem; font-weight: 600; background: transparent; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
 .autocomplete-toggle:hover { filter: none; color: var(--text); }
 .autocomplete-toggle.on { background: var(--accent-soft); border-color: rgba(59,130,246,0.32); color: var(--accent-hover); }
+.editor-help { flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 4px; background: none; border: none; color: var(--muted); border-radius: 6px; }
+.editor-help:hover { filter: none; color: var(--text-strong); }
+/* Одноразовая карточка-подсказка о возможностях редактора */
+.editor-tips { margin-top: 8px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
+.editor-tips-row { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; color: var(--text); }
+.editor-tips-row span { color: var(--muted); }
+.editor-tips kbd { flex: none; min-width: 30px; text-align: center; padding: 2px 7px; font-family: inherit; font-size: 0.78rem; font-weight: 700; color: var(--text-strong); background: var(--surface-3); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; }
+.editor-tips-ok { align-self: flex-start; margin-top: 2px; padding: 5px 14px; font-size: 0.82rem; font-weight: 600; background: var(--accent-soft); border: 1px solid rgba(59,130,246,0.32); border-radius: 8px; color: var(--accent-hover); }
 /* Призрачный текст-подсказка ИИ */
 .ghost-text { color: var(--muted); opacity: 0.55; pointer-events: none; white-space: pre-wrap; }
 

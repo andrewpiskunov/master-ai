@@ -2,7 +2,7 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Sparkles, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, Link2 } from "lucide-react";
+import { Sparkles, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, Link2, HelpCircle } from "lucide-react";
 import { getDocumentType } from "@master-ai/shared";
 import { streamComplete } from "../api/stream.js";
 import { baseExtensions } from "./extensions.js";
@@ -115,6 +115,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [bubble, setBubble] = useState<{ top: number; left: number; below: boolean } | null>(null);
   const [autocomplete, setAutocomplete] = useState(() => {
     try { return localStorage.getItem("ai-autocomplete") !== "off"; } catch { return true; }
+  });
+  // Подсказка о возможностях редактора: авто-раскрыта при первом заходе, потом по «?».
+  const [tipsShown, setTipsShown] = useState(() => {
+    try { return localStorage.getItem("master-ai:editor-tips-seen") !== "1"; } catch { return true; }
   });
   const ghostTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ghostToken = useRef(0);
@@ -273,8 +277,19 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   return (
     <div className="editor">
       <EditorContent editor={editor} />
+      {tipsShown && (
+        <div className="editor-tips">
+          <div className="editor-tips-row"><kbd>/</kbd><span>команды — заголовки, списки, вставки</span></div>
+          <div className="editor-tips-row"><kbd>@</kbd><span>вставить или связать сущность кампании</span></div>
+          <div className="editor-tips-row"><kbd>Tab</kbd><span>принять подсказку ИИ (автодополнение)</span></div>
+          <button type="button" className="editor-tips-ok" onClick={() => { setTipsShown(false); try { localStorage.setItem("master-ai:editor-tips-seen", "1"); } catch { /* приватный режим */ } }}>Понятно</button>
+        </div>
+      )}
       <div className="editor-footer">
         <p className="editor-hint">Введите «@», чтобы вставить или связать сущность · «/» — команды · Tab — принять подсказку ИИ</p>
+        <button type="button" className="editor-help" title="Подсказки редактора" aria-label="Подсказки редактора" onClick={() => setTipsShown(true)}>
+          <HelpCircle size={15} strokeWidth={1.9} />
+        </button>
         <button
           type="button"
           className={`autocomplete-toggle${autocomplete ? " on" : ""}`}
