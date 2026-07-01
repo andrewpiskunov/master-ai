@@ -77,6 +77,8 @@ export const api = {
     request<Proposal>(`/api/proposals/${id}/reject`, { method: "POST" }),
   getConversation: (campaignId: string) =>
     request<ConversationMessage[]>(`/api/campaigns/${campaignId}/conversation`),
+  nextSession: (docId: string) =>
+    request<Document>(`/api/documents/${docId}/next-session`, { method: "POST" }),
   getDocumentConversation: (docId: string) =>
     request<ConversationMessage[]>(`/api/documents/${docId}/conversation`),
   addDocumentMessage: (docId: string, role: "user" | "assistant", content: string) =>

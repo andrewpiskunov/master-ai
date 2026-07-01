@@ -169,4 +169,32 @@ export class BrainstormService {
     }
     return { issues: parseIssues(out) };
   }
+
+  // Итоговая сводка сыгранной сессии: ИТОГИ (что было) + ЗАДЕЛ (крючки на следующую).
+  async sessionSummary(sessionId: string): Promise<{ summary: string; seed: string }> {
+    const { documents, llm } = this.deps;
+    const sess = documents.get(sessionId);
+    if (!sess) return { summary: "", seed: "" };
+    const log = typeof sess.fields?.sessionLog === "string" ? sess.fields.sessionLog : "";
+    const text = proseMirrorToText(sess.contentJson).trim();
+
+    let out = "";
+    for await (const chunk of llm.complete({
+      system:
+        "Ты — ассистент мастера НРИ. По логу и заметкам СЫГРАННОЙ сессии составь два блока по-русски. " +
+        "(1) Блок ИТОГИ: 2–4 предложения — что произошло, ключевые решения игроков, изменения статусов, добыча. Живым языком, без списков. " +
+        "(2) С новой строки, начиная строго со слова «ЗАДЕЛ:», дай 2–4 зацепки для следующей сессии — незакрытые нити, реакции мира, назревающие угрозы. Каждую с новой строки как «- …».",
+      messages: [{ role: "user", content: `Лог сессии:\n${log || "(пусто)"}\n\nЗаметки сессии:\n${text || "(пусто)"}` }],
+    })) {
+      out += chunk;
+    }
+
+    const t = out.trim();
+    const unlabel = (s: string) => s.replace(/^\s*ИТОГИ\s*:\s*/i, "").trim();
+    const m = /(^|\n)\s*ЗАДЕЛ\s*:/i.exec(t);
+    if (m && m.index !== undefined) {
+      return { summary: unlabel(t.slice(0, m.index)), seed: t.slice(m.index).replace(/^[\s\S]*?ЗАДЕЛ\s*:\s*/i, "").trim() };
+    }
+    return { summary: unlabel(t), seed: "" };
+  }
 }

@@ -555,6 +555,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .play-pin-open:hover { filter: none; color: var(--text-strong); }
 .play-pin-x { flex: none; padding: 0 8px; background: none; border: none; color: var(--muted); font-size: 0.95rem; line-height: 1; }
 .play-pin-x:hover { filter: none; color: var(--text-strong); }
+.play-next { display: inline-flex; align-items: center; gap: 6px; }
 .play-viewer-nav button { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
 .play-viewer-nav button:disabled { opacity: 0.4; }
 .play-viewer-nav button:not(:disabled):hover { filter: none; border-color: var(--accent); color: var(--text-strong); }

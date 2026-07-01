@@ -60,6 +60,7 @@ export function PlaySession() {
   const [view, setView] = useState<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
   // Предлагаемые ассистентом к созданию сущности (документа ещё нет в базе) — по синтетическому id.
   const [proposed, setProposed] = useState<Record<string, NewEntity>>({});
+  const [nextBusy, setNextBusy] = useState(false);
 
   useEffect(() => {
     if (!documentId) return;
@@ -161,6 +162,20 @@ export function PlaySession() {
     navigate(`/campaigns/${campaignId}`, { replace: true });
   }
 
+  // Завершить сессию: ИИ подводит итоги и создаёт следующую сессию с готовым пересказом.
+  async function endAndCreateNext() {
+    if (!documentId || nextBusy) return;
+    setNextBusy(true);
+    try {
+      const next = await api.nextSession(documentId);
+      showToast(`Создана «${next.title}» — итоги и пересказ готовы`);
+      navigate(`/campaigns/${campaignId}/documents/${next.id}`, { replace: true });
+    } catch {
+      showToast("Не удалось создать следующую сессию");
+      setNextBusy(false);
+    }
+  }
+
   if (!doc) return <div className="play-mode"><p className="muted" style={{ padding: 24 }}>…</p></div>;
 
   return (
@@ -172,6 +187,9 @@ export function PlaySession() {
         </div>
         <div className="play-head-right">
           <span className="play-badge">● PLAY MODE</span>
+          <button type="button" className="btn-ghost play-next" onClick={endAndCreateNext} disabled={nextBusy} title="Завершить сессию: ИИ подведёт итоги и создаст следующую">
+            {nextBusy ? "Создаём…" : <>Следующая сессия <ArrowRight size={15} /></>}
+          </button>
           <button type="button" className="btn-ghost play-exit" onClick={exit}><X size={16} /> Выйти</button>
         </div>
       </header>

@@ -16,6 +16,7 @@ import { CampaignService } from "./services/campaigns.js";
 import { DocumentService } from "./services/documents.js";
 import { ConversationService } from "./services/conversations.js";
 import { ProposalService } from "./services/proposals.js";
+import { textToDoc } from "./services/proposals.js";
 import { BrainstormService } from "./services/brainstorm.js";
 import { LinkService } from "./services/links.js";
 import { SearchService } from "./services/search.js";
@@ -225,6 +226,44 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   app.get("/api/campaigns/:id/consistency", async (req) => {
     const { id } = req.params as { id: string };
     return brainstormSvc.checkConsistency(id);
+  });
+
+  // Завершить сессию и создать следующую: сводка ИИ → новая сессия с заполненным
+  // «Что было в прошлый раз» и заделом на планируемые моменты.
+  app.post<IdParams>("/api/documents/:id/next-session", async (req, reply) => {
+    const { id } = req.params;
+    const sess = documentsSvc.get(id);
+    if (!sess) return reply.code(404).send({ error: "документ не найден" });
+    if (sess.type !== "session") return reply.code(400).send({ error: "документ не является сессией" });
+
+    // Идемпотентность: если следующая сессия уже создана — вернуть её.
+    const existingNext = typeof sess.fields?.nextSessionId === "string" ? sess.fields.nextSessionId : null;
+    if (existingNext) {
+      const existing = documentsSvc.get(existingNext);
+      if (existing) return existing;
+    }
+
+    const { summary, seed } = await brainstormSvc.sessionSummary(id);
+    const num = typeof sess.fields?.sessionNumber === "number" ? sess.fields.sessionNumber : 0;
+    const nextNum = num + 1;
+    const md = [
+      "## Цель сессии", "",
+      "## Что было в прошлый раз", summary || "",
+      "## Запланированные моменты", seed || "",
+      "## NPC и локации", "",
+      "## Заметки и что доделать", "",
+    ].join("\n");
+
+    const created = documentsSvc.create({
+      campaignId: sess.campaignId,
+      type: "session",
+      title: `Сессия ${nextNum}`,
+      contentJson: textToDoc(md),
+      fields: { sessionNumber: nextNum, prevSessionId: id },
+    });
+    // Помечаем текущую сыгранной, сохраняем сводку и связь на следующую.
+    documentsSvc.update(id, { status: "played", fields: { ...sess.fields, summary, nextSessionId: created.id } });
+    return reply.code(201).send(created);
   });
 
   app.get("/api/campaigns/:id/proposals", (req) => {
