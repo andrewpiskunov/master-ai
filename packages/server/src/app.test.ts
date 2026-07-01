@@ -293,11 +293,15 @@ describe("LLM endpoint", () => {
 });
 
 describe("жизненный цикл кампании", () => {
-  it("создание заводит беседу с приветствием от ИИ", async () => {
+  it("создание заводит беседу с приветствием от ИИ (генерируется в фоне)", async () => {
     const app = makeApp();
     const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "Авалон" } })).json();
-    const conv = await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` });
-    const msgs = conv.json();
+    // Приветствие пишется в беседу асинхронно после ответа — дожидаемся его появления.
+    let msgs: { role: string; content: string }[] = [];
+    for (let i = 0; i < 20 && msgs.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      msgs = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` })).json();
+    }
     expect(msgs.length).toBeGreaterThanOrEqual(1);
     expect(msgs[0].role).toBe("assistant");
     expect(msgs[0].content).toContain("Приветствую");

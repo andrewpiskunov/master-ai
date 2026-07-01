@@ -85,13 +85,17 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
 
   app.get("/api/campaigns", () => campaignsSvc.list());
 
-  app.post("/api/campaigns", async (req, reply) => {
+  app.post("/api/campaigns", (req, reply) => {
     const parsed = NewCampaignSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     const campaign = campaignsSvc.create(parsed.data);
-    // Сразу заводим беседу с приветствием, подобранным ИИ под название кампании.
+    // Приветствие ИИ генерируем в фоне и НЕ блокируем создание: клиент сразу
+    // попадает в кампанию, а приветствие «допечатывается» в беседе, когда готово.
     const conv = conversationsSvc.getOrCreateForCampaign(campaign.id);
-    conversationsSvc.addMessage(conv.id, "assistant", await generateWelcome(llm, campaign.name));
+    void generateWelcome(llm, campaign.name)
+      // Пока генерировалось приветствие, кампанию могли удалить — не создаём «висячее» сообщение.
+      .then((text) => { if (campaignsSvc.get(campaign.id)) conversationsSvc.addMessage(conv.id, "assistant", text); })
+      .catch(() => { /* приветствие не критично для создания кампании */ });
     return reply.code(201).send(campaign);
   });
 

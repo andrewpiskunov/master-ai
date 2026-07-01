@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ConversationMessage, Proposal } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { useToast } from "../../ui/toast.js";
@@ -9,6 +9,9 @@ interface WorkshopChat {
   messages: ConversationMessage[];
   proposals: Proposal[];
   busy: boolean;
+  // Ждём фоновое приветствие только что созданной кампании — показываем «печатает…»,
+  // но НЕ блокируем ввод (это не запрос пользователя).
+  awaitingWelcome: boolean;
   draft: string;
   setDraft: (v: string) => void;
   send: (text: string) => void;
@@ -36,19 +39,54 @@ export function WorkshopChatProvider({
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [busy, setBusy] = useState(false);
+  const [awaitingWelcome, setAwaitingWelcome] = useState(false);
   // Черновик сообщения живёт здесь, чтобы не теряться при переключении вкладок.
   const [draft, setDraft] = useState("");
   const [world, setWorld] = useState<WorldState | null>(null);
   const [worldBusy, setWorldBusy] = useState(false);
+  // Как только в беседе появилось хоть одно сообщение (приветствие или реплика
+  // пользователя) — прекращаем опрос, чтобы он не затирал сообщения.
+  const hasMessagesRef = useRef(false);
 
   useEffect(() => {
-    api.getConversation(campaignId).then(setMessages).catch(() => showToast("Не удалось загрузить беседу"));
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let tries = 0;
+    const MAX_TRIES = 20; // ~30с ожидания приветствия только что созданной кампании
+    // Приветствие ИИ генерируется на сервере в фоне — пока беседа пуста, показываем
+    // «печатает…» и опрашиваем, чтобы сообщение появилось само, без ручной перезагрузки.
+    const load = () => {
+      if (cancelled || hasMessagesRef.current) return;
+      api.getConversation(campaignId)
+        .then((msgs) => {
+          if (cancelled || hasMessagesRef.current) return;
+          if (msgs.length > 0) {
+            hasMessagesRef.current = true;
+            setMessages(msgs);
+            setAwaitingWelcome(false);
+            return;
+          }
+          setMessages([]);
+          if (tries < MAX_TRIES) {
+            setAwaitingWelcome(true);
+            tries++;
+            timer = setTimeout(load, 1500);
+          } else {
+            setAwaitingWelcome(false);
+          }
+        })
+        .catch(() => { if (!cancelled) { setAwaitingWelcome(false); showToast("Не удалось загрузить беседу"); } });
+    };
+    load();
     api.listProposals(campaignId, "pending").then(setProposals).catch(() => showToast("Не удалось загрузить предложения"));
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [campaignId, showToast]);
 
   const send = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
+    hasMessagesRef.current = true; // прекращаем опрос приветствия — дальше беседа не пуста
+    setAwaitingWelcome(false);
     setDraft("");
     setMessages((prev) => [
       ...prev,
@@ -92,7 +130,7 @@ export function WorkshopChatProvider({
     if (!world && !worldBusy && messages.length >= 2) refreshWorld();
   }, [messages.length, world, worldBusy, refreshWorld]);
 
-  return <Ctx.Provider value={{ messages, proposals, busy, draft, setDraft, send, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ messages, proposals, busy, awaitingWelcome, draft, setDraft, send, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
 }
 
 export function useWorkshopChat(): WorkshopChat {

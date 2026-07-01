@@ -27,7 +27,7 @@ function clip(s: string): string {
 }
 
 export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
-  const { messages, busy, send, draft, setDraft } = useWorkshopChat();
+  const { messages, busy, awaitingWelcome, send, draft, setDraft } = useWorkshopChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const [importing, setImporting] = useState(false);
@@ -73,7 +73,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
         </button>
       </div>
       <div className="chat" ref={chatRef}>
-        {messages.length === 0 && !busy && (
+        {messages.length === 0 && !busy && !awaitingWelcome && (
           <p className="chat-empty">Опишите идею кампании — ИИ ответит и предложит документы.</p>
         )}
         {messages.map((m) => (
@@ -82,7 +82,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
             <Markdown mentions={mentions}>{m.content}</Markdown>
           </div>
         ))}
-        {busy && (
+        {(busy || awaitingWelcome) && (
           <div className="msg msg-assistant">
             <div className="msg-role">ИИ</div>
             <div className="typing" aria-label="ИИ печатает">
