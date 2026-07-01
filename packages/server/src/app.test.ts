@@ -392,3 +392,39 @@ describe("беседа ассистента по документу", () => {
     expect((await app.inject({ method: "POST", url: "/api/documents/нет/conversation/messages", payload: { role: "user", content: "x" } })).statusCode).toBe(404);
   });
 });
+
+describe("сессии: следующая сессия", () => {
+  it("создаёт следующую сессию, помечает текущую сыгранной, идемпотентна", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const sess = (await app.inject({
+      method: "POST", url: "/api/documents",
+      payload: { campaignId: c.id, type: "session", title: "Сессия 1", fields: { sessionNumber: 1, sessionLog: "Был бой." } },
+    })).json();
+
+    const res = await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` });
+    expect(res.statusCode).toBe(201);
+    const next = res.json();
+    expect(next.title).toBe("Сессия 2");
+    expect(next.type).toBe("session");
+    expect(next.fields.sessionNumber).toBe(2);
+    expect(next.fields.prevSessionId).toBe(sess.id);
+
+    // текущая помечена сыгранной и связана со следующей
+    const cur = (await app.inject({ method: "GET", url: `/api/documents/${sess.id}` })).json();
+    expect(cur.status).toBe("played");
+    expect(cur.fields.nextSessionId).toBe(next.id);
+
+    // повторный вызов возвращает ту же следующую сессию
+    const again = await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` });
+    expect(again.json().id).toBe(next.id);
+  });
+
+  it("для не-сессии → 400, для отсутствующего документа → 404", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const npc = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "N" } })).json();
+    expect((await app.inject({ method: "POST", url: `/api/documents/${npc.id}/next-session` })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/next-session" })).statusCode).toBe(404);
+  });
+});

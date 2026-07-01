@@ -64,4 +64,18 @@ describe("BrainstormService", () => {
     await svc.checkConsistency("c1");
     expect(llm.calls).toBe(2);
   });
+
+  it("sessionSummary разбирает блоки ИТОГИ и ЗАДЕЛ", async () => {
+    const { db } = createDb(":memory:");
+    const docs = new DocumentService(db);
+    const svc = new BrainstormService({
+      llm: new FakeProvider(["ИТОГИ: Партия победила утопленников.\nЗАДЕЛ:\n- Хор вернётся.\n- Мэрла пропала."]),
+      conversations: new ConversationService(db), proposals: new ProposalService(db), documents: docs, campaigns: new CampaignService(db),
+    });
+    const s = docs.create({ campaignId: "c1", type: "session", title: "Сессия 1", fields: { sessionLog: "Был бой." } });
+    const res = await svc.sessionSummary(s.id);
+    expect(res.summary).toContain("Партия победила");
+    expect(res.summary).not.toMatch(/ИТОГИ/i);
+    expect(res.seed).toContain("Хор вернётся");
+  });
 });
