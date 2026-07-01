@@ -7,6 +7,7 @@ import { prepareMentions, matchMentions } from "../../mentions.js";
 import { DocCard, TypeBadge, TypeTag, TypeSection, useCampaign } from "./shared.js";
 import { pmText } from "../../prosemirror-text.js";
 import { CampaignOnboarding, foundationDoneCount } from "./CampaignOnboarding.js";
+import { ConsistencyCheck } from "./ConsistencyCheck.js";
 
 // Порядок разделов на «Обзоре». «session» выведен отдельной вкладкой сверху.
 const SECTION_ORDER = ["pc", "npc", "location", "faction", "arc", "scene", "encounter", "secret", "item", "lore", "reference", "note"];
@@ -218,6 +219,11 @@ export function CampaignHome() {
         </div>
 
         <aside className="home2-aside">
+          {documents.length >= 2 && (
+            <section className="panel consistency-panel">
+              <ConsistencyCheck campaignId={campaignId} documents={documents} />
+            </section>
+          )}
           <section className="panel">
             <div className="panel-head"><Clock size={16} strokeWidth={1.9} /><h3>Недавно изменённые</h3></div>
             {recent.length === 0 ? (

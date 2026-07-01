@@ -12,6 +12,7 @@ import type {
   Link,
   NewLink,
   DocumentLinks,
+  ConsistencyResult,
 } from "@master-ai/shared";
 
 export class ApiError extends Error {
@@ -85,6 +86,8 @@ export const api = {
     }),
   worldSummary: (campaignId: string) =>
     request<{ summary: string; question: string }>(`/api/campaigns/${campaignId}/world`),
+  checkConsistency: (campaignId: string) =>
+    request<ConsistencyResult>(`/api/campaigns/${campaignId}/consistency`),
   search: (campaignId: string, q: string) =>
     request<SearchHit[]>(`/api/campaigns/${campaignId}/search?q=${encodeURIComponent(q)}`),
   createLink: (input: NewLink) =>

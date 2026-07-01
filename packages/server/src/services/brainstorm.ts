@@ -1,6 +1,26 @@
-import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type LlmMessage, type Proposal } from "@master-ai/shared";
+import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type ConsistencyIssue, type LlmMessage, type Proposal } from "@master-ai/shared";
 import type { LLMProvider } from "../llm/provider.js";
 import { parseProposals } from "../llm/parse-proposals.js";
+import { proseMirrorToText } from "./prosemirror-text.js";
+
+// Разбор JSON-ответа с противоречиями (терпим к обрамлению текстом/фенсами).
+function parseIssues(text: string): ConsistencyIssue[] {
+  const fence = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
+  const raw = (fence ? fence[1] : text).trim();
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end < 0) return [];
+  try {
+    const parsed = JSON.parse(raw.slice(start, end + 1)) as { issues?: unknown[] };
+    const issues = Array.isArray(parsed.issues) ? parsed.issues : [];
+    return issues
+      .filter((x): x is { documents: unknown[]; contradiction: string; fix?: string } =>
+        !!x && typeof x === "object" && Array.isArray((x as { documents?: unknown }).documents) && typeof (x as { contradiction?: unknown }).contradiction === "string")
+      .map((x) => ({ documents: x.documents.map(String), contradiction: String(x.contradiction), fix: String(x.fix ?? "") }));
+  } catch {
+    return [];
+  }
+}
 import type { CampaignService } from "./campaigns.js";
 import type { ConversationService } from "./conversations.js";
 import type { DocumentService } from "./documents.js";
@@ -122,5 +142,31 @@ export class BrainstormService {
       return { summary, question };
     }
     return { summary: text, question: "" };
+  }
+
+  // Проверка кампании на фактические противоречия между документами.
+  async checkConsistency(campaignId: string): Promise<{ issues: ConsistencyIssue[] }> {
+    const { documents, llm } = this.deps;
+    const docs = documents.listByCampaign(campaignId);
+    if (docs.length < 2) return { issues: [] };
+    const digest = docs.slice(0, 80).map((d) => {
+      const body = proseMirrorToText(d.contentJson).replace(/\s+/g, " ").trim().slice(0, 300);
+      const status = d.status ? `, статус: ${d.status}` : "";
+      return `«${d.title}» (${d.type}${status}) — ${body || "(пусто)"}`;
+    }).join("\n");
+
+    let out = "";
+    for await (const chunk of llm.complete({
+      system:
+        "Ты — редактор-continuity мастера НРИ. Найди ФАКТИЧЕСКИЕ противоречия между документами кампании: " +
+        "статусы (жив/погиб), хронология и даты, отношения, местоположения, взаимоисключающие факты. " +
+        "Верни ТОЛЬКО JSON вида {\"issues\":[{\"documents\":[\"«A»\",\"«B»\"],\"contradiction\":\"в чём расхождение\",\"fix\":\"как устранить\"}]}. " +
+        "Цитируй ТОЧНЫЕ названия документов из списка. Если явных противоречий нет — верни {\"issues\":[]}. " +
+        "Не выдумывай и не придирайся к стилю — только реальные фактические расхождения.",
+      messages: [{ role: "user", content: `Документы кампании:\n${digest}\n\nНайди противоречия.` }],
+    })) {
+      out += chunk;
+    }
+    return { issues: parseIssues(out) };
   }
 }
