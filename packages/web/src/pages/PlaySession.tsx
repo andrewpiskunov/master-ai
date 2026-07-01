@@ -208,30 +208,30 @@ export function PlaySession() {
               <button type="button" className={tab === "assistant" ? "active" : ""} onClick={() => setTab("assistant")}>Ассистент</button>
               {tab === "log" && <span className={`play-draft${logSaved ? " saved" : ""}`}>{logSaved ? "Сохранено" : "Черновик"}</span>}
             </div>
-            {tab === "log" ? (
-              <textarea
-                className="play-log"
-                placeholder="Записывайте, что происходит — имена, решения, добыча. Введите «@», чтобы сослаться на что угодно в кампании."
-                value={log}
-                onChange={(e) => setLog(e.target.value)}
+            {/* Обе панели смонтированы всегда — переключение прячет, а не размонтирует,
+                чтобы не терялись состояние ассистента (например, «применено») и черновик. */}
+            <textarea
+              className="play-log"
+              style={{ display: tab === "log" ? undefined : "none" }}
+              placeholder="Записывайте, что происходит — имена, решения, добыча. Введите «@», чтобы сослаться на что угодно в кампании."
+              value={log}
+              onChange={(e) => setLog(e.target.value)}
+            />
+            <div className="play-assistant" style={{ display: tab === "assistant" ? undefined : "none" }}>
+              <DocumentAssistant
+                docId={doc.id}
+                title={doc.title}
+                typeLabel={getDocumentType(doc.type)?.label ?? doc.type}
+                documents={docs.map((d) => ({ title: d.title, type: d.type }))}
+                campaignBrief={`Идёт игровая сессия «${doc.title}». Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пока пусто)"}`}
+                getText={() => pmText(doc.contentJson).trim()}
+                onApply={applyToSession}
+                onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
+                onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
+                onMessage={openMentionedDocs}
+                onProposeDoc={showProposedDoc}
               />
-            ) : (
-              <div className="play-assistant">
-                <DocumentAssistant
-                  docId={doc.id}
-                  title={doc.title}
-                  typeLabel={getDocumentType(doc.type)?.label ?? doc.type}
-                  documents={docs.map((d) => ({ title: d.title, type: d.type }))}
-                  campaignBrief={`Идёт игровая сессия «${doc.title}». Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пока пусто)"}`}
-                  getText={() => pmText(doc.contentJson).trim()}
-                  onApply={applyToSession}
-                  onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
-                  onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
-                  onMessage={openMentionedDocs}
-                  onProposeDoc={showProposedDoc}
-                />
-              </div>
-            )}
+            </div>
           </div>
         </aside>
       </div>
