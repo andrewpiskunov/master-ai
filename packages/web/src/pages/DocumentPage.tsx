@@ -12,16 +12,7 @@ import { DocumentAssistant, type NewEntity, type EditEntity } from "./DocumentAs
 import { PlayPanel } from "./PlayPanel.js";
 import { ChangeTypeMenu, typeColor, typeColors, useCampaign } from "./campaign/shared.js";
 import { isBookmarked, toggleBookmark } from "../bookmarks.js";
-
-// Извлекает плоский текст из JSON-документа ProseMirror — для контекста ИИ-помощника.
-function pmText(node: unknown): string {
-  if (!node || typeof node !== "object") return "";
-  const n = node as { text?: string; content?: unknown[]; type?: string };
-  if (typeof n.text === "string") return n.text;
-  const inner = Array.isArray(n.content) ? n.content.map(pmText).join("") : "";
-  // Блочные узлы разделяем переносом строки.
-  return n.type && n.type !== "text" ? inner + "\n" : inner;
-}
+import { pmText } from "../prosemirror-text.js";
 
 export function DocumentPage() {
   const { campaignId, documentId } = useParams<{ campaignId: string; documentId: string }>();

@@ -5,14 +5,7 @@ import { DOCUMENT_TYPES, getDocumentType, statusLabel, type Document } from "@ma
 import { useBookmarks } from "../../bookmarks.js";
 import { prepareMentions, matchMentions } from "../../mentions.js";
 import { DocCard, TypeBadge, TypeTag, TypeSection, useCampaign } from "./shared.js";
-
-function pmText(node: unknown): string {
-  if (!node || typeof node !== "object") return "";
-  const n = node as { text?: string; content?: unknown[]; type?: string };
-  if (typeof n.text === "string") return n.text;
-  const inner = Array.isArray(n.content) ? n.content.map(pmText).join("") : "";
-  return n.type && n.type !== "text" ? inner + "\n" : inner;
-}
+import { pmText } from "../../prosemirror-text.js";
 import { CampaignOnboarding, foundationDoneCount } from "./CampaignOnboarding.js";
 
 // Порядок разделов на «Обзоре». «session» выведен отдельной вкладкой сверху.

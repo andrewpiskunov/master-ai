@@ -1,22 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Printer, X } from "lucide-react";
-import { generateHTML } from "@tiptap/core";
 import { getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
-import { baseExtensions } from "../editor/extensions.js";
+import { contentToHtml } from "../editor/contentToHtml.js";
 
 // Чистый «ридер для печати» — отдельная страница без интерфейса приложения,
 // как в Campaign Arks. Рендерит документ (и, по желанию, связанные с ним) в
 // читаемый макет и открывает системный диалог печати.
-function contentToHtml(content: unknown): string {
-  if (!content || typeof content !== "object") return "";
-  try {
-    return generateHTML(content as Record<string, unknown>, baseExtensions);
-  } catch {
-    return "";
-  }
-}
 
 export function PrintReader() {
   const { campaignId, documentId } = useParams<{ campaignId: string; documentId: string }>();

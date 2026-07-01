@@ -1,33 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { X, ArrowLeft, ArrowRight } from "lucide-react";
-import { generateHTML } from "@tiptap/core";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
 import { Markdown } from "../ui/Markdown.js";
-import { baseExtensions } from "../editor/extensions.js";
+import { contentToHtml } from "../editor/contentToHtml.js";
+import { pmText } from "../prosemirror-text.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
 import { TypeTag } from "./campaign/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
-
-function contentToHtml(content: unknown): string {
-  if (!content || typeof content !== "object") return "";
-  try {
-    return generateHTML(content as Record<string, unknown>, baseExtensions);
-  } catch {
-    return "";
-  }
-}
-
-function pmText(node: unknown): string {
-  if (!node || typeof node !== "object") return "";
-  const n = node as { text?: string; content?: unknown[]; type?: string };
-  if (typeof n.text === "string") return n.text;
-  const inner = Array.isArray(n.content) ? n.content.map(pmText).join("") : "";
-  return n.type && n.type !== "text" ? inner + "\n" : inner;
-}
 
 // Делает названия упоминаемых документов кликабельными прямо в тексте сессии.
 function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
