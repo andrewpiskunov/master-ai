@@ -1098,8 +1098,9 @@ form button { align-self: flex-start; }
 .bubble-sep { width: 1px; height: 20px; background: var(--border-soft); margin: 0 3px; }
 
 /* Подсказка в пустом блоке под курсором */
+.ProseMirror .pm-empty { position: relative; }
 .ProseMirror .pm-empty::before {
-  content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--muted);
+  content: attr(data-placeholder); position: absolute; left: 0; top: 0; pointer-events: none; color: var(--muted);
 }
 .ProseMirror:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
 .ProseMirror p { margin: 0 0 0.7em; }
