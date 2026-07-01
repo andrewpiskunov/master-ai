@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, BookOpen, Layers, Bookmark, Users, Shield, CalendarDays, Lightbulb, MapPin, Milestone, Check, Plus, type LucideIcon } from "lucide-react";
 import { getDocumentType, type Campaign, type Document } from "@master-ai/shared";
@@ -116,8 +116,12 @@ export function CampaignOnboarding({
             <h3>Основа кампании</h3>
             <span className="onboard-steps-badge">{done}/{counted.length} шага</span>
           </div>
-          {steps.map((s) => (
-            <div key={s.key} className={`onboard-step${s.isDone ? " done" : ""}${s === current ? " current" : ""}`}>
+          {steps.map((s, idx) => (
+            <Fragment key={s.key}>
+              {!s.counted && steps[idx - 1]?.counted && (
+                <div className="onboard-foundation-then">Затем, когда основа готова</div>
+              )}
+            <div className={`onboard-step${s.isDone ? " done" : ""}${s === current ? " current" : ""}${s.counted ? "" : " onboard-step-later"}`}>
               <span className="onboard-step-icons">
                 {s.icons.map((ic) => (
                   <button key={ic.type} type="button" className="onboard-step-ic" title={`Создать: ${getDocumentType(ic.type)?.label ?? ic.type}`} onClick={() => createDocument(ic.type)}>
@@ -131,6 +135,7 @@ export function CampaignOnboarding({
                 <span className="onboard-step-desc">{s.isDone ? s.doneText : s.tip}</span>
               </span>
             </div>
+            </Fragment>
           ))}
         </section>
       </div>

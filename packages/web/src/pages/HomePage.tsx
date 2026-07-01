@@ -82,6 +82,7 @@ export function HomePage() {
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [ideas, setIdeas] = useState<string[]>(() => pickIdeas());
 
   useEffect(() => {
     api.listCampaigns()
@@ -96,7 +97,8 @@ export function HomePage() {
     setBusy(true);
     try {
       const created = await api.createCampaign({ name: n });
-      navigate(`/campaigns/${created.id}/workshop`);
+      // Новую кампанию открываем на «Обзоре» — там живёт онбординг с гайдом по шагам.
+      navigate(`/campaigns/${created.id}`);
     } catch {
       showToast("Не удалось создать кампанию");
       setBusy(false);
@@ -148,6 +150,17 @@ export function HomePage() {
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
+          <div className="welcome-spark-head">
+            <span className="welcome-spark-label"><Sparkles size={14} /> Нужна идея?</span>
+            <button type="button" className="welcome-refresh" onClick={() => setIdeas(pickIdeas())}>
+              <RefreshCw size={13} /> Обновить
+            </button>
+          </div>
+          <div className="welcome-ideas">
+            {ideas.map((idea) => (
+              <button key={idea} type="button" className="welcome-idea" onClick={() => setName(idea)}>{idea}</button>
+            ))}
+          </div>
           <div className="home-actions">
             <button type="submit" disabled={busy}>{busy ? "Создаём…" : "Создать"}</button>
             <button type="button" className="btn-ghost" onClick={() => { setCreating(false); setName(""); }}>

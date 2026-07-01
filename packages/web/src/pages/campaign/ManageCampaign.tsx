@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2, Check, Loader } from "lucide-react";
 import type { Realism } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { useToast } from "../../ui/toast.js";
@@ -23,30 +23,40 @@ export function ManageCampaign() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [realism, setRealism] = useState<Realism>("balanced");
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  // Инициализируем поля один раз на кампанию, чтобы reloadCampaign не затирал ввод.
+  const initedRef = useRef<string | null>(null);
+  const savedRef = useRef<{ name: string; description: string }>({ name: "", description: "" });
 
   useEffect(() => {
-    if (!campaign) return;
+    if (!campaign || initedRef.current === campaign.id) return;
+    initedRef.current = campaign.id;
     setName(campaign.name);
     setDescription(campaign.description ?? "");
     setRealism(campaign.realism);
+    savedRef.current = { name: campaign.name, description: campaign.description ?? "" };
   }, [campaign]);
 
-  async function save() {
-    if (!campaignId || !name.trim() || saving) return;
-    setSaving(true);
-    try {
-      await api.updateCampaign(campaignId, { name: name.trim(), description: description.trim() || null, realism });
-      reloadCampaign();
-      showToast("Настройки сохранены");
-    } catch {
-      showToast("Не удалось сохранить");
-    } finally {
-      setSaving(false);
-    }
-  }
+  // Автосохранение названия и брифа (как в документе) — без кнопки.
+  useEffect(() => {
+    if (!campaignId || initedRef.current !== campaignId) return;
+    const trimmedName = name.trim();
+    if (!trimmedName) return; // пустое название не сохраняем
+    if (trimmedName === savedRef.current.name && description.trim() === savedRef.current.description) return;
+    setSaveState("saving");
+    const timer = setTimeout(() => {
+      api.updateCampaign(campaignId, { name: trimmedName, description: description.trim() || null })
+        .then(() => {
+          savedRef.current = { name: trimmedName, description: description.trim() };
+          setSaveState("saved");
+          reloadCampaign();
+        })
+        .catch(() => { setSaveState("idle"); showToast("Не удалось сохранить"); });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [name, description, campaignId, reloadCampaign, showToast]);
 
   // Реализм применяем сразу (как тумблер настройки).
   async function pickRealism(r: Realism) {
@@ -81,7 +91,16 @@ export function ManageCampaign() {
       </header>
 
       <section className="panel manage-section">
-        <h2>Основное</h2>
+        <div className="manage-section-head">
+          <h2>Основное</h2>
+          {saveState !== "idle" && (
+            <span className={`save-status save-${saveState}`}>
+              {saveState === "saving"
+                ? <><Loader size={13} className="spin" /> Сохранение…</>
+                : <><Check size={13} strokeWidth={2.4} /> Сохранено</>}
+            </span>
+          )}
+        </div>
         <label htmlFor="mc-name">Название</label>
         <input id="mc-name" value={name} onChange={(e) => setName(e.target.value)} />
         <label htmlFor="mc-desc">Описание (бриф для ИИ)</label>
@@ -98,9 +117,6 @@ export function ManageCampaign() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
-        <div className="modal-actions">
-          <button type="button" onClick={save} disabled={!name.trim() || saving}>{saving ? "Сохраняю…" : "Сохранить"}</button>
-        </div>
       </section>
 
       <section className="panel manage-section">

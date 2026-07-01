@@ -81,6 +81,9 @@ main {
 @media (max-width: 640px) { main { padding: 20px 16px 48px; } }
 
 .page-title { font-size: 1.7rem; line-height: 1.2; margin: 0 0 6px; color: var(--text-strong); letter-spacing: -0.01em; }
+
+/* Главная («Продолжить») — узкая центрированная колонка, чтобы контент не «плавал» в широком поле. */
+.home { max-width: 760px; }
 .page-back { margin: 0 0 12px; font-size: 0.9rem; }
 
 h2 { font-size: 1.15rem; margin: 1.6em 0 0.6em; color: var(--text-strong); }
@@ -218,6 +221,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .manage { max-width: 880px; }
 .manage-section { margin-bottom: 16px; }
 .manage-section h2 { margin: 0 0 12px; font-size: 1.05rem; }
+.manage-section-head { display: flex; align-items: center; justify-content: space-between; }
+.manage-section-head h2 { margin: 0 0 12px; }
 .manage-hint { font-size: 0.84rem; margin: 0 0 8px; }
 .manage-desc { width: 100%; resize: vertical; line-height: 1.5; }
 .realism-seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
@@ -405,6 +410,10 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .onboard-step { display: flex; gap: 12px; align-items: center; padding: 12px; margin-bottom: 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
 .onboard-step:last-child { margin-bottom: 0; }
 .onboard-step.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* Подпись-разделитель перед шагом «после основы» (не входит в счётчик 0/3). */
+.onboard-foundation-then { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.onboard-foundation-then::after { content: ""; flex: 1; height: 1px; background: var(--border-soft); }
+.onboard-step-later { background: transparent; border-style: dashed; }
 .onboard-step-icons { flex: none; display: inline-flex; align-items: center; gap: 6px; }
 .onboard-step-ic { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border-radius: 9px; background: var(--surface-3); color: var(--accent-hover); border: 1px solid transparent; }
 .onboard-step-ic:hover { filter: none; border-color: var(--accent); color: var(--text-strong); }
@@ -619,7 +628,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   border-radius: var(--radius);
   padding: 18px;
 }
-.create-form { max-width: 460px; }
+.create-form { max-width: 560px; }
+.create-form .welcome-spark-head { margin-top: 14px; }
 .card-list { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 8px; }
 .card-list li a {
   display: block; padding: 13px 16px;

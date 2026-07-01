@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Drama, Plus, Check, Loader } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Layers, Plus, Check, Loader } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -314,7 +314,7 @@ export function DocumentPage() {
                 <MessageCircle size={15} strokeWidth={1.8} /> Помощник
               </button>
               <button type="button" className={panel === "play" ? "active" : ""} onClick={() => setPanel("play")}>
-                <Drama size={15} strokeWidth={1.8} /> Играть
+                <Layers size={15} strokeWidth={1.8} /> Материалы
               </button>
             </div>
             {panel === "assistant" ? (
