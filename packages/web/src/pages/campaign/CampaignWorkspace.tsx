@@ -12,6 +12,7 @@ import { SearchBox } from "../SearchBox.js";
 import type { CampaignContext } from "./shared.js";
 import { TypeBadge } from "./shared.js";
 import { WorkshopChatProvider } from "./WorkshopChatContext.js";
+import { CommandPalette } from "./CommandPalette.js";
 import { useBookmarks } from "../../bookmarks.js";
 
 export function CampaignWorkspace() {
@@ -28,6 +29,16 @@ export function CampaignWorkspace() {
   useEffect(() => {
     try { localStorage.setItem("ws-collapsed", collapsed ? "1" : "0"); } catch { /* ignore */ }
   }, [collapsed]);
+
+  // Командная палитра по Cmd/Ctrl-K.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPaletteOpen((v) => !v); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Создание документа — через модалку, чтобы не плодить пустые документы.
   const [createType, setCreateType] = useState<string | null>(null);
@@ -169,6 +180,10 @@ export function CampaignWorkspace() {
           <Outlet context={ctx} />
         </div>
       </WorkshopChatProvider>
+
+      {paletteOpen && (
+        <CommandPalette campaignId={campaignId!} documents={documents} onCreate={createDocument} onClose={() => setPaletteOpen(false)} />
+      )}
 
       {createType && (
         <Modal title="Новый документ" onClose={() => setCreateType(null)}>
