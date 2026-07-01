@@ -3,6 +3,8 @@ import { Check, Plus, Send, Pencil, Sparkles } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { streamComplete } from "../api/stream.js";
+import { markdownToDoc } from "../editor/DocumentEditor.js";
+import { pmText } from "../prosemirror-text.js";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
 import { useToast } from "../ui/toast.js";
@@ -112,15 +114,15 @@ export function DocumentAssistant({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  // Применённые правки (по индексу реплики) — карточка сворачивается в отметку «применено».
-  const [applied, setApplied] = useState<Set<number>>(() => new Set());
+  // Оптимистичная отметка «применено» сразу после клика (по тексту блока).
+  const [appliedLocal, setAppliedLocal] = useState<Set<string>>(() => new Set());
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // История беседы по документу хранится на сервере — загружаем её при открытии.
   useEffect(() => {
     let cancelled = false;
-    setApplied(new Set());
+    setAppliedLocal(new Set());
     api.getDocumentConversation(docId)
       .then((msgs) => { if (!cancelled) setMessages(msgs.map((m) => ({ role: m.role, content: m.content }))); })
       .catch(() => {});
@@ -209,6 +211,14 @@ export function DocumentAssistant({
     }
   }
 
+  // Блок ```doc``` считается применённым, если его текст уже стал содержимым
+  // документа — это переживает перезаход/перезагрузку без отдельного хранилища.
+  const currentText = getText().trim();
+  const isApplied = (block: string): boolean => {
+    if (appliedLocal.has(block)) return true;
+    try { return pmText(markdownToDoc(block)).trim() === currentText; } catch { return false; }
+  };
+
   return (
     <div className="doc-assistant">
       <div className="chat doc-chat" ref={chatRef}>
@@ -233,12 +243,12 @@ export function DocumentAssistant({
                   <>
                     {intro && <Markdown>{intro}</Markdown>}
                     {doc && (
-                      applied.has(i) ? (
+                      isApplied(doc) ? (
                         <div className="apply-done"><Check size={15} /> Применено к документу</div>
                       ) : (
                         <div className="apply-card">
                           <div className="apply-preview">{doc}</div>
-                          <button type="button" className="apply-btn" onClick={() => { onApply(doc); setApplied((s) => new Set(s).add(i)); }}>
+                          <button type="button" className="apply-btn" onClick={() => { onApply(doc); setAppliedLocal((s) => new Set(s).add(doc)); }}>
                             <Check size={15} /> Применить к документу
                           </button>
                         </div>
