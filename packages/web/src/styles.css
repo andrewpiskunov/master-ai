@@ -1105,6 +1105,10 @@ a.mention:hover { filter: brightness(1.12); }
 .doc-assistant .chat-form { display: flex; }
 .doc-assistant .chat-form textarea { font-size: 0.85rem; min-height: 50px; }
 .chat-send { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 0.85rem; }
+.chat-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.chat-quick-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-size: 0.78rem; font-weight: 500; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
+.chat-quick-chip:hover:not(:disabled) { filter: none; border-color: var(--accent); color: var(--text); }
+.chat-quick-chip:disabled { opacity: 0.5; }
 @media (max-width: 980px) {
   .doc-assistant .doc-chat { flex: none; height: 360px; }
 }

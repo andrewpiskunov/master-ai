@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, Send, Pencil } from "lucide-react";
+import { Check, Plus, Send, Pencil, Sparkles } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { streamComplete } from "../api/stream.js";
@@ -47,25 +47,32 @@ function parseNewDoc(block: string): NewEntity | null {
 
 // Выделяет из ответа ИИ: правки существующих документов (```edit-doc), правку
 // текущего документа (```doc), предложение новой сущности (```new-doc) и вводный текст.
-function parseAssistant(content: string): { intro: string; doc: string | null; newDoc: NewEntity | null; edits: EditEntity[] } {
+function parseAssistant(content: string): { intro: string; doc: string | null; newDocs: NewEntity[]; edits: EditEntity[] } {
   const { edits, rest } = parseEdits(content);
   // незакрытый блок edit-doc во время стрима — прячем хвост
   let work = rest;
   const openEdit = work.indexOf("```edit-doc");
   if (openEdit >= 0) work = work.slice(0, openEdit);
 
-  const newClosed = /```new-doc\s*\n([\s\S]*?)```/.exec(work);
-  if (newClosed) {
-    return { intro: work.replace(newClosed[0], "").trim(), doc: null, newDoc: parseNewDoc(newClosed[1]), edits };
+  // Все закрытые блоки new-doc (ассистент может предложить несколько связанных сущностей).
+  const newDocs: NewEntity[] = [];
+  const re = /```new-doc\s*\n([\s\S]*?)```/g;
+  let nm: RegExpExecArray | null;
+  while ((nm = re.exec(work)) !== null) {
+    const nd = parseNewDoc(nm[1]);
+    if (nd) newDocs.push(nd);
+  }
+  if (newDocs.length) {
+    return { intro: work.replace(/```new-doc\s*\n[\s\S]*?```/g, "").trim(), doc: null, newDocs, edits };
   }
   if (work.includes("```new-doc")) {
-    return { intro: work.slice(0, work.indexOf("```new-doc")).trim(), doc: null, newDoc: null, edits };
+    return { intro: work.slice(0, work.indexOf("```new-doc")).trim(), doc: null, newDocs: [], edits };
   }
   const closed = /```doc\s*\n([\s\S]*?)```/.exec(work);
-  if (closed) return { intro: work.replace(closed[0], "").trim(), doc: closed[1].trim(), newDoc: null, edits };
+  if (closed) return { intro: work.replace(closed[0], "").trim(), doc: closed[1].trim(), newDocs: [], edits };
   const open = work.indexOf("```doc");
-  if (open >= 0) return { intro: work.slice(0, open).trim(), doc: null, newDoc: null, edits };
-  return { intro: work.trim(), doc: null, newDoc: null, edits };
+  if (open >= 0) return { intro: work.slice(0, open).trim(), doc: null, newDocs: [], edits };
+  return { intro: work.trim(), doc: null, newDocs: [], edits };
 }
 
 const TYPE_LIST = DOCUMENT_TYPES.map((t) => `${t.key} (${t.label})`).join(", ");
@@ -135,13 +142,13 @@ export function DocumentAssistant({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
-  async function send(e: { preventDefault: () => void }) {
+  async function send(e: { preventDefault: () => void }, override?: string) {
     e.preventDefault();
-    const text = input.trim();
+    const text = (override ?? input).trim();
     if (!text || busy) return;
     const history = [...messages, { role: "user", content: text } as Msg];
     setMessages([...history, { role: "assistant", content: "" }]);
-    setInput("");
+    if (override === undefined) setInput(""); // быстрые действия не трогают черновик
     setBusy(true);
     onMessage?.(text);
     // Сохраняем вопрос сразу; ответ — после завершения стрима, чтобы порядок реплик не сбился.
@@ -190,8 +197,7 @@ export function DocumentAssistant({
       );
       if (reply.trim()) {
         onMessage?.(reply);
-        const proposed = parseAssistant(reply).newDoc;
-        if (proposed) onProposeDoc?.(proposed);
+        if (onProposeDoc) parseAssistant(reply).newDocs.forEach((nd) => onProposeDoc(nd));
         await userSaved;
         api.addDocumentMessage(docId, "assistant", reply).catch(() => {});
       }
@@ -218,7 +224,7 @@ export function DocumentAssistant({
               </div>
             );
           }
-          const { intro, doc, newDoc, edits } = parseAssistant(m.content);
+          const { intro, doc, newDocs, edits } = parseAssistant(m.content);
           return (
             <div key={i} className="msg msg-assistant">
               <div className="msg-role">ИИ</div>
@@ -238,18 +244,18 @@ export function DocumentAssistant({
                         </div>
                       )
                     )}
-                    {newDoc && (
-                      <div className="apply-card">
+                    {newDocs.map((nd, ni) => (
+                      <div className="apply-card" key={`nd-${ni}`}>
                         <div className="apply-head">
-                          <TypeTag type={newDoc.type} />
-                          <span className="apply-new-title">{newDoc.title}</span>
+                          <TypeTag type={nd.type} />
+                          <span className="apply-new-title">{nd.title}</span>
                         </div>
-                        {newDoc.text && <div className="apply-preview">{newDoc.text}</div>}
-                        <button type="button" className="apply-btn" onClick={() => onCreateEntity(newDoc)}>
-                          <Plus size={15} /> Создать сущность «{newDoc.title}»
+                        {nd.text && <div className="apply-preview">{nd.text}</div>}
+                        <button type="button" className="apply-btn" onClick={() => onCreateEntity(nd)}>
+                          <Plus size={15} /> Создать сущность «{nd.title}»
                         </button>
                       </div>
-                    )}
+                    ))}
                     {edits.map((e, ei) => (
                       <div className="apply-card" key={ei}>
                         <div className="apply-head">
@@ -270,6 +276,16 @@ export function DocumentAssistant({
             </div>
           );
         })}
+      </div>
+      <div className="chat-quick">
+        <button
+          type="button"
+          className="chat-quick-chip"
+          disabled={busy}
+          onClick={() => send({ preventDefault() {} }, "На основе этого документа предложи связанные сущности, которые стоит завести — например его фракцию, ключевую локацию или связанных персонажей, явно или неявно упомянутых в тексте. Для каждой верни отдельный блок new-doc. Не дублируй уже существующие документы кампании.")}
+        >
+          <Sparkles size={13} /> Предложить связанные
+        </button>
       </div>
       <form className="chat-form" onSubmit={send}>
         <label htmlFor="doc-assistant-input" className="sr-only">Сообщение помощнику</label>
