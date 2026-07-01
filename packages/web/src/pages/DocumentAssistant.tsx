@@ -147,6 +147,8 @@ export function DocumentAssistant({
   const [appliedLocal, setAppliedLocal] = useState<Set<string>>(() => new Set());
   // Оптимистичная отметка «создано» сразу после клика (по типу+названию сущности).
   const [createdLocal, setCreatedLocal] = useState<Set<string>>(() => new Set());
+  // Оптимистичная отметка «правка применена» сразу после клика.
+  const [editedLocal, setEditedLocal] = useState<Set<string>>(() => new Set());
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -254,6 +256,11 @@ export function DocumentAssistant({
   const entityKey = (e: NewEntity) => `${e.type}:${e.title.trim().toLowerCase()}`;
   const isCreated = (nd: NewEntity): boolean =>
     createdLocal.has(entityKey(nd)) || documents.some((d) => d.title.trim().toLowerCase() === nd.title.trim().toLowerCase());
+  // Правку считаем применённой при локальной отметке, а для переименования — ещё и
+  // если в кампании уже есть документ с новым названием (переживает перезаход).
+  const editKey = (e: EditEntity) => `${e.title.trim().toLowerCase()}→${(e.rename ?? "").trim().toLowerCase()}`;
+  const isEdited = (e: EditEntity): boolean =>
+    editedLocal.has(editKey(e)) || (!!e.rename && documents.some((d) => d.title.trim().toLowerCase() === e.rename!.trim().toLowerCase()));
 
   return (
     <div className="doc-assistant">
@@ -307,16 +314,20 @@ export function DocumentAssistant({
                       )
                     ))}
                     {edits.map((e, ei) => (
-                      <div className="apply-card" key={ei}>
-                        <div className="apply-head">
-                          <Pencil size={14} />
-                          <span className="apply-new-title">{e.title}{e.rename ? ` → ${e.rename}` : ""}</span>
+                      isEdited(e) ? (
+                        <div className="apply-done" key={ei}><Check size={15} /> «{e.rename ?? e.title}» обновлено</div>
+                      ) : (
+                        <div className="apply-card" key={ei}>
+                          <div className="apply-head">
+                            <Pencil size={14} />
+                            <span className="apply-new-title">{e.title}{e.rename ? ` → ${e.rename}` : ""}</span>
+                          </div>
+                          {e.text && <div className="apply-preview">{e.text}</div>}
+                          <button type="button" className="apply-btn" onClick={() => { onEditEntity(e); setEditedLocal((s) => new Set(s).add(editKey(e))); }}>
+                            <Check size={15} /> Обновить «{e.rename ?? e.title}»
+                          </button>
                         </div>
-                        {e.text && <div className="apply-preview">{e.text}</div>}
-                        <button type="button" className="apply-btn" onClick={() => onEditEntity(e)}>
-                          <Check size={15} /> Обновить «{e.rename ?? e.title}»
-                        </button>
-                      </div>
+                      )
                     ))}
                   </>
                 )
