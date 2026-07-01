@@ -157,25 +157,46 @@ export function DocumentPage() {
     }
   }
 
+  // Предыдущая сессия — с наибольшим номером меньше текущего (для пересказа «Что было в прошлый раз»).
+  function previousSession(): Document | undefined {
+    if (!doc || doc.type !== "session") return undefined;
+    const curNum = typeof doc.fields?.sessionNumber === "number" ? doc.fields.sessionNumber : Infinity;
+    return allDocuments
+      .filter((d) => d.type === "session" && d.id !== doc.id && (typeof d.fields?.sessionNumber === "number" ? d.fields.sessionNumber : 0) < curNum)
+      .sort((a, b) => (Number(b.fields?.sessionNumber ?? 0)) - (Number(a.fields?.sessionNumber ?? 0)))[0];
+  }
+
   // «Заполнить с ИИ» один раздел: стримим содержимое и точечно заменяем раздел в редакторе.
   async function fillSection(heading: string) {
     if (!doc) return;
     const typeLabel = getDocumentType(doc.type)?.label ?? doc.type;
     const brief = campaignCtx?.campaign?.description?.trim();
     const block = sectionFieldBlock(getTemplate(doc.type) ?? "", heading);
+    // Раздел-пересказ сессии заполняем из лога предыдущей сессии, а не по шаблону.
+    const isRecap = doc.type === "session" && /что было в прошлый раз/i.test(heading);
+    const prev = isRecap ? previousSession() : undefined;
+    if (isRecap && !prev) { showToast("Нет предыдущей сессии для пересказа"); return; }
     showToast(`ИИ заполняет раздел «${heading}»…`);
     let out = "";
     try {
+      const system = prev
+        ? `Ты — соавтор мастера настольных ролевых игр. Составь краткий пересказ «Что было в прошлый раз» ` +
+          `для начала сессии «${title}» по логу и заметкам ПРЕДЫДУЩЕЙ сессии «${prev.title}». ` +
+          `3–5 предложений: ключевые события, решения игроков, незакрытые нити и клиффхэнгер. ` +
+          `Без списков и заголовков, живым языком, по-русски. Упоминай сущности их точными названиями. ` +
+          `Верни ЛИШЬ текст пересказа, без строки «## ${heading}».` +
+          `\n\nЛог предыдущей сессии:\n${(typeof prev.fields?.sessionLog === "string" ? prev.fields.sessionLog : "") || "(пусто)"}` +
+          `\n\nТекст предыдущей сессии:\n${pmText(prev.contentJson).trim() || "(пусто)"}`
+        : `Ты — соавтор мастера настольных ролевых игр. Заполни ТОЛЬКО раздел «${heading}» документа ` +
+          `(тип: ${typeLabel}, название: «${title}»). Верни ЛИШЬ содержимое раздела — подписи полей и вписанные значения; ` +
+          `НЕ повторяй строку заголовка «## ${heading}». Пиши по-русски, кратко и по делу, в тоне кампании. ` +
+          `Учитывай остальной текст документа, чтобы не противоречить ему.` +
+          (brief ? `\n\nБриф кампании:\n${brief}` : "") +
+          (block ? `\n\nСтруктура раздела (заполни по ней, сохраняя подписи полей):\n${block}` : "") +
+          `\n\nВесь текущий текст документа:\n${pmText(contentJson).trim() || "(пусто)"}`;
       await streamComplete(
         {
-          system:
-            `Ты — соавтор мастера настольных ролевых игр. Заполни ТОЛЬКО раздел «${heading}» документа ` +
-            `(тип: ${typeLabel}, название: «${title}»). Верни ЛИШЬ содержимое раздела — подписи полей и вписанные значения; ` +
-            `НЕ повторяй строку заголовка «## ${heading}». Пиши по-русски, кратко и по делу, в тоне кампании. ` +
-            `Учитывай остальной текст документа, чтобы не противоречить ему.` +
-            (brief ? `\n\nБриф кампании:\n${brief}` : "") +
-            (block ? `\n\nСтруктура раздела (заполни по ней, сохраняя подписи полей):\n${block}` : "") +
-            `\n\nВесь текущий текст документа:\n${pmText(contentJson).trim() || "(пусто)"}`,
+          system,
           messages: [{ role: "user", content: `Заполни раздел «${heading}».` }],
         },
         (chunk) => { out += chunk; },
