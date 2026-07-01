@@ -9,6 +9,7 @@ import { contentToHtml } from "../editor/contentToHtml.js";
 import { pmText } from "../prosemirror-text.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
+import { CombatTracker, type CombatState } from "./CombatTracker.js";
 import { TypeTag, TypeBadge } from "./campaign/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
 
@@ -69,7 +70,7 @@ export function PlaySession() {
   docRef.current = doc;
   const [docs, setDocs] = useState<Document[]>([]);
   const [campaignName, setCampaignName] = useState("");
-  const [tab, setTab] = useState<"log" | "assistant">("log");
+  const [tab, setTab] = useState<"log" | "assistant" | "combat">("log");
   const [log, setLog] = useState("");
   const [logSaved, setLogSaved] = useState(true);
   const logRef = useRef<string>("");
@@ -305,6 +306,7 @@ export function PlaySession() {
             <div className="play-tabs2">
               <button type="button" className={tab === "log" ? "active" : ""} onClick={() => setTab("log")}>Лог сессии</button>
               <button type="button" className={tab === "assistant" ? "active" : ""} onClick={() => setTab("assistant")}>Ассистент</button>
+              <button type="button" className={tab === "combat" ? "active" : ""} onClick={() => setTab("combat")}>Бой</button>
               {tab === "log" && <span className={`play-draft${logSaved ? " saved" : ""}`}>{logSaved ? "Сохранено" : "Черновик"}</span>}
             </div>
             {/* Обе панели смонтированы всегда — переключение прячет, а не размонтирует,
@@ -330,6 +332,9 @@ export function PlaySession() {
                 onMessage={openMentionedDocs}
                 onProposeDoc={showProposedDoc}
               />
+            </div>
+            <div className="play-combat-wrap" style={{ display: tab === "combat" ? undefined : "none" }}>
+              <CombatTracker combat={(doc.fields?.combat as CombatState) ?? null} onChange={(c) => void patchFields({ combat: c })} />
             </div>
           </div>
         </aside>
