@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Layers, Plus, Check, Loader } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Layers, Link2, Plus, Check, Loader } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "../editor/DocumentEditor.js";
@@ -10,6 +10,7 @@ import { Select } from "../ui/Select.js";
 import { Modal } from "../ui/Modal.js";
 import { DocumentAssistant, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
 import { PlayPanel } from "./PlayPanel.js";
+import { MentionedInPanel } from "./MentionedInPanel.js";
 import { ChangeTypeMenu, typeColor, typeColors, useCampaign } from "./campaign/shared.js";
 import { isBookmarked, toggleBookmark } from "../bookmarks.js";
 import { pmText } from "../prosemirror-text.js";
@@ -31,7 +32,7 @@ export function DocumentPage() {
   const [contentJson, setContentJson] = useState<unknown>(null);
   const [fields, setFields] = useState<Record<string, unknown>>({});
   const [deleting, setDeleting] = useState(false);
-  const [panel, setPanel] = useState<"assistant" | "play">("assistant");
+  const [panel, setPanel] = useState<"assistant" | "play" | "mentions">("assistant");
   const [marked, setMarked] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -307,6 +308,9 @@ export function DocumentPage() {
               <button type="button" className={panel === "play" ? "active" : ""} onClick={() => setPanel("play")}>
                 <Layers size={15} strokeWidth={1.8} /> Материалы
               </button>
+              <button type="button" className={panel === "mentions" ? "active" : ""} onClick={() => setPanel("mentions")} title="Где ещё упоминается этот документ">
+                <Link2 size={15} strokeWidth={1.8} /> Связи
+              </button>
             </div>
             {panel === "assistant" ? (
               <DocumentAssistant
@@ -321,8 +325,10 @@ export function DocumentPage() {
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
               />
-            ) : (
+            ) : panel === "play" ? (
               <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />
+            ) : (
+              <MentionedInPanel campaignId={doc.campaignId} documentId={doc.id} title={title} documents={allDocuments} />
             )}
           </div>
         </aside>
