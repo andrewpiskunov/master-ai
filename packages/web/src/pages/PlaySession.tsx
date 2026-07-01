@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { X, ArrowLeft, ArrowRight } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Pin } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
@@ -9,7 +9,7 @@ import { contentToHtml } from "../editor/contentToHtml.js";
 import { pmText } from "../prosemirror-text.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
 import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
-import { TypeTag } from "./campaign/shared.js";
+import { TypeTag, TypeBadge } from "./campaign/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
 
 // Делает названия упоминаемых документов кликабельными прямо в тексте сессии.
@@ -45,6 +45,10 @@ export function PlaySession() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [doc, setDoc] = useState<Document | null>(null);
+  // Единый писатель полей документа: читает всегда свежий ref, поэтому лог, пины
+  // и прочее не затирают друг друга (fields сохраняется целиком).
+  const docRef = useRef<Document | null>(null);
+  docRef.current = doc;
   const [docs, setDocs] = useState<Document[]>([]);
   const [campaignName, setCampaignName] = useState("");
   const [tab, setTab] = useState<"log" | "assistant">("log");
@@ -73,17 +77,30 @@ export function PlaySession() {
     api.listCampaignDocuments(campaignId).then(setDocs).catch(() => {});
   }, [campaignId]);
 
-  // Автосохранение лога сессии.
+  // Единый писатель полей: мерджит с актуальным doc.fields и сохраняет целиком.
+  const patchFields = useCallback(async (partial: Record<string, unknown>): Promise<boolean> => {
+    const base = docRef.current;
+    if (!base || !documentId) return false;
+    try {
+      const u = await api.updateDocument(documentId, { fields: { ...base.fields, ...partial } });
+      setDoc(u);
+      docRef.current = u;
+      return true;
+    } catch {
+      showToast("Не удалось сохранить");
+      return false;
+    }
+  }, [documentId, showToast]);
+
+  // Автосохранение лога сессии (через единый писатель полей).
   useEffect(() => {
-    if (!doc || !documentId || log === logRef.current) return;
+    if (!doc || log === logRef.current) return;
     setLogSaved(false);
-    const timer = setTimeout(() => {
-      api.updateDocument(documentId, { fields: { ...doc.fields, sessionLog: log } })
-        .then((u) => { logRef.current = log; setDoc(u); setLogSaved(true); })
-        .catch(() => showToast("Не удалось сохранить лог"));
+    const timer = setTimeout(async () => {
+      if (await patchFields({ sessionLog: log })) { logRef.current = log; setLogSaved(true); }
     }, 700);
     return () => clearTimeout(timer);
-  }, [log, doc, documentId, showToast]);
+  }, [log, doc, patchFields]);
 
   const sessionHtml = useMemo(() => (doc ? contentToHtml(doc.contentJson) : ""), [doc]);
   const prepared = useMemo(
@@ -128,6 +145,14 @@ export function PlaySession() {
     openDoc(id);
   }
 
+  // Пины — часто нужные под рукой документы этой сессии (хранятся в fields.pins).
+  const pins: string[] = Array.isArray(doc?.fields?.pins) ? (doc!.fields!.pins as string[]) : [];
+  const pinnedDocs = pins.map((id) => docs.find((d) => d.id === id)).filter((d): d is Document => !!d);
+  function togglePin(id: string) {
+    const next = pins.includes(id) ? pins.filter((p) => p !== id) : [...pins, id];
+    void patchFields({ pins: next });
+  }
+
   const viewerId = view.idx >= 0 ? view.stack[view.idx] : null;
   const viewerDoc = (viewerId && docs.find((d) => d.id === viewerId)) || null;
   const viewerProposed = viewerId && !viewerDoc ? proposed[viewerId] ?? null : null;
@@ -170,7 +195,30 @@ export function PlaySession() {
               <button type="button" title="Вперёд" aria-label="Вперёд" disabled={view.idx >= view.stack.length - 1} onClick={() => setView((v) => ({ ...v, idx: v.idx + 1 }))}><ArrowRight size={15} /></button>
               {viewerDoc && <span className="play-viewer-title">{viewerDoc.title}</span>}
               {viewerProposed && <span className="play-viewer-title">{viewerProposed.title} <span className="play-proposed-tag">предлагается создать</span></span>}
+              {viewerDoc && (
+                <button
+                  type="button"
+                  className={`play-pin-btn${pins.includes(viewerDoc.id) ? " active" : ""}`}
+                  onClick={() => togglePin(viewerDoc.id)}
+                  title={pins.includes(viewerDoc.id) ? "Открепить" : "Закрепить под рукой"}
+                  aria-label={pins.includes(viewerDoc.id) ? "Открепить" : "Закрепить"}
+                >
+                  <Pin size={14} strokeWidth={1.9} />
+                </button>
+              )}
             </div>
+            {pinnedDocs.length > 0 && (
+              <div className="play-pins">
+                {pinnedDocs.map((d) => (
+                  <span key={d.id} className={`play-pin${viewerId === d.id ? " active" : ""}`}>
+                    <button type="button" className="play-pin-open" onClick={() => openDoc(d.id)} title={d.title}>
+                      <TypeBadge type={d.type} size={14} /> <span>{d.title}</span>
+                    </button>
+                    <button type="button" className="play-pin-x" onClick={() => togglePin(d.id)} aria-label="Открепить">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="play-viewer-body">
               {viewerDoc ? (
                 <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(viewerDoc.contentJson) }} />
