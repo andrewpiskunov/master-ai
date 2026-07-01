@@ -26,13 +26,30 @@ function relTime(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU");
 }
 
-function SessionStatus({ status }: { status: string | null }) {
-  return <span className="session-status">{status ? statusLabel(status) : "Без даты"}</span>;
+function sessionNum(d: Document): number {
+  return typeof d.fields?.sessionNumber === "number" ? d.fields.sessionNumber : 0;
+}
+
+function fmtSessionDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", year: "numeric" }).format(d);
+}
+
+function SessionStatus({ doc }: { doc: Document }) {
+  const num = sessionNum(doc);
+  const date = typeof doc.fields?.sessionDate === "string" ? fmtSessionDate(doc.fields.sessionDate) : "";
+  const bits: string[] = [];
+  if (num) bits.push(`Сессия ${num}`);
+  if (date) bits.push(date);
+  if (doc.status) bits.push(statusLabel(doc.status));
+  return <span className="session-status">{bits.length ? bits.join(" • ") : "Без даты"}</span>;
 }
 
 // Панель сессий (как в Arks): предыдущая + текущая, кнопка запуска и список всех.
 function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId: string; sessions: Document[]; documents: Document[]; onNew: () => void }) {
-  const sorted = [...sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // По порядковому номеру (свежие сверху); при отсутствии номера — по дате изменения.
+  const sorted = [...sessions].sort((a, b) => (sessionNum(b) - sessionNum(a)) || b.updatedAt.localeCompare(a.updatedAt));
   const current = sorted[0];
   const previous = sorted[1];
   const docHref = (id: string) => `/campaigns/${campaignId}/documents/${id}`;
@@ -54,7 +71,7 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
           <Link to={docHref(previous.id)} className="session-card session-prev">
             <span className="session-label">Предыдущая</span>
             <span className="session-title">{previous.title}</span>
-            <SessionStatus status={previous.status} />
+            <SessionStatus doc={previous} />
           </Link>
         )}
         <div className={`session-card session-current${previous ? "" : " session-solo"}`}>
@@ -63,7 +80,7 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
             <Link to={docHref(current.id)} className="session-continue">Продолжить <ArrowRight size={14} /></Link>
           </div>
           <span className="session-title">{current.title}</span>
-          <SessionStatus status={current.status} />
+          <SessionStatus doc={current} />
           <span className="session-edited">Изменено: {relTime(current.updatedAt)}</span>
           <Link to={playHref(current.id)} className="btn session-run"><Play size={15} /> Запустить сессию</Link>
         </div>
@@ -79,7 +96,7 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
             <li key={s.id} className={`sessions-row${s.id === selectedId ? " selected" : ""}`} onClick={() => setSelectedId(s.id)}>
               <FileText size={16} strokeWidth={1.7} className="sessions-row-icon" />
               <span className="sessions-row-title">{s.title}</span>
-              <SessionStatus status={s.status} />
+              <SessionStatus doc={s} />
               <Link to={playHref(s.id)} className="sessions-row-run" onClick={(e) => e.stopPropagation()}><Play size={13} /> Запустить</Link>
               <Link to={docHref(s.id)} className="sessions-row-open" onClick={(e) => e.stopPropagation()}>Открыть</Link>
             </li>

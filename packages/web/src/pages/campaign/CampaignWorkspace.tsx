@@ -62,11 +62,19 @@ export function CampaignWorkspace() {
     setSubmitting(true);
     try {
       const template = getTemplate(createType);
+      // Сессиям присваиваем следующий порядковый номер — для сортировки и подписи.
+      const fields = createType === "session"
+        ? { sessionNumber: documents.reduce((max, d) => {
+            const n = typeof d.fields?.sessionNumber === "number" ? d.fields.sessionNumber : 0;
+            return n > max ? n : max;
+          }, 0) + 1 }
+        : undefined;
       const doc = await api.createDocument({
         campaignId,
         type: createType,
         title: newTitle.trim(),
         contentJson: template ? markdownToDoc(template) : undefined,
+        fields,
       });
       setCreateType(null);
       setNewTitle("");

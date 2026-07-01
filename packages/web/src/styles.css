@@ -707,6 +707,8 @@ label { display: block; margin: 14px 0 5px; color: var(--muted); font-size: 0.85
 }
 .tag-toggle:hover { filter: none; border-color: var(--accent); color: var(--text); }
 .tag-toggle.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-hover); }
+.session-date-input { padding: 5px 10px; font-size: 0.82rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--text); color-scheme: dark; }
+.session-date-input:hover { border-color: var(--accent); }
 .select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-menu {
   position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; right: 0;

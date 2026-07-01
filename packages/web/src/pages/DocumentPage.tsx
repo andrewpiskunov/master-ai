@@ -253,6 +253,16 @@ export function DocumentPage() {
                     options={[{ value: "", label: "Без статуса" }, ...statuses.map((s) => ({ value: s, label: statusLabel(s) }))]}
                   />
                 )}
+                {doc.type === "session" && (
+                  <input
+                    type="date"
+                    className="session-date-input"
+                    value={typeof fields.sessionDate === "string" ? fields.sessionDate : ""}
+                    onChange={(e) => patchDoc({ fields: { ...fields, sessionDate: e.target.value || undefined } })}
+                    aria-label="Дата сессии"
+                    title="Дата сессии"
+                  />
+                )}
                 {hasDisposition(doc.type) && (
                   <button
                     type="button"
