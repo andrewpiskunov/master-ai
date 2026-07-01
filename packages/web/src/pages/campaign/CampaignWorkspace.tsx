@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
-import { Home, Lightbulb, BookOpen, Layers, Plus, PanelLeftClose, PanelLeftOpen, Bookmark, Settings, Wand2, Lightbulb as TipIcon } from "lucide-react";
+import { Home, Lightbulb, BookOpen, Layers, Plus, PanelLeftClose, PanelLeftOpen, Bookmark, Settings, Wand2, Waypoints, Lightbulb as TipIcon } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, getTemplate, getTips, type Campaign, type Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { markdownToDoc } from "../../editor/DocumentEditor.js";
@@ -145,6 +145,7 @@ export function CampaignWorkspace() {
           <NavLink to={`/campaigns/${campaignId}/workshop`} title="Мастерская"><Lightbulb size={18} strokeWidth={1.8} /><span className="ws-label">Мастерская</span></NavLink>
           <NavLink to={`/campaigns/${campaignId}/knowledge`} title="База знаний"><BookOpen size={18} strokeWidth={1.8} /><span className="ws-label">База знаний</span></NavLink>
           <NavLink to={`/campaigns/${campaignId}/play`} title="Игровые материалы"><Layers size={18} strokeWidth={1.8} /><span className="ws-label">Игровые материалы</span></NavLink>
+          <NavLink to={`/campaigns/${campaignId}/map`} title="Карта связей"><Waypoints size={18} strokeWidth={1.8} /><span className="ws-label">Карта связей</span></NavLink>
         </nav>
 
         {bookmarks.length > 0 && (

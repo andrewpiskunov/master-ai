@@ -1135,6 +1135,14 @@ a.mention:hover { filter: brightness(1.12); }
 .cmd-item-icon { flex: none; display: inline-flex; color: var(--accent-hover); }
 .cmd-item-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmd-item-hint { flex: none; font-size: 0.75rem; color: var(--muted); }
+
+/* Карта связей */
+.linkmap-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); margin-top: 8px; }
+.linkmap { display: block; max-width: none; }
+.linkmap-node { cursor: pointer; }
+.linkmap-node circle { transition: r 0.1s; }
+.linkmap-node:hover circle { r: 9; }
+.linkmap-node:hover text { fill: var(--text-strong); font-weight: 600; }
 @media (max-width: 980px) {
   .doc-assistant .doc-chat { flex: none; height: 360px; }
 }

@@ -9,6 +9,7 @@ import { WorkshopView } from "./pages/campaign/WorkshopView.js";
 import { KnowledgeBase } from "./pages/campaign/KnowledgeBase.js";
 import { PlayMaterials } from "./pages/campaign/PlayMaterials.js";
 import { ManageCampaign } from "./pages/campaign/ManageCampaign.js";
+import { LinkMap } from "./pages/campaign/LinkMap.js";
 import { Layout } from "./ui/Layout.js";
 import { ToastProvider } from "./ui/toast.js";
 
@@ -25,6 +26,7 @@ export function App() {
               <Route path="knowledge" element={<KnowledgeBase />} />
               <Route path="play" element={<PlayMaterials />} />
               <Route path="manage" element={<ManageCampaign />} />
+              <Route path="map" element={<LinkMap />} />
               <Route path="documents/:documentId" element={<DocumentPage />} />
             </Route>
           </Route>
