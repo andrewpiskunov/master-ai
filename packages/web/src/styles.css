@@ -1027,7 +1027,8 @@ form button { align-self: flex-start; }
 @media (min-width: 981px) {
   .workspace-main:has(.doc-view) { height: calc(100vh - var(--header-h)); overflow: hidden; padding-top: 24px; padding-bottom: 24px; }
   .doc-view { height: 100%; overflow: hidden; }
-  .doc-grid { height: 100%; align-items: stretch; }
+  /* Строка grid = высота контейнера (не по контенту), иначе длинные документы разрастают колонки. */
+  .doc-grid { height: 100%; align-items: stretch; grid-template-rows: minmax(0, 1fr); }
   .doc-main { height: 100%; min-height: 0; }
   .doc-side { height: 100%; }
   .ProseMirror { min-height: 0; overflow-y: auto; }
