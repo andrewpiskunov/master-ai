@@ -556,6 +556,17 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .play-pin-x { flex: none; padding: 0 8px; background: none; border: none; color: var(--muted); font-size: 0.95rem; line-height: 1; }
 .play-pin-x:hover { filter: none; color: var(--text-strong); }
 .play-next { display: inline-flex; align-items: center; gap: 6px; }
+.play-playerview { display: inline-flex; align-items: center; gap: 6px; }
+.play-playerview.active { color: var(--accent-hover); border-color: var(--accent); }
+/* Секции текста сессии с пометкой видимости */
+.play-section { position: relative; }
+.play-section-bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.play-eye { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; color: var(--muted); opacity: 0; transition: opacity 0.12s; }
+.play-section:hover .play-eye, .play-eye:focus { opacity: 1; }
+.play-eye:hover { filter: none; color: var(--text-strong); border-color: var(--accent); }
+.play-section-lock { font-size: 0.72rem; font-weight: 600; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.04em; }
+.play-section.gm { border-left: 2px solid rgba(251, 191, 36, 0.5); padding-left: 12px; margin-left: -14px; }
+.play-section.gm .play-eye { opacity: 1; color: #fbbf24; }
 .play-viewer-nav button { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
 .play-viewer-nav button:disabled { opacity: 0.4; }
 .play-viewer-nav button:not(:disabled):hover { filter: none; border-color: var(--accent); color: var(--text-strong); }

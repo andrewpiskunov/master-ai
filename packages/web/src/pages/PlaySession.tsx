@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { X, ArrowLeft, ArrowRight, Pin } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { useToast } from "../ui/toast.js";
@@ -39,6 +39,24 @@ function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
   }
 }
 
+// Делит документ на секции по заголовкам 2-го уровня — чтобы прятать/показывать их по отдельности.
+function splitSections(content: unknown): { heading: string | null; doc: unknown }[] {
+  const c = content as { content?: { type?: string; attrs?: { level?: number } }[] } | null;
+  const nodes = c && Array.isArray(c.content) ? c.content : [];
+  const groups: { heading: string | null; nodes: unknown[] }[] = [];
+  let cur: { heading: string | null; nodes: unknown[] } = { heading: null, nodes: [] };
+  for (const n of nodes) {
+    if (n?.type === "heading" && n.attrs?.level === 2) {
+      if (cur.nodes.length) groups.push(cur);
+      cur = { heading: pmText(n).trim(), nodes: [n] };
+    } else {
+      cur.nodes.push(n);
+    }
+  }
+  if (cur.nodes.length) groups.push(cur);
+  return groups.map((g) => ({ heading: g.heading, doc: { type: "doc", content: g.nodes } }));
+}
+
 // Режим прогона сессии за столом: текст сессии, просмотрщик связанных документов, лог и ассистент.
 export function PlaySession() {
   const { campaignId, documentId } = useParams<{ campaignId: string; documentId: string }>();
@@ -61,6 +79,8 @@ export function PlaySession() {
   // Предлагаемые ассистентом к созданию сущности (документа ещё нет в базе) — по синтетическому id.
   const [proposed, setProposed] = useState<Record<string, NewEntity>>({});
   const [nextBusy, setNextBusy] = useState(false);
+  // Режим показа игрокам — прячет секции, помеченные «только мастер».
+  const [playerView, setPlayerView] = useState(false);
 
   useEffect(() => {
     if (!documentId) return;
@@ -103,16 +123,23 @@ export function PlaySession() {
     return () => clearTimeout(timer);
   }, [log, doc, patchFields]);
 
-  const sessionHtml = useMemo(() => (doc ? contentToHtml(doc.contentJson) : ""), [doc]);
+  const sections = useMemo(() => (doc ? splitSections(doc.contentJson) : []), [doc]);
+  const sectionVis: Record<string, string> = (doc?.fields?.sectionVisibility as Record<string, string>) ?? {};
+  const isGmOnly = (heading: string | null) => !!heading && sectionVis[heading] === "gm";
+  function toggleSectionVis(heading: string) {
+    const next = { ...sectionVis };
+    if (next[heading] === "gm") delete next[heading]; else next[heading] = "gm";
+    void patchFields({ sectionVisibility: next });
+  }
   const prepared = useMemo(
     () => prepareMentions(docs.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type, href: d.id }))),
     [docs, documentId],
   );
 
-  // Делаем упоминания в тексте сессии кликабельными.
+  // Делаем упоминания в тексте сессии кликабельными (по всем видимым секциям).
   useEffect(() => {
     if (contentRef.current) linkifyMentions(contentRef.current, prepared);
-  }, [sessionHtml, prepared]);
+  }, [sections, prepared, playerView, sectionVis]);
 
   function openDoc(id: string) {
     if (!id) return;
@@ -187,6 +214,9 @@ export function PlaySession() {
         </div>
         <div className="play-head-right">
           <span className="play-badge">● PLAY MODE</span>
+          <button type="button" className={`btn-ghost play-playerview${playerView ? " active" : ""}`} onClick={() => setPlayerView((v) => !v)} title="Показ игрокам: скрыть секции «только мастер»">
+            {playerView ? <Eye size={15} /> : <EyeOff size={15} />} {playerView ? "Показ игрокам" : "Всё видно"}
+          </button>
           <button type="button" className="btn-ghost play-next" onClick={endAndCreateNext} disabled={nextBusy} title="Завершить сессию: ИИ подведёт итоги и создаст следующую">
             {nextBusy ? "Создаём…" : <>Следующая сессия <ArrowRight size={15} /></>}
           </button>
@@ -203,7 +233,27 @@ export function PlaySession() {
             if (a?.dataset.docId) { e.preventDefault(); openDoc(a.dataset.docId); }
           }}
         >
-          {sessionHtml ? <div className="md" dangerouslySetInnerHTML={{ __html: sessionHtml }} /> : <p className="muted">Сессия пуста — заполните её на странице документа.</p>}
+          {sections.length === 0 ? (
+            <p className="muted">Сессия пуста — заполните её на странице документа.</p>
+          ) : (
+            sections.map((sec, i) => {
+              const gm = isGmOnly(sec.heading);
+              if (playerView && gm) return null;
+              return (
+                <div key={i} className={`play-section${gm ? " gm" : ""}`}>
+                  {sec.heading && (
+                    <div className="play-section-bar">
+                      <button type="button" className="play-eye" onClick={() => toggleSectionVis(sec.heading!)} title={gm ? "Виден игрокам (снять пометку)" : "Пометить «только мастер»"}>
+                        {gm ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                      {gm && <span className="play-section-lock">только мастер</span>}
+                    </div>
+                  )}
+                  <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(sec.doc) }} />
+                </div>
+              );
+            })
+          )}
         </div>
 
         <aside className="play-side">
