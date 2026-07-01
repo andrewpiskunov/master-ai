@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
   User, Shield, MapPin, Users, Lock, Clapperboard, Calendar, Package, Book, Library, File,
-  Swords, Milestone, Replace, LayoutGrid, List,
+  Swords, Milestone, Replace, LayoutGrid, List, Lightbulb,
   type LucideIcon,
 } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, getDisposition, hasDisposition, statusLabel, statusColor, type Campaign, type Document } from "@master-ai/shared";
@@ -278,6 +278,32 @@ function TypeFilterBar({
   );
 }
 
+// Осмысленное пустое состояние раздела: иконка, объяснение, быстрые кнопки создания
+// по ключевым типам и ссылка в Мастерскую.
+function LibraryEmpty({
+  icon: Icon, title, typeKeys, createDocument,
+}: { icon: LucideIcon; title: string; typeKeys: string[]; createDocument: (type: string) => void }) {
+  return (
+    <div className="lib-empty">
+      <Icon size={40} strokeWidth={1.4} className="lib-empty-icon" />
+      <h2>В разделе «{title}» пока пусто</h2>
+      <p className="muted">Создайте первый документ — или опишите идею в Мастерской, и ИИ предложит их за вас.</p>
+      <div className="lib-empty-actions">
+        {typeKeys.slice(0, 4).map((key) => {
+          const t = getDocumentType(key);
+          if (!t) return null;
+          return (
+            <button key={key} type="button" className="quick-create-item" onClick={() => createDocument(key)}>
+              <TypeBadge type={key} size={20} /><span>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <Link to="../workshop" className="lib-empty-link"><Lightbulb size={15} strokeWidth={1.9} /> Открыть Мастерскую</Link>
+    </div>
+  );
+}
+
 // Библиотека документов (База знаний / Игровые материалы) — общий красивый каркас
 // в духе Campaign Arks: шапка с переключателем вида, карточки-типы, фильтр, разделы.
 export function TypedLibrary({
@@ -313,7 +339,7 @@ export function TypedLibrary({
       <TypeCards typeKeys={typeKeys} documents={documents} onCreate={createDocument} />
 
       {inScope.length === 0 ? (
-        <p className="muted">Пока пусто. Создайте документ или примите предложение ИИ в Мастерской.</p>
+        <LibraryEmpty icon={Icon} title={title} typeKeys={typeKeys} createDocument={createDocument} />
       ) : (
         <>
           <TypeFilterBar typeKeys={present} documents={inScope} value={filter} onChange={setFilter} />
