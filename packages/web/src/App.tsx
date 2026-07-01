@@ -15,7 +15,7 @@ import { ToastProvider } from "./ui/toast.js";
 export function App() {
   return (
     <ToastProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
