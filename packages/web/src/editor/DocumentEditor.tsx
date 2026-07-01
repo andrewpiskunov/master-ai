@@ -25,6 +25,24 @@ export interface DocumentEditorHandle {
 // заголовки — отдельными блоками, подряд идущие пункты группируются в списки,
 // подряд идущие текстовые строки — в абзац. Заголовок без пустой строки перед
 // списком больше не «съедает» пункты.
+// Собирает подряд идущие пункты списка в <li>, допуская пустые строки между
+// пунктами (в markdown это «свободный» список — всё равно один список).
+function gatherList(lines: string[], start: number, test: RegExp, inline: (s: string) => string): { items: string; next: number } {
+  const items: string[] = [];
+  let i = start;
+  while (i < lines.length) {
+    const lt = lines[i].trim();
+    if (test.test(lt)) { items.push(`<li>${inline(lt.replace(test, ""))}</li>`); i++; continue; }
+    if (lt === "") {
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() === "") j++;
+      if (j < lines.length && test.test(lines[j].trim())) { i = j; continue; }
+    }
+    break;
+  }
+  return { items: items.join(""), next: i };
+}
+
 export function textToHtml(text: string): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const inline = (s: string) =>
@@ -42,18 +60,16 @@ export function textToHtml(text: string): string {
     if (t.startsWith("# ")) { flush(); out.push(`<h2>${inline(t.slice(2))}</h2>`); i++; continue; }
     if (/^[-*]\s+/.test(t)) {
       flush();
-      const items: string[] = [];
-      for (; i < lines.length && /^[-*]\s+/.test(lines[i].trim()); i++)
-        items.push(`<li>${inline(lines[i].trim().replace(/^[-*]\s+/, ""))}</li>`);
-      out.push(`<ul>${items.join("")}</ul>`);
+      const { items, next } = gatherList(lines, i, /^[-*]\s+/, inline);
+      out.push(`<ul>${items}</ul>`);
+      i = next;
       continue;
     }
     if (/^\d+\.\s+/.test(t)) {
       flush();
-      const items: string[] = [];
-      for (; i < lines.length && /^\d+\.\s+/.test(lines[i].trim()); i++)
-        items.push(`<li>${inline(lines[i].trim().replace(/^\d+\.\s+/, ""))}</li>`);
-      out.push(`<ol>${items.join("")}</ol>`);
+      const { items, next } = gatherList(lines, i, /^\d+\.\s+/, inline);
+      out.push(`<ol>${items}</ol>`);
+      i = next;
       continue;
     }
     para.push(t);

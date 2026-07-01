@@ -28,4 +28,10 @@ describe("textToHtml", () => {
     expect(html).toContain("<ul><li>раз</li><li>два</li></ul>");
     expect(html).toContain("<strong>жирно</strong>");
   });
+
+  it("свободный нумерованный список (пустые строки между пунктами) — один <ol>", () => {
+    const html = textToHtml("1. первый\n\n1. второй");
+    expect(html).toContain("<ol><li>первый</li><li>второй</li></ol>");
+    expect((html.match(/<ol>/g) || []).length).toBe(1);
+  });
 });
