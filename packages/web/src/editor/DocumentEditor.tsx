@@ -9,7 +9,7 @@ import { baseExtensions } from "./extensions.js";
 import { MentionHighlight, mentionKey, type MentionItem } from "./MentionHighlight.js";
 import { Placeholder } from "./Placeholder.js";
 import { GhostText, ghostKey } from "./GhostText.js";
-import { FillSection } from "./FillSection.js";
+import { FillSection, fillSectionKey } from "./FillSection.js";
 
 interface DocumentEditorProps {
   content: unknown;
@@ -17,6 +17,8 @@ interface DocumentEditorProps {
   mentions?: MentionItem[];
   // Заполнить раздел (по заголовку) с ИИ — обрабатывается на странице документа.
   onFillSection?: (heading: string) => void;
+  // Заголовок раздела, который сейчас заполняет ИИ (для подсветки/крутилки).
+  fillingHeading?: string | null;
 }
 
 export interface DocumentEditorHandle {
@@ -114,7 +116,7 @@ const SLASH_KEYWORDS: Record<string, string[]> = {
 interface MenuState { kind: "slash" | "mention"; items: MenuItem[]; index: number; top: number; left: number; queryLen: number; triggerLen: number }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { content, onChange, mentions, onFillSection },
+  { content, onChange, mentions, onFillSection, fillingHeading = null },
   ref,
 ) {
   // Держим актуальный колбэк заполнения в ref — расширение конфигурируется один раз.
@@ -274,6 +276,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     if (!editor) return;
     editor.view.dispatch(editor.state.tr.setMeta(mentionKey, { mentions: mentions ?? [] }));
   }, [editor, mentions]);
+
+  // Сообщаем плагину, какой раздел сейчас заполняет ИИ (подсветка + крутилка).
+  useEffect(() => {
+    if (!editor) return;
+    editor.view.dispatch(editor.state.tr.setMeta(fillSectionKey, { filling: fillingHeading }));
+  }, [editor, fillingHeading]);
 
   function applyMenu(item: MenuItem) {
     if (!editor || !menu) return;

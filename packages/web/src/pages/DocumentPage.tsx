@@ -55,6 +55,7 @@ export function DocumentPage() {
   // Снимок последнего сохранённого состояния — чтобы автосохранение не дёргало сервер зря.
   const savedRef = useRef<{ title: string; content: string } | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [fillingHeading, setFillingHeading] = useState<string | null>(null);
 
   useEffect(() => { if (documentId) setMarked(isBookmarked(documentId)); }, [documentId]);
 
@@ -177,6 +178,7 @@ export function DocumentPage() {
     const prev = isRecap ? previousSession() : undefined;
     if (isRecap && !prev) { showToast("Нет предыдущей сессии для пересказа"); return; }
     showToast(`ИИ заполняет раздел «${heading}»…`);
+    setFillingHeading(heading);
     let out = "";
     try {
       const system = prev
@@ -206,6 +208,8 @@ export function DocumentPage() {
       else showToast(`Не удалось найти раздел «${heading}»`);
     } catch {
       showToast("Не удалось заполнить раздел");
+    } finally {
+      setFillingHeading(null);
     }
   }
 
@@ -374,6 +378,7 @@ export function DocumentPage() {
             onChange={setContentJson}
             mentions={mentions}
             onFillSection={fillSection}
+            fillingHeading={fillingHeading}
           />
         </div>
 

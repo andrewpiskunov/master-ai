@@ -1144,6 +1144,10 @@ a.mention:hover { filter: brightness(1.12); }
 .fill-section-btn { margin-left: 10px; padding: 1px 7px; font-size: 0.8rem; line-height: 1.4; vertical-align: middle; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; opacity: 0; transition: opacity 0.12s; }
 .ProseMirror h2:hover .fill-section-btn, .fill-section-btn:hover, .fill-section-btn:focus { opacity: 1; }
 .fill-section-btn:hover { border-color: var(--accent); }
+.fill-section-btn.filling { opacity: 1; border-color: var(--accent); }
+/* Подсветка раздела, который сейчас заполняет ИИ */
+.ProseMirror h2.pm-filling { position: relative; animation: fillpulse 1.2s ease-in-out infinite; }
+@keyframes fillpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 .editor-help { flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 4px; background: none; border: none; color: var(--muted); border-radius: 6px; }
 .editor-help:hover { filter: none; color: var(--text-strong); }
 /* Одноразовая карточка-подсказка о возможностях редактора */
