@@ -1077,7 +1077,9 @@ form button { align-self: flex-start; }
 
 /* ---------- Редактор ---------- */
 .editor { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
-.editor > div { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+/* Растягиваем только область самого редактора (первый div), не карточку подсказок/футер. */
+.editor > div:first-child { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.editor-tips, .editor-footer { flex: none; }
 .ProseMirror { flex: 1 1 auto; min-height: 320px; padding: 26px 30px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); line-height: 1.65; font-size: 1.02rem; }
 /* Плавающая панель форматирования над выделением */
 .bubble-menu {
