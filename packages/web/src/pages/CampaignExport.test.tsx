@@ -15,7 +15,7 @@ describe("CampaignExport (smoke)", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("выводит имя кампании, число документов и их названия", async () => {
-    vi.mocked(api.getCampaign).mockResolvedValue({ id: "c1", name: "Корона", description: "", createdAt: "x" });
+    vi.mocked(api.getCampaign).mockResolvedValue({ id: "c1", name: "Корона", system: null, description: "", realism: "balanced", createdAt: "x" });
     vi.mocked(api.listCampaignDocuments).mockResolvedValue([doc("d1", "Барон"), doc("d2", "Причал")]);
     render(
       <MemoryRouter initialEntries={["/campaigns/c1/export"]}>
