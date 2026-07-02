@@ -330,6 +330,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .world-refresh:hover { filter: none; border-color: var(--accent); color: var(--text-strong); }
 .world-refresh:disabled { opacity: 0.5; }
 .world-summary { margin: 0; line-height: 1.6; color: var(--text); }
+/* В правой колонке мастерской сводка мира компактна: длинный текст прокручивается
+   внутри, не отжимая «Недавно созданные» вниз. */
+.ws-aside .world-summary { max-height: 168px; overflow-y: auto; padding-right: 6px; font-size: 0.9rem; }
+.ws-aside .world-summary::-webkit-scrollbar { width: 8px; }
+.ws-aside .world-summary::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
 .world-question { display: flex; gap: 8px; align-items: flex-start; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); color: var(--accent-hover); font-size: 0.9rem; }
 .world-question svg { flex: none; margin-top: 2px; }
 .world-question span { color: var(--muted); }
