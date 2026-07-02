@@ -10,6 +10,16 @@ function makeApp() {
   return buildApp({ db, llm: new FakeProvider(["Приветствую! Готов помочь с кампанией."]) });
 }
 
+// Ждёт завершения фоновой генерации ассистента по документу.
+async function waitAssistant(app: ReturnType<typeof buildApp>, docId: string) {
+  for (let i = 0; i < 100; i++) {
+    const st = (await app.inject({ method: "GET", url: `/api/documents/${docId}/assistant` })).json();
+    if (!st.running) return;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  throw new Error("генерация не завершилась");
+}
+
 describe("REST API", () => {
   it("GET /api/backup отдаёт валидный файл SQLite; без sqlite-инстанса — 503", async () => {
     const { db, sqlite } = createDb(":memory:");
@@ -525,5 +535,69 @@ describe("сессии: следующая сессия", () => {
     const npc = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "N" } })).json();
     expect((await app.inject({ method: "POST", url: `/api/documents/${npc.id}/next-session` })).statusCode).toBe(400);
     expect((await app.inject({ method: "POST", url: "/api/documents/нет/next-session" })).statusCode).toBe(404);
+  });
+});
+
+describe("игровой режим ассистента и PATCH меты сообщения", () => {
+  it("игровой режим: мета актора у вопроса, log-блок в мете ответа, PATCH важности", async () => {
+    const { db } = createDb(":memory:");
+    const reply =
+      "## Прочитай игрокам\nЗамок щёлкает.\n## Скрытое для мастера\nЗа дверью ловушка.\n" +
+      "```log\n{\"title\": \"Алдар взломал замок\", \"important\": false}\n```";
+    const app = buildApp({ db, llm: new FakeProvider([reply]) });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const s = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "session", title: "Сессия 1" } })).json();
+
+    const started = await app.inject({
+      method: "POST",
+      url: `/api/documents/${s.id}/assistant`,
+      payload: { message: "взламывает замок", mode: "game", meta: { actorId: "p1", actorName: "Алдар", actorKind: "pc" } },
+    });
+    expect(started.statusCode).toBe(202);
+    await waitAssistant(app, s.id);
+
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${s.id}/conversation` })).json();
+    expect(msgs[0].meta.actorName).toBe("Алдар");
+    expect(msgs[1].meta.log).toEqual({ title: "Алдар взломал замок", important: false });
+
+    const patched = await app.inject({
+      method: "PATCH",
+      url: `/api/messages/${msgs[1].id}/meta`,
+      payload: { log: { title: "Алдар взломал замок", important: true } },
+    });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json().meta.log.important).toBe(true);
+
+    // Вопрос мастера — без записи лога.
+    await app.inject({
+      method: "POST",
+      url: `/api/documents/${s.id}/assistant`,
+      payload: { message: "какая сложность взлома?", mode: "game", meta: { actorKind: "master", actorName: "Мастер" } },
+    });
+    await waitAssistant(app, s.id);
+    const msgs2 = (await app.inject({ method: "GET", url: `/api/documents/${s.id}/conversation` })).json();
+    expect(msgs2).toHaveLength(4);
+    expect(msgs2[3].meta.log).toBeUndefined();
+  });
+
+  it("игровой режим: без log-блока в ответе — заголовок записи из действия", async () => {
+    const { db } = createDb(":memory:");
+    const app = buildApp({ db, llm: new FakeProvider(["## Прочитай игрокам\nВы входите в зал."]) });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const s = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "session", title: "Сессия 1" } })).json();
+    await app.inject({
+      method: "POST",
+      url: `/api/documents/${s.id}/assistant`,
+      payload: { message: "Партия входит в тронный зал", mode: "game", meta: { actorName: "Мира", actorKind: "pc" } },
+    });
+    await waitAssistant(app, s.id);
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${s.id}/conversation` })).json();
+    expect(msgs[1].meta.log).toEqual({ title: "Партия входит в тронный зал", important: false });
+  });
+
+  it("PATCH меты несуществующего сообщения → 404", async () => {
+    const app = makeApp();
+    const res = await app.inject({ method: "PATCH", url: "/api/messages/nope/meta", payload: { log: { title: "x", important: true } } });
+    expect(res.statusCode).toBe(404);
   });
 });

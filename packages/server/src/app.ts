@@ -11,6 +11,9 @@ import {
   getDocumentType,
   CompleteInputSchema,
   NewLinkSchema,
+  extractLogBlock,
+  fallbackLogTitle,
+  type MessageMeta,
 } from "@master-ai/shared";
 import { z } from "zod";
 import { CampaignService } from "./services/campaigns.js";
@@ -89,7 +92,21 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   const NewMessageSchema = z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1) });
   const assistantJobs = new AssistantJobService();
   const workshopJobs = new AssistantJobService(); // фоновые генерации мастерской (ключ — id кампании)
-  const AssistantStartSchema = z.object({ message: z.string().min(1), system: z.string().optional() });
+  const MessageMetaSchema = z.object({
+    actorId: z.string().optional(),
+    actorName: z.string().optional(),
+    actorKind: z.enum(["pc", "npc", "master"]).optional(),
+  });
+  const AssistantStartSchema = z.object({
+    message: z.string().min(1),
+    system: z.string().optional(),
+    // Игровой чат режима игры: история префиксуется актором, ответ получает мету лога.
+    mode: z.literal("game").optional(),
+    meta: MessageMetaSchema.optional(),
+  });
+  const MessageMetaPatchSchema = z.object({
+    log: z.object({ title: z.string().min(1), important: z.boolean() }).optional(),
+  });
 
   app.get("/api/document-types", () => DOCUMENT_TYPES);
 
@@ -341,14 +358,31 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     if (assistantJobs.status(id).running) return reply.code(409).send({ error: "Генерация по этому документу уже идёт" });
 
     const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
-    conversationsSvc.addMessage(conv.id, "user", parsed.data.message);
+    conversationsSvc.addMessage(conv.id, "user", parsed.data.message, parsed.data.meta);
     // В LLM уходит только хвост беседы — полная история упирается в контекст модели.
-    const history = conversationsSvc.listMessages(conv.id).slice(-20)
-      .map((m) => ({ role: m.role, content: m.content }));
+    // Действия игрового чата префиксуются актором, чтобы ИИ видел, кто действует.
+    const history = conversationsSvc.listMessages(conv.id).slice(-20).map((m) => ({
+      role: m.role,
+      content:
+        m.role === "user" && m.meta?.actorName && m.meta.actorKind && m.meta.actorKind !== "master"
+          ? `Действие (${m.meta.actorName}): ${m.content}`
+          : m.content,
+    }));
     const stream = llmFor(doc.campaignId).complete({ system: parsed.data.system, messages: history });
+    // Действие персонажа всегда порождает запись лога: из log-блока ответа,
+    // а если ИИ его не вернул — с заголовком из первых слов действия.
+    const isAction = parsed.data.mode === "game" && !!parsed.data.meta?.actorKind && parsed.data.meta.actorKind !== "master";
+    const actionText = parsed.data.message;
     assistantJobs.start(id, stream, (text) => {
       // Пока шла генерация, документ могли удалить — не создаём «висячий» ответ.
-      if (documentsSvc.get(id)) conversationsSvc.addMessage(conv.id, "assistant", text);
+      if (documentsSvc.get(id)) {
+        let meta: MessageMeta | undefined;
+        if (isAction) {
+          const { log } = extractLogBlock(text);
+          meta = { log: log ?? { title: fallbackLogTitle(actionText), important: false } };
+        }
+        conversationsSvc.addMessage(conv.id, "assistant", text, meta);
+      }
     });
     return reply.code(202).send({ started: true });
   });
@@ -377,6 +411,16 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     if (!doc) return reply.code(404).send({ error: "документ не найден" });
     const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
     return reply.code(201).send(conversationsSvc.addMessage(conv.id, parsed.data.role, parsed.data.content));
+  });
+
+  // Точечное обновление меты сообщения — переключение важности записи лога в режиме игры.
+  app.patch("/api/messages/:id/meta", (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = MessageMetaPatchSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    const updated = conversationsSvc.updateMessageMeta(id, parsed.data);
+    if (!updated) return reply.code(404).send({ error: "сообщение не найдено" });
+    return updated;
   });
 
   app.post("/api/proposals/:id/approve", (req, reply) => {
