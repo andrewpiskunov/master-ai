@@ -32,6 +32,7 @@ export class CampaignService {
     if (!this.get(id)) return undefined;
     const updates: Partial<Campaign> = {};
     if (patch.name !== undefined) updates.name = patch.name;
+    if (patch.system !== undefined) updates.system = patch.system;
     if (patch.description !== undefined) updates.description = patch.description;
     if (patch.realism !== undefined) updates.realism = patch.realism;
     if (Object.keys(updates).length) {

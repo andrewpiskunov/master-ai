@@ -1,10 +1,11 @@
 import { useMemo } from "react";
-import { Lightbulb } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Lightbulb, Settings } from "lucide-react";
 import { WorkshopPanel, WorkshopProposals, WorldSummary } from "../WorkshopPanel.js";
 import { RecentlyCreated, useCampaign } from "./shared.js";
 
 export function WorkshopView() {
-  const { campaignId, documents } = useCampaign();
+  const { campaignId, campaign, documents } = useCampaign();
   const mentions = useMemo(
     () => documents.map((d) => ({
       title: d.title,
@@ -22,6 +23,12 @@ export function WorkshopView() {
           <p className="view-sub">Обсудите идею с ИИ — он ответит и предложит документы для кампании.</p>
         </div>
       </header>
+      {campaign && !campaign.description?.trim() && (
+        <Link to={`/campaigns/${campaignId}/manage`} className="brief-nudge">
+          <Settings size={15} strokeWidth={1.8} />
+          <span>Бриф кампании пуст. Заполните его в управлении кампанией — тон, жанр и правила мира сделают ответы ИИ заметно точнее.</span>
+        </Link>
+      )}
       <div className="ws-grid">
         <div className="ws-chat-col">
           <WorkshopPanel mentions={mentions} />

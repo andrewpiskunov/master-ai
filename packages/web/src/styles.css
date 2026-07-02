@@ -1251,6 +1251,14 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .sessions-linked-more:hover { color: var(--text); border-color: var(--accent); }
 
+/* Нудж «заполните бриф» в мастерской */
+.brief-nudge {
+  display: flex; align-items: center; gap: 9px; margin: 2px 0 12px; padding: 9px 13px;
+  border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--muted); font-size: 0.85rem; text-decoration: none;
+}
+.brief-nudge:hover { color: var(--text); border-color: var(--accent); }
+
 /* Легенда-фильтр карты связей */
 .linkmap-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .linkmap-chip {

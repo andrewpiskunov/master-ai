@@ -21,6 +21,7 @@ export function ManageCampaign() {
   const { showToast } = useToast();
 
   const [name, setName] = useState("");
+  const [system, setSystem] = useState("");
   const [description, setDescription] = useState("");
   const [realism, setRealism] = useState<Realism>("balanced");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -28,35 +29,36 @@ export function ManageCampaign() {
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   // Инициализируем поля один раз на кампанию, чтобы reloadCampaign не затирал ввод.
   const initedRef = useRef<string | null>(null);
-  const savedRef = useRef<{ name: string; description: string }>({ name: "", description: "" });
+  const savedRef = useRef<{ name: string; system: string; description: string }>({ name: "", system: "", description: "" });
 
   useEffect(() => {
     if (!campaign || initedRef.current === campaign.id) return;
     initedRef.current = campaign.id;
     setName(campaign.name);
+    setSystem(campaign.system ?? "");
     setDescription(campaign.description ?? "");
     setRealism(campaign.realism);
-    savedRef.current = { name: campaign.name, description: campaign.description ?? "" };
+    savedRef.current = { name: campaign.name, system: campaign.system ?? "", description: campaign.description ?? "" };
   }, [campaign]);
 
-  // Автосохранение названия и брифа (как в документе) — без кнопки.
+  // Автосохранение названия, системы и брифа (как в документе) — без кнопки.
   useEffect(() => {
     if (!campaignId || initedRef.current !== campaignId) return;
     const trimmedName = name.trim();
     if (!trimmedName) return; // пустое название не сохраняем
-    if (trimmedName === savedRef.current.name && description.trim() === savedRef.current.description) return;
+    if (trimmedName === savedRef.current.name && system.trim() === savedRef.current.system && description.trim() === savedRef.current.description) return;
     setSaveState("saving");
     const timer = setTimeout(() => {
-      api.updateCampaign(campaignId, { name: trimmedName, description: description.trim() || null })
+      api.updateCampaign(campaignId, { name: trimmedName, system: system.trim() || null, description: description.trim() || null })
         .then(() => {
-          savedRef.current = { name: trimmedName, description: description.trim() };
+          savedRef.current = { name: trimmedName, system: system.trim(), description: description.trim() };
           setSaveState("saved");
           reloadCampaign();
         })
         .catch(() => { setSaveState("idle"); showToast("Не удалось сохранить"); });
     }, 700);
     return () => clearTimeout(timer);
-  }, [name, description, campaignId, reloadCampaign, showToast]);
+  }, [name, system, description, campaignId, reloadCampaign, showToast]);
 
   // Реализм применяем сразу (как тумблер настройки).
   async function pickRealism(r: Realism) {
@@ -103,6 +105,13 @@ export function ManageCampaign() {
         </div>
         <label htmlFor="mc-name">Название</label>
         <input id="mc-name" value={name} onChange={(e) => setName(e.target.value)} />
+        <label htmlFor="mc-system">Система</label>
+        <input
+          id="mc-system"
+          placeholder="Напр.: D&D 5e, Pathfinder 2e, Vampire: the Masquerade…"
+          value={system}
+          onChange={(e) => setSystem(e.target.value)}
+        />
         <label htmlFor="mc-desc">Описание (бриф для ИИ)</label>
         <p className="muted manage-hint">
           Постоянный бриф, которому следуют ИИ-помощники во всей кампании — тон, жанр, темы, мир, домашние правила.

@@ -23,6 +23,7 @@ export type NewCampaign = z.infer<typeof NewCampaignSchema>;
 
 export const CampaignPatchSchema = z.object({
   name: z.string().min(1).optional(),
+  system: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   realism: RealismSchema.optional(),
 });
