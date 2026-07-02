@@ -1219,6 +1219,8 @@ a.mention:hover { filter: brightness(1.12); }
 .mention-opt-type { flex: none; color: var(--muted); font-size: 0.74rem; }
 
 /* ---------- Помощник по документу ---------- */
+/* Обёртка живущей в фоне вкладки (display:none при переключении) — передаёт flex-раскладку дальше. */
+.panel-keepalive { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .doc-assistant { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .doc-assistant .doc-chat {
   flex: 1 1 auto; min-height: 0; max-height: none; margin: 0 0 8px; padding: 6px 4px;

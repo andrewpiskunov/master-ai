@@ -442,7 +442,9 @@ export function DocumentPage() {
                 <button type="button" className="panel-tabs-hint-x" aria-label="Скрыть подсказку" onClick={() => { setTabsHint(false); try { localStorage.setItem("master-ai:doc-tabs-hint-seen", "1"); } catch { /* приватный режим */ } }}>×</button>
               </div>
             )}
-            {panel === "assistant" ? (
+            {/* Помощник не размонтируется при смене вкладки (прячется через display:none) —
+                иначе переключение на «Материалы»/«Связи» обрывало бы идущую генерацию ИИ. */}
+            <div className="panel-keepalive" style={{ display: panel === "assistant" ? undefined : "none" }}>
               <DocumentAssistant
                 docId={doc.id}
                 campaignId={doc.campaignId}
@@ -458,11 +460,9 @@ export function DocumentPage() {
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
               />
-            ) : panel === "play" ? (
-              <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />
-            ) : (
-              <MentionedInPanel campaignId={doc.campaignId} documentId={doc.id} title={title} documents={allDocuments} />
-            )}
+            </div>
+            {panel === "play" && <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />}
+            {panel === "mentions" && <MentionedInPanel campaignId={doc.campaignId} documentId={doc.id} title={title} documents={allDocuments} />}
           </div>
         </aside>
       </div>
