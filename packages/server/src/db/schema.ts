@@ -38,6 +38,8 @@ export const messages = sqliteTable("messages", {
   conversationId: text("conversation_id").notNull(),
   role: text("role").notNull(),
   content: text("content").notNull(),
+  // Метаданные игрового чата: актор действия / запись лога событий (JSON).
+  meta: text("meta").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
 });
 

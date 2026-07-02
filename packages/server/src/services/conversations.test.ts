@@ -37,4 +37,28 @@ describe("ConversationService", () => {
     // повторный вызов на уровне кампании не подхватывает беседу документа
     expect(s.getOrCreateForCampaign("c1").id).toBe(camp.id);
   });
+
+  it("addMessage сохраняет meta; listMessages возвращает её; updateMessageMeta мерджит", () => {
+    const s = svc();
+    const { id } = s.getOrCreateForDocument("c1", "d1");
+    s.addMessage(id, "user", "взламывает замок", { actorId: "p1", actorName: "Алдар", actorKind: "pc" });
+    const a = s.addMessage(id, "assistant", "…", { log: { title: "Алдар взломал замок", important: false } });
+    let msgs = s.listMessages(id);
+    expect(msgs[0].meta?.actorName).toBe("Алдар");
+    expect(msgs[1].meta?.log).toEqual({ title: "Алдар взломал замок", important: false });
+
+    const upd = s.updateMessageMeta(a.id, { log: { title: "Алдар взломал замок", important: true } });
+    expect(upd?.meta?.log?.important).toBe(true);
+    msgs = s.listMessages(id);
+    expect(msgs[1].meta?.log?.important).toBe(true);
+
+    expect(s.updateMessageMeta("nope", { log: { title: "x", important: false } })).toBeNull();
+  });
+
+  it("сообщения без meta возвращают пустой объект", () => {
+    const s = svc();
+    const { id } = s.getOrCreateForCampaign("c1");
+    s.addMessage(id, "user", "привет");
+    expect(s.listMessages(id)[0].meta).toEqual({});
+  });
 });

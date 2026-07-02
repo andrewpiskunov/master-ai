@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { MessageMeta } from "./game.js";
 
 export const ProposalStatusSchema = z.enum(["pending", "approved", "rejected"]);
 export type ProposalStatus = z.infer<typeof ProposalStatusSchema>;
@@ -35,6 +36,7 @@ export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+  meta?: MessageMeta;
 }
 
 export interface BrainstormResponse {
