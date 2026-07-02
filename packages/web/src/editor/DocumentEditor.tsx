@@ -17,6 +17,8 @@ interface DocumentEditorProps {
   mentions?: MentionItem[];
   // Кампания документа — сервер выбирает её нейросеть для автодополнения.
   campaignId?: string;
+  // Cmd/Ctrl+клик по упоминанию — открыть его документ (обрабатывается на странице).
+  onOpenMention?: (title: string) => void;
   // Заполнить раздел (по заголовку) с ИИ — обрабатывается на странице документа.
   onFillSection?: (heading: string) => void;
   // Заголовок раздела, который сейчас заполняет ИИ (для подсветки/крутилки).
@@ -118,12 +120,14 @@ const SLASH_KEYWORDS: Record<string, string[]> = {
 interface MenuState { kind: "slash" | "mention"; items: MenuItem[]; index: number; top: number; left: number; queryLen: number; triggerLen: number }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { content, onChange, mentions, campaignId, onFillSection, fillingHeading = null },
+  { content, onChange, mentions, campaignId, onOpenMention, onFillSection, fillingHeading = null },
   ref,
 ) {
   // Актуальный id кампании для колбэков редактора, сконфигурированных один раз.
   const campaignIdRef = useRef(campaignId);
   campaignIdRef.current = campaignId;
+  const openMentionRef = useRef(onOpenMention);
+  openMentionRef.current = onOpenMention;
   // Держим актуальный колбэк заполнения в ref — расширение конфигурируется один раз.
   const fillSectionRef = useRef(onFillSection);
   fillSectionRef.current = onFillSection;
@@ -233,7 +237,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
 
   const editor = useEditor({
     extensions: [
-      ...baseExtensions, MentionHighlight, Placeholder, GhostText,
+      ...baseExtensions,
+      MentionHighlight.configure({ onOpen: (title: string) => openMentionRef.current?.(title) }),
+      Placeholder, GhostText,
       FillSection.configure({ onFill: (heading: string) => fillSectionRef.current?.(heading) }),
     ],
     content: (content as object) ?? "",

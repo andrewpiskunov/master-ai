@@ -414,6 +414,12 @@ export function DocumentPage() {
             onChange={setContentJson}
             mentions={mentions}
             campaignId={doc.campaignId}
+            onOpenMention={(title) => {
+              const target = allDocuments.find(
+                (d) => d.id !== doc.id && d.title.trim().toLowerCase() === title.trim().toLowerCase(),
+              );
+              if (target) navigate(`/campaigns/${target.campaignId}/documents/${target.id}`);
+            }}
             onFillSection={fillSection}
             fillingHeading={fillingHeading}
           />
