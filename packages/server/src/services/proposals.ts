@@ -99,12 +99,15 @@ export class ProposalService {
     const p = this.get(id);
     if (!p || p.status !== "pending") return undefined;
     return this.db.transaction(() => {
+      const all = documents.listByCampaign(p.campaignId);
       // Правка существующего документа: ищем по точному названию в кампании.
+      // Для create-предложений совпадение названия и типа означает повтор той же
+      // сущности (ИИ может предложить её в нескольких репликах) — дубликат не создаём.
       const existing = p.action === "update"
-        ? documents.listByCampaign(p.campaignId).find((d) => d.title.toLowerCase() === p.title.toLowerCase())
-        : undefined;
+        ? all.find((d) => d.title.toLowerCase() === p.title.toLowerCase())
+        : all.find((d) => d.title.toLowerCase() === p.title.toLowerCase() && d.type === p.type);
       const doc = existing
-        ? documents.update(existing.id, { contentJson: textToDoc(p.content) })
+        ? (p.action === "update" ? documents.update(existing.id, { contentJson: textToDoc(p.content) }) : existing)
         : documents.create({
             campaignId: p.campaignId,
             type: p.type,

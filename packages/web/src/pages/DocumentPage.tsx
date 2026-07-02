@@ -43,6 +43,8 @@ export function DocumentPage() {
   const [contentJson, setContentJson] = useState<unknown>(null);
   const [fields, setFields] = useState<Record<string, unknown>>({});
   const [deleting, setDeleting] = useState(false);
+  // Предложение ИИ создать сущность, совпавшую по имени и типу с существующей.
+  const [dupEntity, setDupEntity] = useState<NewEntity | null>(null);
   const [panel, setPanel] = useState<"assistant" | "play" | "mentions">("assistant");
   // Одноразовая подсказка о назначении вкладок правой панели.
   const [tabsHint, setTabsHint] = useState(() => {
@@ -150,9 +152,14 @@ export function DocumentPage() {
   }
 
   // Создаёт новую сущность по предложению ИИ и связывает её с текущим документом.
-  async function createEntity(entity: NewEntity) {
+  // При совпадении имени и типа с существующим документом спрашивает, а не плодит дубликат.
+  async function createEntity(entity: NewEntity, force = false) {
     if (!doc) return;
     const type = getDocumentType(entity.type) ? entity.type : "note";
+    const existing = allDocuments.find(
+      (d) => d.type === type && d.title.trim().toLowerCase() === entity.title.trim().toLowerCase(),
+    );
+    if (existing && !force) { setDupEntity(entity); return; }
     try {
       const created = await api.createDocument({
         campaignId: doc.campaignId,
@@ -456,6 +463,37 @@ export function DocumentPage() {
           </div>
         </aside>
       </div>
+
+      {dupEntity && (
+        <Modal title="Такая сущность уже есть" onClose={() => setDupEntity(null)}>
+          <p className="muted">
+            В кампании уже есть «{dupEntity.title}» ({getDocumentType(dupEntity.type)?.label ?? dupEntity.type}).
+            Открыть её или всё-таки создать дубликат?
+          </p>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => {
+                const target = allDocuments.find(
+                  (d) => d.title.trim().toLowerCase() === dupEntity.title.trim().toLowerCase(),
+                );
+                setDupEntity(null);
+                if (target) navigate(`/campaigns/${target.campaignId}/documents/${target.id}`);
+              }}
+            >
+              Открыть существующую
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => { const e = dupEntity; setDupEntity(null); void createEntity(e, true); }}
+            >
+              Всё равно создать
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {deleting && (
         <Modal title="Удалить документ" onClose={() => setDeleting(false)}>
