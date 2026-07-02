@@ -3,7 +3,6 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DocumentAssistant, blockKey, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
 import { api } from "../api/client.js";
-import { streamComplete } from "../api/stream.js";
 import { ToastProvider } from "../ui/toast.js";
 
 vi.mock("../api/client.js");
@@ -17,13 +16,19 @@ function renderAssistant(over: {
   getText?: () => string;
   appliedBlocks?: string[];
   docUpdatedAt?: string;
+  customMocks?: boolean;
   onApply?: (t: string) => void;
   onCreateEntity?: (e: NewEntity) => void;
   onEditEntity?: (e: EditEntity) => void;
 } = {}) {
-  vi.mocked(api.getDocumentConversation).mockResolvedValue(
-    (over.messages ?? []).map((m, i) => ({ id: `m${i}`, conversationId: "cv", role: m.role, content: m.content, createdAt: m.createdAt ?? "x" })),
-  );
+  // Дефолтные моки; customMocks — тест настроил свои до вызова renderAssistant.
+  if (!over.customMocks) {
+    vi.mocked(api.getDocumentConversation).mockResolvedValue(
+      (over.messages ?? []).map((m, i) => ({ id: `m${i}`, conversationId: "cv", role: m.role, content: m.content, createdAt: m.createdAt ?? "x" })),
+    );
+    // по умолчанию серверная генерация не идёт (проверяется при монтировании)
+    vi.mocked(api.assistantStatus).mockResolvedValue({ running: false, partial: "", error: null });
+  }
   return render(
     <ToastProvider>
       <DocumentAssistant
@@ -134,24 +139,44 @@ describe("DocumentAssistant карточки (smoke)", () => {
     expect(api.clearDocumentConversation).toHaveBeenCalledWith("d1");
   });
 
-  it("кнопка «Стоп» прерывает генерацию, набранный текст остаётся", async () => {
-    vi.mocked(api.addDocumentMessage).mockResolvedValue({ id: "m", role: "user", content: "", createdAt: "x" });
-    // стрим отдаёт кусок и «висит», пока его не прервут по signal
-    vi.mocked(streamComplete).mockImplementation((_input, onChunk, signal) => {
-      onChunk("Начало ответа…");
-      return new Promise((resolve) => signal?.addEventListener("abort", () => resolve("Начало ответа…")));
-    });
-    renderAssistant();
-    const input = await screen.findByPlaceholderText(/Спросите про документ/);
-    await userEvent.type(input, "Расскажи о документе");
-    await userEvent.click(screen.getByRole("button", { name: /Отправить/ }));
-    // идёт генерация: вместо «Отправить» — «Стоп», кусок ответа уже на экране
+  it("подхватывает идущую серверную генерацию при открытии; «Стоп» завершает её", async () => {
+    // при монтировании: в беседе только вопрос, на сервере идёт генерация с partial
+    let running = true;
+    vi.mocked(api.getDocumentConversation)
+      .mockResolvedValueOnce([{ id: "m0", role: "user", content: "Расскажи о документе", createdAt: "x" }])
+      .mockResolvedValue([
+        { id: "m0", role: "user", content: "Расскажи о документе", createdAt: "x" },
+        { id: "m1", role: "assistant", content: "Начало ответа…", createdAt: "x" },
+      ]);
+    vi.mocked(api.assistantStatus).mockImplementation(async () => ({ running, partial: "Начало ответа…", error: null }));
+    vi.mocked(api.stopAssistant).mockImplementation(async () => { running = false; });
+
+    renderAssistant({ customMocks: true });
+    // генерация подхвачена: видна кнопка «Стоп» и частичный ответ
     const stop = await screen.findByRole("button", { name: /Стоп/ });
-    expect(screen.getByText("Начало ответа…")).toBeInTheDocument();
+    expect(await screen.findByText("Начало ответа…")).toBeInTheDocument();
+
     await userEvent.click(stop);
-    // генерация остановлена: «Отправить» вернулась, частичный ответ остался
-    expect(await screen.findByRole("button", { name: /Отправить/ })).toBeInTheDocument();
+    expect(api.stopAssistant).toHaveBeenCalledWith("d1");
+    // опрос замечает завершение: «Отправить» вернулась, частичный ответ сохранён в истории
+    await waitFor(() => expect(screen.getByRole("button", { name: /Отправить/ })).toBeInTheDocument(), { timeout: 4000 });
     expect(screen.getByText("Начало ответа…")).toBeInTheDocument();
+  });
+
+  it("отправка запускает серверную задачу и показывает ответ по завершении", async () => {
+    vi.mocked(api.startAssistant).mockResolvedValue({ started: true });
+    vi.mocked(api.assistantStatus).mockResolvedValue({ running: false, partial: "Готовый ответ.", error: null });
+    vi.mocked(api.getDocumentConversation)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([
+        { id: "m0", role: "user", content: "Вопрос", createdAt: "x" },
+        { id: "m1", role: "assistant", content: "Готовый ответ.", createdAt: "x" },
+      ]);
+    renderAssistant({ customMocks: true });
+    await userEvent.type(await screen.findByPlaceholderText(/Спросите про документ/), "Вопрос");
+    await userEvent.click(screen.getByRole("button", { name: /Отправить/ }));
+    expect(await screen.findByText("Готовый ответ.")).toBeInTheDocument();
+    expect(api.startAssistant).toHaveBeenCalledWith("d1", "Вопрос", expect.stringContaining("соавтор мастера"));
   });
 
   it("карточка правки свёрнута для переименования, если новый документ уже есть", async () => {

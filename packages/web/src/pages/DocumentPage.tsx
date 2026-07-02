@@ -447,7 +447,6 @@ export function DocumentPage() {
             <div className="panel-keepalive" style={{ display: panel === "assistant" ? undefined : "none" }}>
               <DocumentAssistant
                 docId={doc.id}
-                campaignId={doc.campaignId}
                 title={title}
                 typeLabel={t?.label ?? doc.type}
                 template={getTemplate(doc.type)}

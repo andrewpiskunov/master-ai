@@ -21,6 +21,7 @@ import { textToDoc } from "./services/proposals.js";
 import { BrainstormService } from "./services/brainstorm.js";
 import { LinkService } from "./services/links.js";
 import { SearchService } from "./services/search.js";
+import { AssistantJobService } from "./services/assistant-jobs.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { loadProvider } from "./llm/config.js";
 import { providerForCampaign } from "./llm/resolve.js";
@@ -86,6 +87,8 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   const searchSvc = new SearchService(deps.db);
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });
   const NewMessageSchema = z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1) });
+  const assistantJobs = new AssistantJobService();
+  const AssistantStartSchema = z.object({ message: z.string().min(1), system: z.string().optional() });
 
   app.get("/api/document-types", () => DOCUMENT_TYPES);
 
@@ -306,6 +309,36 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     if (!doc) return reply.code(404).send({ error: "документ не найден" });
     const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
     return conversationsSvc.listMessages(conv.id);
+  });
+
+  // Генерация помощника документа выполняется на сервере фоновой задачей —
+  // навигация или закрытие вкладки её не прерывают. Клиент опрашивает статус.
+  app.post<IdParams>("/api/documents/:id/assistant", (req, reply) => {
+    const { id } = req.params;
+    const parsed = AssistantStartSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    const doc = documentsSvc.get(id);
+    if (!doc) return reply.code(404).send({ error: "документ не найден" });
+    if (assistantJobs.status(id).running) return reply.code(409).send({ error: "Генерация по этому документу уже идёт" });
+
+    const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
+    conversationsSvc.addMessage(conv.id, "user", parsed.data.message);
+    // В LLM уходит только хвост беседы — полная история упирается в контекст модели.
+    const history = conversationsSvc.listMessages(conv.id).slice(-20)
+      .map((m) => ({ role: m.role, content: m.content }));
+    const stream = llmFor(doc.campaignId).complete({ system: parsed.data.system, messages: history });
+    assistantJobs.start(id, stream, (text) => {
+      // Пока шла генерация, документ могли удалить — не создаём «висячий» ответ.
+      if (documentsSvc.get(id)) conversationsSvc.addMessage(conv.id, "assistant", text);
+    });
+    return reply.code(202).send({ started: true });
+  });
+
+  app.get<IdParams>("/api/documents/:id/assistant", (req) => assistantJobs.status(req.params.id));
+
+  app.post<IdParams>("/api/documents/:id/assistant/stop", (req, reply) => {
+    if (!assistantJobs.stop(req.params.id)) return reply.code(404).send({ error: "генерация не идёт" });
+    return reply.code(204).send();
   });
 
   // Очистка беседы ассистента документа («Очистить беседу» в помощнике).

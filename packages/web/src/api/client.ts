@@ -86,6 +86,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ role, content }),
     }),
+  // Серверная генерация помощника документа: старт / статус / остановка.
+  startAssistant: (docId: string, message: string, system?: string) =>
+    request<{ started: boolean }>(`/api/documents/${docId}/assistant`, {
+      method: "POST",
+      body: JSON.stringify({ message, system }),
+    }),
+  assistantStatus: (docId: string) =>
+    request<{ running: boolean; partial: string; error: string | null }>(`/api/documents/${docId}/assistant`),
+  stopAssistant: (docId: string) =>
+    fetch(`/api/documents/${docId}/assistant/stop`, { method: "POST" }).then(() => undefined),
   clearDocumentConversation: (docId: string) =>
     fetch(`/api/documents/${docId}/conversation`, { method: "DELETE" }).then((res) => {
       if (!res.ok) throw new ApiError(res.status, res.statusText);

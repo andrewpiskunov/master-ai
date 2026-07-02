@@ -439,7 +439,6 @@ export function PlaySession() {
             <div className="play-assistant" style={{ display: tab === "assistant" ? undefined : "none" }}>
               <DocumentAssistant
                 docId={doc.id}
-                campaignId={campaignId}
                 title={doc.title}
                 typeLabel={getDocumentType(doc.type)?.label ?? doc.type}
                 documents={docs.map((d) => ({ title: d.title, type: d.type }))}

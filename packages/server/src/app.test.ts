@@ -420,6 +420,34 @@ describe("беседа ассистента по документу", () => {
   });
 });
 
+describe("серверная генерация помощника документа", () => {
+  it("start сохраняет вопрос, задача копит ответ и записывает его в беседу", async () => {
+    const { db } = createDb(":memory:");
+    const app = buildApp({ db, llm: new FakeProvider(["", "Ответ помощника."]) }); // 1-й ответ — приветствие кампании
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+
+    const started = await app.inject({ method: "POST", url: `/api/documents/${d.id}/assistant`, payload: { message: "Кто такой Глеб?", system: "Ты — помощник." } });
+    expect(started.statusCode).toBe(202);
+
+    // дожидаемся завершения фоновой задачи
+    for (let i = 0; i < 50; i++) {
+      const st = (await app.inject({ method: "GET", url: `/api/documents/${d.id}/assistant` })).json();
+      if (!st.running) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json();
+    expect(msgs.map((m: { role: string }) => m.role)).toEqual(["user", "assistant"]);
+    expect(msgs[1].content).toBe("Ответ помощника.");
+  });
+
+  it("stop без задачи → 404, старт по несуществующему документу → 404", async () => {
+    const app = makeApp();
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/assistant", payload: { message: "x" } })).statusCode).toBe(404);
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/assistant/stop" })).statusCode).toBe(404);
+  });
+});
+
 describe("сессии: следующая сессия", () => {
   it("создаёт следующую сессию, помечает текущую сыгранной, идемпотентна", async () => {
     const app = makeApp();

@@ -3,7 +3,6 @@ import { Check, Plus, Send, Pencil, Sparkles, Square, Trash2 } from "lucide-reac
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { plural } from "../format.js";
-import { streamComplete } from "../api/stream.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
 import { pmText } from "../prosemirror-text.js";
 import { lineDiff } from "../lineDiff.js";
@@ -129,7 +128,6 @@ export function DocumentAssistant({
   getText,
   appliedBlocks,
   docUpdatedAt,
-  campaignId,
   onApply,
   onCreateEntity,
   onEditEntity,
@@ -137,8 +135,6 @@ export function DocumentAssistant({
   onProposeDoc,
 }: {
   docId: string;
-  // Кампания документа — сервер выбирает её нейросеть для генерации.
-  campaignId?: string;
   title: string;
   typeLabel: string;
   template?: string;
@@ -174,17 +170,66 @@ export function DocumentAssistant({
   const [confirmClear, setConfirmClear] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Контроллер текущей генерации — кнопка «Стоп» прерывает стрим, набранный текст остаётся.
-  const abortRef = useRef<AbortController | null>(null);
+  // Токен активного опроса серверной генерации: смена документа или новый запуск
+  // делает предыдущий цикл опроса «чужим», и он молча завершается.
+  const pollTokenRef = useRef(0);
+
+  // Опрашивает серверную задачу генерации: дорисовывает partial в последнее
+  // сообщение, по завершении подменяет историю авторитетной серверной версией.
+  async function pollJob(notify: boolean): Promise<void> {
+    const token = ++pollTokenRef.current;
+    for (;;) {
+      let st: { running: boolean; partial: string; error: string | null };
+      try {
+        st = await api.assistantStatus(docId);
+      } catch {
+        st = { running: false, partial: "", error: "нет связи с сервером" };
+      }
+      if (token !== pollTokenRef.current) return;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role !== "assistant") return prev;
+        return [...prev.slice(0, -1), { ...last, content: st.partial }];
+      });
+      if (!st.running) {
+        if (st.error) showToast("Не удалось получить ответ ИИ");
+        const msgs = await api.getDocumentConversation(docId).catch(() => null);
+        if (token !== pollTokenRef.current) return;
+        if (msgs) {
+          setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt })));
+          const last = msgs[msgs.length - 1];
+          if (notify && last?.role === "assistant") {
+            onMessage?.(last.content);
+            if (onProposeDoc) parseAssistant(last.content).newDocs.forEach((nd) => onProposeDoc(nd));
+          }
+        }
+        setBusy(false);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 1200));
+      if (token !== pollTokenRef.current) return;
+    }
+  }
 
   // История беседы по документу хранится на сервере — загружаем её при открытии.
+  // Если по документу прямо сейчас идёт серверная генерация — подхватываем её.
   useEffect(() => {
     let cancelled = false;
     setAppliedLocal(new Set());
     api.getDocumentConversation(docId)
-      .then((msgs) => { if (!cancelled) setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt }))); })
+      .then(async (msgs) => {
+        if (cancelled) return;
+        setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt })));
+        const st = await api.assistantStatus(docId).catch(() => null);
+        if (cancelled || !st?.running) return;
+        setMessages((prev) => [...prev, { role: "assistant", content: st.partial }]);
+        setBusy(true);
+        void pollJob(true);
+      })
       .catch(() => {});
-    return () => { cancelled = true; };
+    return () => { cancelled = true; pollTokenRef.current++; };
+  // pollJob намеренно вне зависимостей: пересоздаётся каждый рендер, а цикл держится за токен
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docId]);
 
   function autoGrow() {
@@ -206,21 +251,18 @@ export function DocumentAssistant({
     e.preventDefault();
     const text = (override ?? input).trim();
     if (!text || busy) return;
-    const history = [...messages, { role: "user", content: text } as Msg];
-    setMessages([...history, { role: "assistant", content: "" }]);
+    setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
     if (override === undefined) setInput(""); // быстрые действия не трогают черновик
     setBusy(true);
     onMessage?.(text);
-    // Сохраняем вопрос сразу; ответ — после завершения стрима, чтобы порядок реплик не сбился.
-    const userSaved = api.addDocumentMessage(docId, "user", text).catch(() => {});
-    const ac = new AbortController();
-    abortRef.current = ac;
-    let reply = "";
+    // Генерация выполняется на сервере фоновой задачей (переживает навигацию);
+    // вопрос сохраняет сервер, клиент только опрашивает статус.
     try {
-      await streamComplete(
-        {
-          system:
-            `Ты — соавтор мастера настольных ролевых игр. Помогаешь дорабатывать документ кампании ` +
+      await api.startAssistant(
+        docId,
+        text,
+        (
+          `Ты — соавтор мастера настольных ролевых игр. Помогаешь дорабатывать документ кампании ` +
             `(тип: ${typeLabel}, название: «${title}»). ` +
             (campaignBrief?.trim() ? `Бриф кампании (учитывай тон, жанр, мир, правила):\n${campaignBrief.trim()}\n\n` : "") +
             `Текущий текст документа:\n${getText() || "(пусто)"}\n\n` +
@@ -244,34 +286,14 @@ export function DocumentAssistant({
             `title: <точное название существующего документа из списка ниже>\nrename: <новое название> (только если меняешь имя)\n---\n<полный новый текст документа> (только если меняешь содержимое; иначе оставь пустым)\n` +
             `Можно вернуть несколько блоков edit-doc подряд. Существующие документы кампании: ` +
             `${documents.slice(0, 100).map((d) => `«${d.title}» (${getDocumentType(d.type)?.label ?? d.type})`).join(", ") || "(пока нет)"}.\n\n` +
-            `Если правка не нужна — отвечай обычным текстом без блоков.`,
-          // В LLM уходит только хвост беседы: полная история на долгоживущем
-          // документе разрастается и упирается в контекст модели.
-          messages: history.slice(-20),
-          campaignId,
-        },
-        (chunk) => {
-          reply += chunk;
-          setMessages((prev) => {
-            const copy = prev.slice();
-            const last = copy[copy.length - 1];
-            copy[copy.length - 1] = { ...last, content: last.content + chunk };
-            return copy;
-          });
-        },
-        ac.signal,
+            `Если правка не нужна — отвечай обычным текстом без блоков.`
+        ),
       );
-      if (reply.trim()) {
-        onMessage?.(reply);
-        if (onProposeDoc) parseAssistant(reply).newDocs.forEach((nd) => onProposeDoc(nd));
-        await userSaved;
-        api.addDocumentMessage(docId, "assistant", reply).catch(() => {});
-      }
+      await pollJob(true);
     } catch {
-      showToast("Не удалось получить ответ ИИ");
-      setMessages((prev) => prev.filter((m, i) => !(i === prev.length - 1 && m.content === "")));
-    } finally {
-      abortRef.current = null;
+      showToast("Не удалось запустить генерацию");
+      // откатываем оптимистичные вопрос и заглушку ответа
+      setMessages((prev) => prev.slice(0, -2));
       setBusy(false);
     }
   }
@@ -429,7 +451,7 @@ export function DocumentAssistant({
           disabled={busy}
         />
         {busy ? (
-          <button type="button" className="chat-send chat-stop" onClick={() => abortRef.current?.abort()} title="Остановить генерацию — набранный текст останется">
+          <button type="button" className="chat-send chat-stop" onClick={() => void api.stopAssistant(docId)} title="Остановить генерацию — набранный текст останется">
             <Square size={13} strokeWidth={2.2} /> <span>Стоп</span>
           </button>
         ) : (
