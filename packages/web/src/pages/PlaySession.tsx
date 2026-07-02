@@ -201,7 +201,6 @@ export function PlaySession() {
 
   function openDoc(id: string) {
     if (!id) return;
-    setTab("docs");
     setView((v) => {
       if (v.idx >= 0 && v.stack[v.idx] === id) return v;
       const stack = v.stack.slice(0, v.idx + 1);
@@ -370,6 +369,8 @@ export function PlaySession() {
                 const a = (e.target as HTMLElement).closest("a.play-link") as HTMLElement | null;
                 if (!a?.dataset.docId) return;
                 e.preventDefault();
+                // Явный клик по упоминанию в сценарии переключает на вкладку «Документы», а тихие открытия из чата — нет.
+                setTab("docs");
                 // Одноимённые документы: повторный клик открывает следующий по кругу.
                 const ids = a.dataset.docIds ? a.dataset.docIds.split(",") : [];
                 if (ids.length > 1) openDoc(ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length]);
