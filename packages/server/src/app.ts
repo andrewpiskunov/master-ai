@@ -255,8 +255,15 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     }
 
     const { summary, seed } = await brainstormSvc.sessionSummary(id);
-    const num = typeof sess.fields?.sessionNumber === "number" ? sess.fields.sessionNumber : 0;
-    const nextNum = num + 1;
+    // Номер следующей сессии — максимум по всем сессиям кампании: поле sessionNumber,
+    // а для сессий без него (созданных ИИ/вручную) — число из названия «Сессия N…».
+    const sessionNum = (d: { title: string; fields?: Record<string, unknown> }): number => {
+      if (typeof d.fields?.sessionNumber === "number") return d.fields.sessionNumber;
+      const m = /^сессия\s+(\d+)/i.exec(d.title.trim());
+      return m ? Number(m[1]) : 0;
+    };
+    const sessions = documentsSvc.listByCampaign(sess.campaignId).filter((d) => d.type === "session");
+    const nextNum = Math.max(0, ...sessions.map(sessionNum)) + 1;
     const md = [
       "## Цель сессии", "",
       "## Что было в прошлый раз", summary || "",

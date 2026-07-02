@@ -447,6 +447,20 @@ describe("сессии: следующая сессия", () => {
     expect(again.json().id).toBe(next.id);
   });
 
+  it("без fields.sessionNumber номер берётся из названий сессий кампании — дубль «Сессия 1» не создаётся", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    // сессия, созданная ИИ/сидом: номер только в названии, fields.sessionNumber нет
+    const sess = (await app.inject({
+      method: "POST", url: "/api/documents",
+      payload: { campaignId: c.id, type: "session", title: "Сессия 1: Корона", fields: { sessionLog: "лог" } },
+    })).json();
+
+    const next = (await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` })).json();
+    expect(next.title).toBe("Сессия 2");
+    expect(next.fields.sessionNumber).toBe(2);
+  });
+
   it("для не-сессии → 400, для отсутствующего документа → 404", async () => {
     const app = makeApp();
     const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
