@@ -198,8 +198,19 @@ export class BrainstormService {
     const sess = documents.get(sessionId);
     if (!sess) return { summary: "", seed: "" };
     const llm = this.deps.llmFor(sess.campaignId);
-    // Ограничиваем объём входа, чтобы время генерации сводки не росло на больших сессиях.
-    const log = (typeof sess.fields?.sessionLog === "string" ? sess.fields.sessionLog : "").slice(0, 4000);
+    // Лог событий игрового чата; для старых сессий — ручной текстовый лог из fields.
+    const conv = this.deps.conversations.getOrCreateForDocument(sess.campaignId, sessionId);
+    const msgs = this.deps.conversations.listMessages(conv.id);
+    const gameLog = msgs
+      .filter((m) => m.meta?.log)
+      .map((m) => `- ${m.meta!.log!.important ? "[важно] " : ""}${m.meta!.log!.title}`)
+      .join("\n");
+    const legacy = typeof sess.fields?.sessionLog === "string" ? sess.fields.sessionLog : "";
+    const log = (gameLog || legacy).slice(0, 4000);
+    const chatTail = msgs.slice(-30)
+      .map((m) => `${m.role === "user" ? "Мастер" : "ИИ"}: ${m.content}`)
+      .join("\n")
+      .slice(0, 4000);
     const text = proseMirrorToText(sess.contentJson).trim().slice(0, 4000);
 
     let out = "";
@@ -208,7 +219,7 @@ export class BrainstormService {
         "Ты — ассистент мастера НРИ. По логу и заметкам СЫГРАННОЙ сессии составь два блока по-русски. " +
         "(1) Блок ИТОГИ: 2–4 предложения — что произошло, ключевые решения игроков, изменения статусов, добыча. Живым языком, без списков. " +
         "(2) С новой строки, начиная строго со слова «ЗАДЕЛ:», дай 2–4 зацепки для следующей сессии — незакрытые нити, реакции мира, назревающие угрозы. Каждую с новой строки как «- …».",
-      messages: [{ role: "user", content: `Лог сессии:\n${log || "(пусто)"}\n\nЗаметки сессии:\n${text || "(пусто)"}` }],
+      messages: [{ role: "user", content: `Лог сессии:\n${log || "(пусто)"}\n\nХод игры (чат с ИИ-мастером):\n${chatTail || "(пусто)"}\n\nЗаметки сессии:\n${text || "(пусто)"}` }],
     })) {
       out += chunk;
     }

@@ -78,4 +78,34 @@ describe("BrainstormService", () => {
     expect(res.summary).not.toMatch(/ИТОГИ/i);
     expect(res.seed).toContain("Хор вернётся");
   });
+
+  it("sessionSummary: лог из игрового чата приоритетнее fields.sessionLog; без чата — fallback", async () => {
+    const { db } = createDb(":memory:");
+    const docs = new DocumentService(db);
+    const conv = new ConversationService(db);
+    const inputs: string[] = [];
+    const llm = {
+      async *complete(input: { messages: { content: string }[] }) {
+        inputs.push(input.messages[0].content);
+        yield "ИТОГИ: Всё случилось.\nЗАДЕЛ:\n- Нить.";
+      },
+    };
+    const svc = new BrainstormService({
+      llmFor: () => llm as unknown as LLMProvider,
+      conversations: conv, proposals: new ProposalService(db), documents: docs, campaigns: new CampaignService(db),
+    });
+
+    const s = docs.create({ campaignId: "c1", type: "session", title: "Сессия 1", fields: { sessionLog: "старый ручной лог" } });
+    const cv = conv.getOrCreateForDocument("c1", s.id);
+    conv.addMessage(cv.id, "user", "взламывает замок", { actorName: "Алдар", actorKind: "pc" });
+    conv.addMessage(cv.id, "assistant", "Замок щёлкает.", { log: { title: "Алдар взломал замок", important: true } });
+    await svc.sessionSummary(s.id);
+    expect(inputs[0]).toContain("[важно] Алдар взломал замок");
+    expect(inputs[0]).toContain("взламывает замок"); // хвост чата тоже уходит в сводку
+    expect(inputs[0]).not.toContain("старый ручной лог");
+
+    const s2 = docs.create({ campaignId: "c1", type: "session", title: "Сессия 2", fields: { sessionLog: "старый ручной лог" } });
+    await svc.sessionSummary(s2.id);
+    expect(inputs[1]).toContain("старый ручной лог");
+  });
 });
