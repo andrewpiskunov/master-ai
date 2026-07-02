@@ -43,4 +43,28 @@ describe("SearchBox", () => {
     const link = (await screen.findByText("…аристократ…")).closest("a");
     expect(link).toHaveAttribute("href", "/campaigns/c1/documents/d1");
   });
+
+  it("debounce: один запрос после набора слова, а не на каждый символ", async () => {
+    (api.search as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { docId: "d1", type: "npc", title: "Барон", snippet: "" },
+    ]);
+    renderBox();
+    await userEvent.type(screen.getByPlaceholderText(/поиск/i), "барон");
+    await screen.findByText("Барон");
+    expect(api.search).toHaveBeenCalledTimes(1);
+    expect(api.search).toHaveBeenCalledWith("c1", "барон");
+  });
+
+  it("Escape очищает поле и закрывает результаты", async () => {
+    (api.search as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { docId: "d1", type: "npc", title: "Барон", snippet: "" },
+    ]);
+    renderBox();
+    const input = screen.getByPlaceholderText(/поиск/i);
+    await userEvent.type(input, "барон");
+    await screen.findByText("Барон");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByText("Барон")).not.toBeInTheDocument();
+    expect(input).toHaveValue("");
+  });
 });
