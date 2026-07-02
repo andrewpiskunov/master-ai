@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Plus, Send, Pencil, Sparkles } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { api } from "../api/client.js";
+import { plural } from "../format.js";
 import { streamComplete } from "../api/stream.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
 import { pmText } from "../prosemirror-text.js";
@@ -112,7 +113,7 @@ function DiffPreview({ current, proposed }: { current: string; proposed: string 
   return (
     <div className="apply-preview apply-diff">
       {rows.map((r, i) => "collapse" in r
-        ? <div key={i} className="diff-collapse">··· {r.collapse} строк без изменений ···</div>
+        ? <div key={i} className="diff-collapse">··· {r.collapse} {plural(r.collapse, ["строка", "строки", "строк"])} без изменений ···</div>
         : <div key={i} className={`diff-line diff-${r.type}`}><span className="diff-sign">{r.type === "add" ? "+" : r.type === "del" ? "−" : " "}</span>{r.text || " "}</div>)}
     </div>
   );

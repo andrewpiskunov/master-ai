@@ -23,7 +23,7 @@ describe("CampaignExport (smoke)", () => {
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByRole("heading", { level: 1, name: "Корона" })).toBeInTheDocument());
-    expect(screen.getByText("2 документов")).toBeInTheDocument();
+    expect(screen.getByText("2 документа")).toBeInTheDocument();
     expect(screen.getByText("Барон")).toBeInTheDocument();
     expect(screen.getByText("Причал")).toBeInTheDocument();
   });

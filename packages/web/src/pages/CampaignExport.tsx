@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Printer, X, Download } from "lucide-react";
 import { getDocumentType, statusLabel, type Campaign, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
+import { plural } from "../format.js";
 import { contentToHtml } from "../editor/contentToHtml.js";
 import { docToMarkdown } from "../editor/docToMarkdown.js";
 
@@ -50,7 +51,7 @@ export function CampaignExport() {
     <div className="print-page">
       <div className="print-bar">
         <button type="button" className="btn-ghost" onClick={() => navigate(`/campaigns/${campaignId}/manage`, { replace: true })}><X size={16} /> Закрыть</button>
-        <span className="print-count">{docs.length} документов</span>
+        <span className="print-count">{docs.length} {plural(docs.length, ["документ", "документа", "документов"])}</span>
         <button type="button" className="btn-ghost" onClick={downloadMd}><Download size={16} /> Markdown</button>
         <button type="button" onClick={() => window.print()}><Printer size={16} /> Печать / PDF</button>
       </div>
