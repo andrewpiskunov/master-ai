@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, Send, Pencil, Sparkles } from "lucide-react";
+import { Check, Plus, Send, Pencil, Sparkles, Square } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { plural } from "../format.js";
@@ -169,6 +169,8 @@ export function DocumentAssistant({
   const [editedLocal, setEditedLocal] = useState<Set<string>>(() => new Set());
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Контроллер текущей генерации — кнопка «Стоп» прерывает стрим, набранный текст остаётся.
+  const abortRef = useRef<AbortController | null>(null);
 
   // История беседы по документу хранится на сервере — загружаем её при открытии.
   useEffect(() => {
@@ -206,6 +208,8 @@ export function DocumentAssistant({
     onMessage?.(text);
     // Сохраняем вопрос сразу; ответ — после завершения стрима, чтобы порядок реплик не сбился.
     const userSaved = api.addDocumentMessage(docId, "user", text).catch(() => {});
+    const ac = new AbortController();
+    abortRef.current = ac;
     let reply = "";
     try {
       await streamComplete(
@@ -247,6 +251,7 @@ export function DocumentAssistant({
             return copy;
           });
         },
+        ac.signal,
       );
       if (reply.trim()) {
         onMessage?.(reply);
@@ -258,6 +263,7 @@ export function DocumentAssistant({
       showToast("Не удалось получить ответ ИИ");
       setMessages((prev) => prev.filter((m, i) => !(i === prev.length - 1 && m.content === "")));
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   }
@@ -396,9 +402,15 @@ export function DocumentAssistant({
           mentions={documents}
           disabled={busy}
         />
-        <button type="submit" className="chat-send" disabled={busy} title="Отправить">
-          <Send size={15} strokeWidth={1.9} /> <span>Отправить</span>
-        </button>
+        {busy ? (
+          <button type="button" className="chat-send chat-stop" onClick={() => abortRef.current?.abort()} title="Остановить генерацию — набранный текст останется">
+            <Square size={13} strokeWidth={2.2} /> <span>Стоп</span>
+          </button>
+        ) : (
+          <button type="submit" className="chat-send" title="Отправить">
+            <Send size={15} strokeWidth={1.9} /> <span>Отправить</span>
+          </button>
+        )}
       </form>
     </div>
   );

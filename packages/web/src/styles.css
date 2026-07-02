@@ -1290,6 +1290,10 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .sessions-linked-more:hover { color: var(--text); border-color: var(--accent); }
 
+/* Кнопка остановки генерации ИИ */
+.chat-stop { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+.chat-stop:hover { border-color: var(--danger); color: var(--danger); filter: none; }
+
 /* Экспорт и резервная копия в управлении кампанией */
 .manage-export-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
 .manage-backup { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: var(--radius-sm); font-size: 0.9rem; }

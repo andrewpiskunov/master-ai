@@ -3,6 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DocumentAssistant, blockKey, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
 import { api } from "../api/client.js";
+import { streamComplete } from "../api/stream.js";
 import { ToastProvider } from "../ui/toast.js";
 
 vi.mock("../api/client.js");
@@ -118,6 +119,26 @@ describe("DocumentAssistant карточки (smoke)", () => {
     });
     expect(await screen.findByText(/Сущность «Барон» создана/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Создать сущность/ })).not.toBeInTheDocument();
+  });
+
+  it("кнопка «Стоп» прерывает генерацию, набранный текст остаётся", async () => {
+    vi.mocked(api.addDocumentMessage).mockResolvedValue({ id: "m", role: "user", content: "", createdAt: "x" });
+    // стрим отдаёт кусок и «висит», пока его не прервут по signal
+    vi.mocked(streamComplete).mockImplementation((_input, onChunk, signal) => {
+      onChunk("Начало ответа…");
+      return new Promise((resolve) => signal?.addEventListener("abort", () => resolve("Начало ответа…")));
+    });
+    renderAssistant();
+    const input = await screen.findByPlaceholderText(/Спросите про документ/);
+    await userEvent.type(input, "Расскажи о документе");
+    await userEvent.click(screen.getByRole("button", { name: /Отправить/ }));
+    // идёт генерация: вместо «Отправить» — «Стоп», кусок ответа уже на экране
+    const stop = await screen.findByRole("button", { name: /Стоп/ });
+    expect(screen.getByText("Начало ответа…")).toBeInTheDocument();
+    await userEvent.click(stop);
+    // генерация остановлена: «Отправить» вернулась, частичный ответ остался
+    expect(await screen.findByRole("button", { name: /Отправить/ })).toBeInTheDocument();
+    expect(screen.getByText("Начало ответа…")).toBeInTheDocument();
   });
 
   it("карточка правки свёрнута для переименования, если новый документ уже есть", async () => {
