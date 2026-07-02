@@ -20,6 +20,7 @@ export function CampaignWorkspace() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [documents, setDocuments] = useState<Document[]>([]);
   const bookmarks = useBookmarks(campaignId);
 
@@ -53,13 +54,20 @@ export function CampaignWorkspace() {
 
   const reloadCampaign = useCallback(() => {
     if (!campaignId) return;
-    api.getCampaign(campaignId).then(setCampaign).catch(() => showToast("Не удалось загрузить кампанию"));
+    api.getCampaign(campaignId).then(setCampaign).catch((e: unknown) => {
+      if ((e as { status?: number })?.status === 404) setNotFound(true);
+      else showToast("Не удалось загрузить кампанию");
+    });
   }, [campaignId, showToast]);
 
   useEffect(() => {
     reloadCampaign();
-    reload();
-  }, [reloadCampaign, reload]);
+  }, [reloadCampaign]);
+  // Документы грузим только для существующей кампании — иначе на битой ссылке
+  // сыпались бы 404 и запросы ассистента с несуществующим id.
+  useEffect(() => {
+    if (campaign) reload();
+  }, [campaign, reload]);
 
   // Открывает окно создания (НЕ создаёт документ сразу).
   const createDocument = useCallback((type: string) => {
@@ -122,6 +130,18 @@ export function CampaignWorkspace() {
   }
 
   const ctx: CampaignContext = { campaignId: campaignId!, campaign, documents, reload, reloadCampaign, createDocument };
+
+  if (notFound) {
+    return (
+      <div className="view campaign-missing">
+        <h1>Кампания не найдена</h1>
+        <p className="muted">Ссылка устарела или кампания была удалена.</p>
+        <Link to="/" className="btn-ghost">На главную</Link>
+      </div>
+    );
+  }
+  // Рабочее пространство (включая беседу мастерской) монтируем только с загруженной кампанией.
+  if (!campaign) return <div className="view"><p className="muted">…</p></div>;
 
   return (
     <div className="workspace">

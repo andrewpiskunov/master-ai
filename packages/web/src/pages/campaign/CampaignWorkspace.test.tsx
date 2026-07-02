@@ -49,4 +49,17 @@ describe("CampaignWorkspace + KnowledgeBase", () => {
     // навигация присутствует
     expect(screen.getByRole("link", { name: /база знаний/i })).toBeInTheDocument();
   });
+
+  it("показывает «Кампания не найдена» при 404 и не запускает беседу мастерской", async () => {
+    vi.mocked(api.getCampaign).mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([]);
+
+    renderAt("/campaigns/nope/knowledge");
+
+    expect(await screen.findByText(/Кампания не найдена/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /на главную/i })).toBeInTheDocument();
+    // ассистент мастерской не должен стартовать для несуществующей кампании
+    expect(api.getConversation).not.toHaveBeenCalled();
+    expect(api.listProposals).not.toHaveBeenCalled();
+  });
 });
