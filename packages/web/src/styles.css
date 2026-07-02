@@ -580,9 +580,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .combat-x { flex: none; padding: 4px; background: none; border: none; color: var(--muted); }
 .combat-x:hover { filter: none; color: #f87171; }
 .combat-add { display: flex; gap: 6px; }
-.combat-add-name { flex: 1 1 auto; }
-.combat-add-init { width: 60px; text-align: center; }
-.combat-add-btn { flex: none; padding: 0 10px; }
+.combat-add-name { flex: 1 1 auto; min-width: 0; }
+.combat-add-init { width: 72px; text-align: center; }
+.combat-add-btn { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; font-size: 0.85rem; }
 .combat-sources { display: flex; flex-wrap: wrap; gap: 6px; }
 .combat-pick { flex: 1 1 140px; padding: 6px 8px; font-size: 0.8rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); color-scheme: dark; }
 .combat-ai { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; font-size: 0.8rem; font-weight: 500; background: var(--accent-soft); border: 1px solid rgba(59,130,246,0.32); border-radius: 8px; color: var(--accent-hover); }

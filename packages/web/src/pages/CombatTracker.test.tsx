@@ -10,8 +10,8 @@ describe("CombatTracker (smoke)", () => {
     const onChange = vi.fn();
     render(<CombatTracker combat={empty} onChange={onChange} />);
     await userEvent.type(screen.getByPlaceholderText("Имя участника"), "Гоблин");
-    await userEvent.type(screen.getByPlaceholderText("иниц."), "12");
-    await userEvent.click(screen.getByTitle("Добавить"));
+    await userEvent.type(screen.getByLabelText("Инициатива"), "12");
+    await userEvent.click(screen.getByRole("button", { name: "Добавить" }));
     const next = onChange.mock.calls.at(-1)![0] as CombatState;
     expect(next.combatants).toHaveLength(1);
     expect(next.combatants[0]).toMatchObject({ name: "Гоблин", init: 12 });

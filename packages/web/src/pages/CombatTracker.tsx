@@ -102,9 +102,9 @@ export function CombatTracker({
       </ul>
 
       <form className="combat-add" onSubmit={addCombatant}>
-        <input className="combat-add-name" placeholder="Имя участника" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="combat-add-init" placeholder="иниц." value={init} onChange={(e) => setInit(e.target.value)} />
-        <button type="submit" className="combat-add-btn" title="Добавить"><Plus size={15} /></button>
+        <input className="combat-add-name" placeholder="Имя участника" aria-label="Имя участника" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="combat-add-init" placeholder="Иниц." aria-label="Инициатива" inputMode="numeric" value={init} onChange={(e) => setInit(e.target.value)} />
+        <button type="submit" className="combat-add-btn"><Plus size={15} /> Добавить</button>
       </form>
 
       <div className="combat-sources">
