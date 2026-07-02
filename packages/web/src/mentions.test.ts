@@ -12,7 +12,34 @@ describe("prepareMentions", () => {
   });
 });
 
+describe("prepareMentions: одноимённые документы", () => {
+  it("сливает записи с одинаковым названием в одну со списком hrefs", () => {
+    const out = prepareMentions([
+      { title: "Корона Королей", type: "arc", href: "a1" },
+      { title: "корона королей", type: "secret", href: "s1" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].href).toBe("a1");
+    expect(out[0].hrefs).toEqual(["a1", "s1"]);
+  });
+
+  it("уникальное название остаётся без hrefs", () => {
+    const out = prepareMentions([{ title: "Крысолов", type: "npc", href: "d1" }]);
+    expect(out[0].hrefs).toBeUndefined();
+  });
+});
+
 describe("matchMentions", () => {
+  it("спан неоднозначного упоминания несёт все hrefs", () => {
+    const prepared = prepareMentions([
+      { title: "Корона Королей", type: "arc", href: "a1" },
+      { title: "Корона Королей", type: "secret", href: "s1" },
+    ]);
+    const spans = matchMentions("Их ждёт Корона Королей", prepared);
+    expect(spans).toHaveLength(1);
+    expect(spans[0].hrefs).toEqual(["a1", "s1"]);
+  });
+
   it("находит вхождения по границам слов с типом", () => {
     const prepared = prepareMentions([{ title: "Крысолов", type: "npc" }]);
     const text = "Где Крысолов?";

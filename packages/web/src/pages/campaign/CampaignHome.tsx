@@ -62,7 +62,8 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
   const linked = (() => {
     if (!selected) return [] as Document[];
     const prepared = prepareMentions(documents.filter((d) => d.id !== selected.id).map((d) => ({ title: d.title, type: d.type, href: d.id })));
-    const ids = new Set(matchMentions(pmText(selected.contentJson), prepared).map((m) => m.href));
+    // Неоднозначное название (несколько документов с одним именем) связывает все совпадения.
+    const ids = new Set(matchMentions(pmText(selected.contentJson), prepared).flatMap((m) => m.hrefs ?? (m.href ? [m.href] : [])));
     return documents.filter((d) => ids.has(d.id));
   })();
 

@@ -1268,6 +1268,9 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .sessions-linked-more:hover { color: var(--text); border-color: var(--accent); }
 
+/* Неоднозначное упоминание: несколько документов с одним названием */
+.mention-ambiguous { text-decoration: underline dashed; text-underline-offset: 3px; }
+
 /* Нудж «заполните бриф» в мастерской */
 .brief-nudge {
   display: flex; align-items: center; gap: 9px; margin: 2px 0 12px; padding: 9px 13px;

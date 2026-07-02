@@ -32,6 +32,12 @@ function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
       const a = document.createElement("a");
       a.className = `mention mention-${s.type} play-link`;
       a.dataset.docId = s.href ?? "";
+      // Несколько документов с одним названием: клик переключает их по кругу.
+      if (s.hrefs && s.hrefs.length > 1) {
+        a.dataset.docIds = s.hrefs.join(",");
+        a.classList.add("mention-ambiguous");
+        a.title = `Документов с этим названием: ${s.hrefs.length} — клик переключает`;
+      }
       a.textContent = text.slice(s.start, s.end);
       frag.appendChild(a);
       last = s.end;
@@ -330,7 +336,12 @@ export function PlaySession() {
           ref={contentRef}
           onClick={(e) => {
             const a = (e.target as HTMLElement).closest("a.play-link") as HTMLElement | null;
-            if (a?.dataset.docId) { e.preventDefault(); openDoc(a.dataset.docId); }
+            if (!a?.dataset.docId) return;
+            e.preventDefault();
+            // Одноимённые документы: повторный клик открывает следующий по кругу.
+            const ids = a.dataset.docIds ? a.dataset.docIds.split(",") : [];
+            if (ids.length > 1) openDoc(ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length]);
+            else openDoc(a.dataset.docId);
           }}
         >
           {sections.length === 0 ? (

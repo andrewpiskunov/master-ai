@@ -42,7 +42,11 @@ export function LinkMap() {
     const seen = new Set<string>();
     const edges: { a: string; b: string }[] = [];
     for (const d of docs) {
-      const hits = new Set(matchMentions(pmText(d.contentJson), prepared).map((m) => m.href).filter((h): h is string => !!h && h !== d.id));
+      const hits = new Set(
+        matchMentions(pmText(d.contentJson), prepared)
+          .flatMap((m) => m.hrefs ?? (m.href ? [m.href] : []))
+          .filter((h) => h !== d.id),
+      );
       for (const other of hits) {
         const key = [d.id, other].sort().join("|");
         if (seen.has(key)) continue;
