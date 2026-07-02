@@ -41,6 +41,23 @@ describe("DocumentService", () => {
     expect(updated?.fields).toEqual({ x: 1 });
   });
 
+  it("изменение contentJson ставит fields.contentUpdatedAt; патч тегов/статуса — нет", () => {
+    const svc = makeService();
+    const doc = svc.create({ campaignId: "c1", type: "npc", title: "A", contentJson: { type: "doc", content: [] } });
+    expect(doc.fields.contentUpdatedAt).toBeUndefined();
+    // патч только fields (теги) не создаёт отметку
+    const tagged = svc.update(doc.id, { fields: { tags: ["x"] } });
+    expect(tagged?.fields.contentUpdatedAt).toBeUndefined();
+    // патч контента — создаёт, сохранив остальные fields
+    const edited = svc.update(doc.id, { contentJson: { type: "doc", content: [{ type: "paragraph" }] } });
+    expect(typeof edited?.fields.contentUpdatedAt).toBe("string");
+    expect(edited?.fields.tags).toEqual(["x"]);
+    // повторная запись того же контента отметку не двигает
+    const stamp = edited?.fields.contentUpdatedAt;
+    const same = svc.update(doc.id, { contentJson: { type: "doc", content: [{ type: "paragraph" }] } });
+    expect(same?.fields.contentUpdatedAt).toBe(stamp);
+  });
+
   it("get возвращает undefined для несуществующего id", () => {
     const svc = makeService();
     expect(svc.get("nope")).toBeUndefined();

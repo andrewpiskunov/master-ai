@@ -443,7 +443,7 @@ export function PlaySession() {
                 campaignBrief={`Идёт игровая сессия «${doc.title}». Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пока пусто)"}`}
                 getText={() => pmText(doc.contentJson).trim()}
                 appliedBlocks={(doc.fields?.appliedDocBlocks as string[] | undefined) ?? []}
-                docUpdatedAt={doc.updatedAt}
+                docUpdatedAt={(doc.fields?.contentUpdatedAt as string | undefined) ?? doc.updatedAt}
                 onApply={applyToSession}
                 onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
                 onEditEntity={() => showToast("Изменяйте документы вне режима игры")}

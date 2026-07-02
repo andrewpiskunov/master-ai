@@ -143,8 +143,8 @@ export function DocumentAssistant({
   getText: () => string;
   // Ключи блоков ```doc```, уже применённых к документу (из fields) — переживают перезаход.
   appliedBlocks?: string[];
-  // updatedAt документа: блоки из сообщений старше него без персистентного ключа
-  // помечаются устаревшими (легаси-правки до появления appliedDocBlocks).
+  // Время последнего изменения КОНТЕНТА документа (fields.contentUpdatedAt, для легаси —
+  // updatedAt): блоки из сообщений старше него без персистентного ключа помечаются устаревшими.
   docUpdatedAt?: string;
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => void;

@@ -73,8 +73,16 @@ export class DocumentService {
     if (patch.type !== undefined) updates.type = patch.type;
     if (patch.title !== undefined) updates.title = patch.title;
     if (patch.status !== undefined) updates.status = patch.status;
-    if (patch.contentJson !== undefined) updates.contentJson = JSON.stringify(patch.contentJson);
-    if (patch.fields !== undefined) updates.fields = JSON.stringify(patch.fields);
+    if (patch.contentJson !== undefined) {
+      updates.contentJson = JSON.stringify(patch.contentJson);
+      // Отметка времени изменения именно контента (fields.contentUpdatedAt) — по ней
+      // помощник «старит» свои предложения; правки статусов/тегов её не трогают.
+      const contentChanged = updates.contentJson !== JSON.stringify(existing.contentJson);
+      const baseFields = patch.fields ?? existing.fields;
+      updates.fields = JSON.stringify(contentChanged ? { ...baseFields, contentUpdatedAt: updates.updatedAt } : baseFields);
+    } else if (patch.fields !== undefined) {
+      updates.fields = JSON.stringify(patch.fields);
+    }
     this.db.update(documents).set(updates).where(eq(documents.id, id)).run();
     const updated = this.get(id);
     if (updated) {

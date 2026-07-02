@@ -450,7 +450,7 @@ export function DocumentPage() {
                 campaignBrief={campaignCtx?.campaign?.description ?? undefined}
                 getText={() => pmText(contentJson).trim()}
                 appliedBlocks={(fields.appliedDocBlocks as string[] | undefined) ?? []}
-                docUpdatedAt={doc.updatedAt}
+                docUpdatedAt={(fields.contentUpdatedAt as string | undefined) ?? doc.updatedAt}
                 onApply={applyDocBlock}
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
