@@ -38,6 +38,7 @@ describe("CampaignWorkspace + KnowledgeBase", () => {
     ]);
     vi.mocked(api.search).mockResolvedValue([]);
     vi.mocked(api.getConversation).mockResolvedValue([]);
+    vi.mocked(api.brainstormStatus).mockResolvedValue({ running: false, partial: "", error: null });
     vi.mocked(api.listProposals).mockResolvedValue([]);
 
     renderAt("/campaigns/c1/knowledge");

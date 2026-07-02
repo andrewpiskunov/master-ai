@@ -420,6 +420,36 @@ describe("беседа ассистента по документу", () => {
   });
 });
 
+describe("серверная генерация мастерской", () => {
+  it("start сохраняет вопрос, задача пишет ответ и создаёт предложения", async () => {
+    const { db } = createDb(":memory:");
+    const reply = 'Вот идея!\n```json\n{"proposals":[{"type":"npc","title":"Барон","content":"Злодей."}]}\n```';
+    const app = buildApp({ db, llm: new FakeProvider([reply]) });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+
+    const started = await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm/start`, payload: { message: "Придумай злодея" } });
+    expect(started.statusCode).toBe(202);
+    for (let i = 0; i < 50; i++) {
+      const st = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/brainstorm/status` })).json();
+      if (!st.running) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    const msgs = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` })).json();
+    // приветствие + вопрос + ответ (без JSON-блока предложений)
+    const tail = msgs.slice(-2);
+    expect(tail.map((m: { role: string }) => m.role)).toEqual(["user", "assistant"]);
+    expect(tail[1].content).toBe("Вот идея!");
+    const props = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/proposals?status=pending` })).json();
+    expect(props).toHaveLength(1);
+    expect(props[0].title).toBe("Барон");
+  });
+
+  it("несуществующая кампания → 404", async () => {
+    const app = makeApp();
+    expect((await app.inject({ method: "POST", url: "/api/campaigns/нет/brainstorm/start", payload: { message: "x" } })).statusCode).toBe(404);
+  });
+});
+
 describe("серверная генерация помощника документа", () => {
   it("start сохраняет вопрос, задача копит ответ и записывает его в беседу", async () => {
     const { db } = createDb(":memory:");

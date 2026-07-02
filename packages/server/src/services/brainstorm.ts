@@ -75,8 +75,10 @@ export class BrainstormService {
     private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService },
   ) {}
 
-  async respond(campaignId: string, userMessage: string): Promise<BrainstormResponse> {
-    const { conversations, proposals, documents, campaigns } = this.deps;
+  // Готовит генерацию ответа мастерской: сохраняет вопрос и строит промт.
+  // Стрим отдаётся вызывающему — фоновой задаче или синхронному respond.
+  prepareRespond(campaignId: string, userMessage: string): { conversationId: string; stream: AsyncIterable<string> } {
+    const { conversations, documents, campaigns } = this.deps;
     const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
     conversations.addMessage(conv.id, "user", userMessage);
@@ -99,19 +101,27 @@ export class BrainstormService {
       : "(пока нет)";
     const system = `${SYSTEM_PROMPT}${brief}${tone}\n\nУже существующие документы кампании (для action: update используй их точные названия): ${docList}.`;
 
+    return { conversationId: conv.id, stream: llm.complete({ system, messages: history }) };
+  }
+
+  // Завершение генерации: разбирает предложения, сохраняет ответ и предложения.
+  finishRespond(campaignId: string, conversationId: string, full: string): BrainstormResponse {
+    const { conversations, proposals } = this.deps;
+    const { reply, proposals: drafts } = parseProposals(full);
+    conversations.addMessage(conversationId, "assistant", reply);
+    const created: Proposal[] = drafts.map((draft) =>
+      proposals.create({ campaignId, conversationId, draft }),
+    );
+    return { conversationId, reply, proposals: created };
+  }
+
+  async respond(campaignId: string, userMessage: string): Promise<BrainstormResponse> {
+    const { conversationId, stream } = this.prepareRespond(campaignId, userMessage);
     let full = "";
-    for await (const chunk of llm.complete({ system, messages: history })) {
+    for await (const chunk of stream) {
       full += chunk;
     }
-
-    const { reply, proposals: drafts } = parseProposals(full);
-    conversations.addMessage(conv.id, "assistant", reply);
-
-    const created: Proposal[] = drafts.map((draft) =>
-      proposals.create({ campaignId, conversationId: conv.id, draft }),
-    );
-
-    return { conversationId: conv.id, reply, proposals: created };
+    return this.finishRespond(campaignId, conversationId, full);
   }
 
   // «Мир пока что»: сводка кампании по беседе + один открытый вопрос (как в Arks).

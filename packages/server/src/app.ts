@@ -88,6 +88,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });
   const NewMessageSchema = z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1) });
   const assistantJobs = new AssistantJobService();
+  const workshopJobs = new AssistantJobService(); // фоновые генерации мастерской (ключ — id кампании)
   const AssistantStartSchema = z.object({ message: z.string().min(1), system: z.string().optional() });
 
   app.get("/api/document-types", () => DOCUMENT_TYPES);
@@ -235,6 +236,24 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     return brainstormSvc.respond(id, parsed.data.message);
   });
+
+  // Генерация мастерской фоновой задачей на сервере (как у помощника документа):
+  // навигация и закрытие вкладки её не прерывают, клиент опрашивает статус.
+  app.post("/api/campaigns/:id/brainstorm/start", (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = BrainstormBodySchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    if (!campaignsSvc.get(id)) return reply.code(404).send({ error: "кампания не найдена" });
+    if (workshopJobs.status(id).running) return reply.code(409).send({ error: "Генерация мастерской уже идёт" });
+    const { conversationId, stream } = brainstormSvc.prepareRespond(id, parsed.data.message);
+    workshopJobs.start(id, stream, (full) => {
+      // Пока шла генерация, кампанию могли удалить — не создаём «висячие» записи.
+      if (campaignsSvc.get(id)) brainstormSvc.finishRespond(id, conversationId, full);
+    });
+    return reply.code(202).send({ started: true });
+  });
+
+  app.get("/api/campaigns/:id/brainstorm/status", (req) => workshopJobs.status((req.params as { id: string }).id));
 
   app.get("/api/campaigns/:id/world", async (req) => {
     const { id } = req.params as { id: string };

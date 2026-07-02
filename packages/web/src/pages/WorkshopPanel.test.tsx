@@ -21,15 +21,22 @@ function renderPanel(onApproved = vi.fn()) {
 }
 
 describe("WorkshopPanel", () => {
-  it("отправляет сообщение и показывает предложение, принимает его", async () => {
-    vi.mocked(api.getConversation).mockResolvedValue([]);
-    vi.mocked(api.listProposals).mockResolvedValue([]);
+  it("отправляет сообщение через серверную задачу, показывает предложение и принимает его", async () => {
+    // до отправки беседа с приветствием; после завершения задачи — с ответом
+    vi.mocked(api.getConversation)
+      .mockResolvedValueOnce([{ id: "w", role: "assistant", content: "Привет!", createdAt: "x" }])
+      .mockResolvedValue([
+        { id: "w", role: "assistant", content: "Привет!", createdAt: "x" },
+        { id: "u", role: "user", content: "придумай злодея", createdAt: "x" },
+        { id: "a", role: "assistant", content: "Вот злодей.", createdAt: "x" },
+      ]);
+    vi.mocked(api.listProposals)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ id: "p1", campaignId: "c1", conversationId: "k1", type: "npc", title: "Барон", content: "Мрачный.", fields: {}, action: "create", status: "pending", createdAt: "x" }]);
     vi.mocked(api.worldSummary).mockResolvedValue({ summary: "", question: "" });
-    vi.mocked(api.brainstorm).mockResolvedValue({
-      conversationId: "k1",
-      reply: "Вот злодей.",
-      proposals: [{ id: "p1", campaignId: "c1", conversationId: "k1", type: "npc", title: "Барон", content: "Мрачный.", fields: {}, action: "create", status: "pending", createdAt: "x" }],
-    });
+    // при монтировании генерация не идёт; после старта задача мгновенно завершена
+    vi.mocked(api.brainstormStatus).mockResolvedValue({ running: false, partial: "", error: null });
+    vi.mocked(api.startBrainstorm).mockResolvedValue({ started: true });
     vi.mocked(api.approveProposal).mockResolvedValue({
       id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: null, contentJson: null, fields: {}, createdAt: "x", updatedAt: "x",
     });
@@ -39,6 +46,7 @@ describe("WorkshopPanel", () => {
     await userEvent.type(screen.getByLabelText(/сообщение/i), "придумай злодея");
     await userEvent.click(screen.getByRole("button", { name: /отправить/i }));
 
+    expect(api.startBrainstorm).toHaveBeenCalledWith("c1", "придумай злодея");
     expect(await screen.findByText("Вот злодей.")).toBeInTheDocument();
     expect(await screen.findByText("Барон")).toBeInTheDocument();
 

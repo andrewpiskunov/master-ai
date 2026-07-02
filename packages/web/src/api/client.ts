@@ -69,6 +69,11 @@ export const api = {
     request<Document>(`/api/documents/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   brainstorm: (campaignId: string, message: string) =>
     request<BrainstormResponse>(`/api/campaigns/${campaignId}/brainstorm`, { method: "POST", body: JSON.stringify({ message }) }),
+  // Серверная фоновая генерация мастерской: старт / статус.
+  startBrainstorm: (campaignId: string, message: string) =>
+    request<{ started: boolean }>(`/api/campaigns/${campaignId}/brainstorm/start`, { method: "POST", body: JSON.stringify({ message }) }),
+  brainstormStatus: (campaignId: string) =>
+    request<{ running: boolean; partial: string; error: string | null }>(`/api/campaigns/${campaignId}/brainstorm/status`),
   listProposals: (campaignId: string, status?: string) =>
     request<Proposal[]>(`/api/campaigns/${campaignId}/proposals${status ? `?status=${status}` : ""}`),
   approveProposal: (id: string) =>

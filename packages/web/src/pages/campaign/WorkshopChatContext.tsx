@@ -47,6 +47,52 @@ export function WorkshopChatProvider({
   // Как только в беседе появилось хоть одно сообщение (приветствие или реплика
   // пользователя) — прекращаем опрос, чтобы он не затирал сообщения.
   const hasMessagesRef = useRef(false);
+  // Токен активного опроса серверной генерации мастерской (см. DocumentAssistant).
+  const pollTokenRef = useRef(0);
+
+  // Прячет из частичного ответа блоки ```json с предложениями (включая незакрытый хвост).
+  const stripJsonBlocks = (text: string): string => {
+    const closed = text.replace(/```json[\s\S]*?```/gi, "");
+    const open = closed.search(/```json/i);
+    return (open >= 0 ? closed.slice(0, open) : closed).trim();
+  };
+
+  // Опрашивает серверную задачу мастерской: дорисовывает частичный ответ,
+  // по завершении подменяет беседу и предложения авторитетными серверными.
+  const pollBrainstorm = useCallback(async () => {
+    const token = ++pollTokenRef.current;
+    for (;;) {
+      let st: { running: boolean; partial: string; error: string | null };
+      try {
+        st = await api.brainstormStatus(campaignId);
+      } catch {
+        st = { running: false, partial: "", error: "нет связи с сервером" };
+      }
+      if (token !== pollTokenRef.current) return;
+      const body = stripJsonBlocks(st.partial);
+      setMessages((prev) => {
+        const rest = prev.filter((m) => m.id !== "streaming");
+        return body ? [...rest, { id: "streaming", role: "assistant" as const, content: body, createdAt: "" }] : rest;
+      });
+      if (!st.running) {
+        if (st.error) showToast("Не удалось получить ответ ИИ");
+        const [msgs, props] = await Promise.all([
+          api.getConversation(campaignId).catch(() => null),
+          api.listProposals(campaignId, "pending").catch(() => null),
+        ]);
+        if (token !== pollTokenRef.current) return;
+        if (msgs) {
+          hasMessagesRef.current = msgs.length > 0;
+          setMessages(msgs);
+        }
+        if (props) setProposals(props);
+        setBusy(false);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 1200));
+      if (token !== pollTokenRef.current) return;
+    }
+  }, [campaignId, showToast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,8 +125,18 @@ export function WorkshopChatProvider({
     };
     load();
     api.listProposals(campaignId, "pending").then(setProposals).catch(() => showToast("Не удалось загрузить предложения"));
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [campaignId, showToast]);
+    // Если по кампании прямо сейчас идёт серверная генерация — подхватываем её.
+    api.brainstormStatus(campaignId)
+      .then((st) => {
+        if (cancelled || !st.running) return;
+        hasMessagesRef.current = true;
+        setAwaitingWelcome(false);
+        setBusy(true);
+        void pollBrainstorm();
+      })
+      .catch(() => {});
+    return () => { cancelled = true; if (timer) clearTimeout(timer); pollTokenRef.current++; };
+  }, [campaignId, showToast, pollBrainstorm]);
 
   const send = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -93,17 +149,16 @@ export function WorkshopChatProvider({
       { id: `u-${Date.now()}`, role: "user", content: trimmed, createdAt: new Date().toISOString() },
     ]);
     setBusy(true);
-    api.brainstorm(campaignId, trimmed)
-      .then((res) => {
-        setMessages((prev) => [
-          ...prev,
-          { id: `a-${Date.now()}`, role: "assistant", content: res.reply, createdAt: new Date().toISOString() },
-        ]);
-        setProposals((prev) => [...prev, ...res.proposals]);
-      })
-      .catch(() => showToast("Не удалось получить ответ ИИ"))
-      .finally(() => setBusy(false));
-  }, [busy, campaignId, showToast]);
+    // Генерация выполняется на сервере фоновой задачей — переживает навигацию
+    // и закрытие вкладки; клиент опрашивает статус и дорисовывает частичный ответ.
+    api.startBrainstorm(campaignId, trimmed)
+      .then(() => pollBrainstorm())
+      .catch(() => {
+        showToast("Не удалось запустить генерацию");
+        setMessages((prev) => prev.slice(0, -1)); // откат оптимистичного вопроса
+        setBusy(false);
+      });
+  }, [busy, campaignId, showToast, pollBrainstorm]);
 
   const approve = useCallback((id: string) => {
     api.approveProposal(id)
