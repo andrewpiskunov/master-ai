@@ -13,6 +13,8 @@ import type {
   NewLink,
   DocumentLinks,
   ConsistencyResult,
+  MessageMeta,
+  GameLogEntry,
 } from "@master-ai/shared";
 
 export class ApiError extends Error {
@@ -92,15 +94,22 @@ export const api = {
       body: JSON.stringify({ role, content }),
     }),
   // Серверная генерация помощника документа: старт / статус / остановка.
-  startAssistant: (docId: string, message: string, system?: string) =>
+  // opts.mode="game" + opts.meta — игровой чат режима игры (актор действия).
+  startAssistant: (docId: string, message: string, system?: string, opts?: { mode?: "game"; meta?: MessageMeta }) =>
     request<{ started: boolean }>(`/api/documents/${docId}/assistant`, {
       method: "POST",
-      body: JSON.stringify({ message, system }),
+      body: JSON.stringify({ message, system, ...opts }),
     }),
   assistantStatus: (docId: string) =>
     request<{ running: boolean; partial: string; error: string | null }>(`/api/documents/${docId}/assistant`),
   stopAssistant: (docId: string) =>
     fetch(`/api/documents/${docId}/assistant/stop`, { method: "POST" }).then(() => undefined),
+  // Переключение важности записи лога в игровом чате.
+  updateMessageMeta: (messageId: string, patch: { log: GameLogEntry }) =>
+    request<ConversationMessage>(`/api/messages/${messageId}/meta`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
   clearDocumentConversation: (docId: string) =>
     fetch(`/api/documents/${docId}/conversation`, { method: "DELETE" }).then((res) => {
       if (!res.ok) throw new ApiError(res.status, res.statusText);
