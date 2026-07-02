@@ -277,6 +277,18 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .type-filter .pill:hover { filter: none; background: var(--surface-3); }
 .type-filter .pill.active { background: var(--surface-3); border-color: var(--accent); color: var(--text-strong); }
 .type-filter .pill-count { font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+/* Чип с двумя действиями: фильтр (тело) + создание («+»). */
+.type-filter .pill-split { padding: 0; overflow: hidden; }
+.pill-split-main {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 4px 6px 12px;
+  background: transparent; border: none; border-radius: 0; color: inherit; font-size: 0.88rem; font-weight: 500;
+}
+.pill-split-main:disabled { opacity: 0.55; cursor: default; }
+.pill-split-add {
+  padding: 6px 10px 6px 7px; background: transparent; border: none; border-radius: 0;
+  color: var(--muted); font-size: 0.95rem; font-weight: 700; line-height: 1;
+}
+.pill-split-add:hover { color: var(--accent-hover); background: var(--surface-3); }
 
 @media (max-width: 860px) {
   .workspace { flex-direction: column; }
@@ -326,29 +338,6 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-
-/* ---------- Карточки типов ---------- */
-.type-cards { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 8px; }
-.type-cards > .type-card { flex: 1 1 0; min-width: 112px; }
-.type-card {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-  gap: 1px 8px;
-  align-items: center;
-  text-align: left;
-  padding: 9px 11px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  cursor: pointer;
-}
-.type-card:hover { border-color: var(--accent); filter: none; background: var(--surface-2); }
-.type-card-icon { grid-row: 1 / span 2; color: var(--accent-hover); display: flex; }
-.type-card-count { font-size: 1.1rem; font-weight: 700; color: var(--text-strong); line-height: 1; }
-.type-card-label { color: var(--text); font-weight: 600; font-size: 0.82rem; line-height: 1.2; }
-.type-card-add { grid-column: 2; color: var(--muted); font-size: 0.72rem; font-weight: 500; }
 
 /* ---------- Карточки документов ---------- */
 .doc-cards { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }

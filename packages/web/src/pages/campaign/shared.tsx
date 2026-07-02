@@ -191,34 +191,6 @@ export function RecentlyCreated({ documents }: { documents: Document[] }) {
   );
 }
 
-export function TypeCards({
-  typeKeys,
-  documents,
-  onCreate,
-}: {
-  typeKeys: string[];
-  documents: Document[];
-  onCreate: (type: string) => void;
-}) {
-  return (
-    <div className="type-cards">
-      {typeKeys.map((key) => {
-        const t = getDocumentType(key);
-        if (!t) return null;
-        const count = documents.filter((d) => d.type === key).length;
-        return (
-          <button key={key} type="button" className="type-card" onClick={() => onCreate(key)}>
-            <span className="type-card-icon"><TypeBadge type={key} size={26} /></span>
-            <span className="type-card-count">{count}</span>
-            <span className="type-card-label">{t.label}</span>
-            <span className="type-card-add">+ создать</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 export type ViewMode = "grid" | "list";
 
 // Раздел документов одного типа: заголовок с цветной иконкой + счётчик + карточки.
@@ -255,9 +227,11 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
 }
 
 // Полоса фильтра по типу: «Все» + пилюли типов со счётчиками.
+// Единый ряд: фильтр по типу + счётчик + «+» для создания. Типы без документов
+// не фильтруются (нечего показывать), но создать их можно.
 function TypeFilterBar({
-  typeKeys, documents, value, onChange,
-}: { typeKeys: string[]; documents: Document[]; value: string; onChange: (v: string) => void }) {
+  typeKeys, documents, value, onChange, onCreate,
+}: { typeKeys: string[]; documents: Document[]; value: string; onChange: (v: string) => void; onCreate: (type: string) => void }) {
   return (
     <div className="type-filter">
       <span className="type-filter-label">Тип</span>
@@ -268,10 +242,20 @@ function TypeFilterBar({
         const def = getDocumentType(t);
         const count = documents.filter((d) => d.type === t).length;
         return (
-          <button key={t} type="button" className={`pill${value === t ? " active" : ""}`} onClick={() => onChange(t)}>
-            {def?.label ?? t}
-            <span className="pill-count" style={{ color: typeColor(t) }}>{count}</span>
-          </button>
+          <span key={t} className={`pill pill-split${value === t ? " active" : ""}${count === 0 ? " empty" : ""}`}>
+            <button
+              type="button"
+              className="pill-split-main"
+              disabled={count === 0}
+              onClick={() => onChange(value === t ? "all" : t)}
+            >
+              {def?.label ?? t}
+              <span className="pill-count" style={{ color: typeColor(t) }}>{count}</span>
+            </button>
+            <button type="button" className="pill-split-add" title={`Создать: ${def?.label ?? t}`} onClick={() => onCreate(t)}>
+              +
+            </button>
+          </span>
         );
       })}
     </div>
@@ -336,13 +320,11 @@ export function TypedLibrary({
         <ViewToggle view={view} onChange={setView} />
       </header>
 
-      <TypeCards typeKeys={typeKeys} documents={documents} onCreate={createDocument} />
-
       {inScope.length === 0 ? (
         <LibraryEmpty icon={Icon} title={title} typeKeys={typeKeys} createDocument={createDocument} />
       ) : (
         <>
-          <TypeFilterBar typeKeys={present} documents={inScope} value={filter} onChange={setFilter} />
+          <TypeFilterBar typeKeys={typeKeys} documents={inScope} value={filter} onChange={setFilter} onCreate={createDocument} />
           {visible.map((t) => <TypeSection key={t} type={t} documents={documents} view={view} />)}
         </>
       )}
