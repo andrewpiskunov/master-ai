@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Waypoints } from "lucide-react";
-import { getDocumentType } from "@master-ai/shared";
+import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { prepareMentions, matchMentions } from "../../mentions.js";
 import { pmText } from "../../prosemirror-text.js";
 import { typeColor, useCampaign } from "./shared.js";
@@ -12,12 +12,19 @@ export function LinkMap() {
   const { campaignId, documents, reload } = useCampaign();
   const navigate = useNavigate();
   const [hover, setHover] = useState<string | null>(null);
+  // Скрытые типы: клик по чипу легенды прячет узлы этого типа.
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
 
   // Обновляем документы при открытии карты, чтобы она отражала свежие связи/правки.
   useEffect(() => { reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Типы, присутствующие в кампании (в порядке справочника) — для легенды-фильтра.
+  const presentTypes = DOCUMENT_TYPES
+    .map((t) => ({ key: t.key, label: t.label, count: documents.filter((d) => d.type === t.key).length }))
+    .filter((t) => t.count > 0);
+
   const { nodes, edges, size } = useMemo(() => {
-    const docs = documents;
+    const docs = documents.filter((d) => !hidden.has(d.type));
     const n = docs.length;
     const R = Math.max(150, n * 26);
     const cx = R + 90;
@@ -44,7 +51,7 @@ export function LinkMap() {
       }
     }
     return { nodes, edges, pos, size: { w: cx + R + 90, h: cy + R + 40 } };
-  }, [documents]);
+  }, [documents, hidden]);
 
   if (documents.length === 0) {
     return (
@@ -64,6 +71,20 @@ export function LinkMap() {
           <p className="view-sub">Узлы — документы, линии — упоминания по названию. Клик — открыть.</p>
         </div>
       </header>
+      <div className="linkmap-legend" role="group" aria-label="Фильтр по типам">
+        {presentTypes.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={`linkmap-chip${hidden.has(t.key) ? " off" : ""}`}
+            aria-pressed={!hidden.has(t.key)}
+            onClick={() => setHidden((s) => { const next = new Set(s); if (next.has(t.key)) next.delete(t.key); else next.add(t.key); return next; })}
+          >
+            <span className="linkmap-dot" style={{ background: typeColor(t.key) }} />
+            {t.label} <span className="linkmap-chip-count">{t.count}</span>
+          </button>
+        ))}
+      </div>
       <div className="linkmap-wrap">
         <svg className="linkmap" viewBox={`0 0 ${size.w} ${size.h}`} width={size.w} height={size.h}>
           {edges.map((e, i) => {

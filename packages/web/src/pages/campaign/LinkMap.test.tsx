@@ -4,9 +4,9 @@ import { describe, it, expect, vi } from "vitest";
 import type { Document } from "@master-ai/shared";
 import { LinkMap } from "./LinkMap.js";
 
-function doc(id: string, title: string, bodyText = ""): Document {
+function doc(id: string, title: string, bodyText = "", type = "npc"): Document {
   return {
-    id, campaignId: "c1", type: "npc", title, status: null,
+    id, campaignId: "c1", type, title, status: null,
     contentJson: { type: "doc", content: [{ type: "paragraph", content: bodyText ? [{ type: "text", text: bodyText }] : [] }] },
     fields: {}, createdAt: "x", updatedAt: "x",
   };
@@ -32,5 +32,20 @@ describe("LinkMap (smoke)", () => {
     expect(screen.getByText("Барон")).toBeInTheDocument();
     expect(screen.getByText("Причал")).toBeInTheDocument();
     await waitFor(() => expect(reload).toHaveBeenCalled());
+  });
+
+  it("легенда-фильтр: показывает типы с количеством, клик скрывает узлы типа", async () => {
+    const { userEvent } = await import("@testing-library/user-event");
+    renderMap([doc("d1", "Барон"), doc("d2", "Причал", "", "location")]);
+    // легенда: чип на каждый присутствующий тип
+    const npcChip = screen.getByRole("button", { name: /NPC 1/ });
+    expect(screen.getByRole("button", { name: /Локация 1/ })).toBeInTheDocument();
+    // клик по чипу скрывает узлы этого типа
+    await userEvent.click(npcChip);
+    expect(screen.queryByText("Барон")).not.toBeInTheDocument();
+    expect(screen.getByText("Причал")).toBeInTheDocument();
+    // повторный клик возвращает
+    await userEvent.click(npcChip);
+    expect(screen.getByText("Барон")).toBeInTheDocument();
   });
 });

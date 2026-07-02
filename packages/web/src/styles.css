@@ -1262,6 +1262,19 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .sessions-linked-more:hover { color: var(--text); border-color: var(--accent); }
 
+/* Легенда-фильтр карты связей */
+.linkmap-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.linkmap-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text); font-size: 0.8rem;
+}
+.linkmap-chip:hover { border-color: var(--accent); }
+.linkmap-chip.off { opacity: 0.45; }
+.linkmap-chip.off .linkmap-dot { background: var(--muted) !important; }
+.linkmap-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.linkmap-chip-count { color: var(--muted); }
+
 /* Экран «Кампания не найдена» */
 .campaign-missing { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 60vh; text-align: center; }
 .campaign-missing .btn-ghost { padding: 8px 16px; border-radius: var(--radius-sm); text-decoration: none; }
