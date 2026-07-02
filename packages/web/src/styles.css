@@ -225,7 +225,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .manage-section-head h2 { margin: 0 0 12px; }
 .manage-hint { font-size: 0.84rem; margin: 0 0 8px; }
 .manage-desc { width: 100%; resize: vertical; line-height: 1.5; }
-.realism-seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+.realism-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
 .realism-opt { padding: 7px 16px; background: none; border: none; border-radius: 7px; color: var(--muted); font-weight: 600; font-size: 0.88rem; }
 .realism-opt:hover { filter: none; color: var(--text); }
 .realism-opt.active { background: var(--accent); color: var(--accent-fg); }
@@ -290,18 +290,33 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 .pill-split-add:hover { color: var(--accent-hover); background: var(--surface-3); }
 
+/* Мобильная раскладка: сайдбар превращается в компактную шапку с горизонтальным
+   таббаром, чтобы контент страницы начинался на первом экране. */
 @media (max-width: 860px) {
   .workspace { flex-direction: column; }
   .sidebar {
     width: 100%;
     position: static;
     height: auto;
+    overflow: visible;
+    padding: 10px 12px 12px;
+    gap: 8px;
     border-right: none;
     border-bottom: 1px solid var(--border-soft);
   }
-  .ws-nav { flex-direction: row; flex-wrap: wrap; }
-  .ws-nav a { flex: 1 1 auto; justify-content: center; }
-  .ws-foot { margin-top: 0; }
+  .ws-toggle { display: none; }            /* сворачивание меню не нужно */
+  .ws-bookmarks { display: none; }         /* закладки доступны на обзоре и через поиск */
+  .ws-campaign { flex-direction: row; align-items: baseline; gap: 8px; padding: 2px 4px; }
+  .ws-campaign-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ws-campaign-sub { display: none; }
+  /* Горизонтальный таббар с прокруткой вместо вертикального меню */
+  .ws-nav { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 4px; margin: 0 -12px; padding: 0 12px; scrollbar-width: none; }
+  .ws-nav::-webkit-scrollbar { display: none; }
+  .ws-nav a { flex: none; padding: 7px 11px; font-size: 0.9rem; white-space: nowrap; }
+  /* «Новый документ» и «Управление» — в одну строку */
+  .ws-foot { margin-top: 0; flex-direction: row; gap: 8px; }
+  .ws-foot .ws-new, .ws-foot .ws-manage { flex: 1 1 0; justify-content: center; }
+  .search-kbd { display: none; }           /* хоткей палитры бесполезен на таче */
   .workspace-main { padding: 20px 16px 48px; width: 100%; }
 }
 
@@ -341,7 +356,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.9s linear infinite; }
 @media (max-width: 900px) {
-  .home-grid, .ws-grid { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr) — см. комментарий у .home2: 1fr не ужимается уже min-content */
+  .home-grid, .ws-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 .home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
@@ -628,7 +644,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .play-log:focus { outline: none; box-shadow: none; }
 .play-assistant { flex: 1 1 auto; min-height: 0; display: flex; padding: 8px; }
 .play-assistant .doc-assistant { flex: 1 1 auto; min-height: 0; }
-@media (max-width: 860px) { .play-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } .play-side { border-left: none; border-top: 1px solid var(--border); } }
+@media (max-width: 860px) {
+  .play-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  .play-side { border-left: none; border-top: 1px solid var(--border); }
+  .play-log { min-height: 90px; } /* чтобы за столом было куда писать */
+}
 /* На узком экране кнопки шапки режима игры переносятся, чтобы «Выйти» не уходила за край. */
 @media (max-width: 640px) {
   .play-head { flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
@@ -661,7 +681,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .quick-create-item:hover { filter: none; border-color: var(--accent); background: var(--surface-3); color: var(--text-strong); }
 
 @media (max-width: 980px) {
-  .home2 { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr), а не 1fr: колонка обязана ужиматься уже min-content
+     содержимого (nowrap-строки сессий), иначе на мобиле горизонтальный скролл */
+  .home2 { grid-template-columns: minmax(0, 1fr); }
   .home2-aside { position: static; }
 }
 
