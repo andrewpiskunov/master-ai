@@ -39,9 +39,15 @@ export function SearchBox({ campaignId }: { campaignId: string }) {
         <ul className="search-results">
           {hits.map((h) => (
             <li key={h.docId}>
-              <Link to={`/documents/${h.docId}`}>{h.title}</Link>
-              <span className="search-type"> · {h.type}</span>
-              {h.snippet && <div className="search-snippet">{h.snippet}</div>}
+              <Link
+                to={`/campaigns/${campaignId}/documents/${h.docId}`}
+                className="search-hit"
+                onClick={() => { setQ(""); setHits([]); }}
+              >
+                <span className="search-hit-title">{h.title}</span>
+                <span className="search-type"> · {h.type}</span>
+                {h.snippet && <span className="search-snippet">{h.snippet}</span>}
+              </Link>
             </li>
           ))}
         </ul>

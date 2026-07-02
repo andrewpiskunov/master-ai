@@ -868,10 +868,14 @@ form button { align-self: flex-start; }
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface); overflow: hidden;
 }
-.search-results li { padding: 12px 14px; border-top: 1px solid var(--border-soft); }
+.search-results li { border-top: 1px solid var(--border-soft); }
 .search-results li:first-child { border-top: none; }
+/* Вся карточка результата — одна ссылка. */
+.search-hit { display: block; padding: 12px 14px; text-decoration: none; }
+.search-hit:hover { background: var(--surface-2); }
+.search-hit-title { color: var(--accent-hover); font-weight: 600; }
 .search-type { color: var(--muted); font-size: 0.82rem; }
-.search-snippet { color: var(--muted); font-size: 0.85rem; margin-top: 3px; }
+.search-snippet { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 3px; }
 
 /* ---------- Мастерская (чат) ---------- */
 .workshop { display: flex; flex-direction: column; gap: 14px; }

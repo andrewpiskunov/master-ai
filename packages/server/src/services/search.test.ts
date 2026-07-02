@@ -28,6 +28,18 @@ describe("SearchService", () => {
     expect(search.search("c1", "Полумесяц")).toHaveLength(1);
   });
 
+  it("находит по началу слова (префиксный поиск)", () => {
+    const { db } = createDb(":memory:");
+    const documents = new DocumentService(db);
+    const search = new SearchService(db);
+    documents.create({ campaignId: "c1", type: "lore", title: "Песнь Хора", contentJson: doc("многоголосое пение из тумана") });
+    expect(search.search("c1", "Песн")).toHaveLength(1);
+    expect(search.search("c1", "пени")).toHaveLength(1);
+    // несколько термов: каждый — по префиксу
+    expect(search.search("c1", "песн хор")).toHaveLength(1);
+    expect(search.search("c1", "песн замок")).toHaveLength(0);
+  });
+
   it("не находит документы из другой кампании", () => {
     const { db } = createDb(":memory:");
     const documents = new DocumentService(db);

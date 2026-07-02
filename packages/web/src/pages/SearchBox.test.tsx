@@ -33,4 +33,14 @@ describe("SearchBox", () => {
     expect(await screen.findByText("Барон")).toBeInTheDocument();
     expect(api.search).toHaveBeenCalledWith("c1", "барон");
   });
+
+  it("карточка результата целиком — ссылка на документ кампании", async () => {
+    (api.search as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { docId: "d1", type: "npc", title: "Барон", snippet: "…аристократ…" },
+    ]);
+    renderBox();
+    await userEvent.type(screen.getByPlaceholderText(/поиск/i), "барон");
+    const link = (await screen.findByText("…аристократ…")).closest("a");
+    expect(link).toHaveAttribute("href", "/campaigns/c1/documents/d1");
+  });
 });
