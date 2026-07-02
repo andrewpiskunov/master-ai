@@ -32,10 +32,10 @@ export function WorkshopView() {
       <div className="ws-grid">
         <div className="ws-chat-col">
           <WorkshopPanel mentions={mentions} />
-          <WorldSummary />
         </div>
         <div className="ws-aside">
           <WorkshopProposals />
+          <WorldSummary />
           <RecentlyCreated documents={documents} />
         </div>
       </div>

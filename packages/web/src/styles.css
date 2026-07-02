@@ -319,6 +319,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .ws-grid { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; margin-top: 10px; }
 .ws-aside { display: flex; flex-direction: column; gap: 18px; }
 .ws-chat-col { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+/* Чату мастерской — вся доступная высота (панель «Мир кампании» живёт в правой колонке). */
+.ws-chat-col .workshop .chat { max-height: none; height: calc(100vh - 330px); min-height: 320px; }
 
 /* «Мир кампании» — сводка под чатом */
 .world-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
