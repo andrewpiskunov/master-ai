@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Waypoints } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { prepareMentions, matchMentions } from "../../mentions.js";
-import { pmText } from "../../prosemirror-text.js";
+import { docText } from "../../docText.js";
 import { typeColor, useCampaign } from "./shared.js";
 
 // Карта связей кампании: узлы — документы, рёбра — упоминания одного в тексте другого.
@@ -43,7 +43,7 @@ export function LinkMap() {
     const edges: { a: string; b: string }[] = [];
     for (const d of docs) {
       const hits = new Set(
-        matchMentions(pmText(d.contentJson), prepared)
+        matchMentions(docText(d), prepared)
           .flatMap((m) => m.hrefs ?? (m.href ? [m.href] : []))
           .filter((h) => h !== d.id),
       );

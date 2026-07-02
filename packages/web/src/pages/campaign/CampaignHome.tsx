@@ -5,7 +5,7 @@ import { DOCUMENT_TYPES, getDocumentType, statusLabel, type Document } from "@ma
 import { useBookmarks } from "../../bookmarks.js";
 import { prepareMentions, matchMentions } from "../../mentions.js";
 import { DocCard, TypeBadge, TypeTag, useCampaign } from "./shared.js";
-import { pmText } from "../../prosemirror-text.js";
+import { docText } from "../../docText.js";
 import { CampaignOnboarding, foundationDoneCount } from "./CampaignOnboarding.js";
 import { ConsistencyCheck } from "./ConsistencyCheck.js";
 
@@ -63,7 +63,7 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
     if (!selected) return [] as Document[];
     const prepared = prepareMentions(documents.filter((d) => d.id !== selected.id).map((d) => ({ title: d.title, type: d.type, href: d.id })));
     // Неоднозначное название (несколько документов с одним именем) связывает все совпадения.
-    const ids = new Set(matchMentions(pmText(selected.contentJson), prepared).flatMap((m) => m.hrefs ?? (m.href ? [m.href] : [])));
+    const ids = new Set(matchMentions(docText(selected), prepared).flatMap((m) => m.hrefs ?? (m.href ? [m.href] : [])));
     return documents.filter((d) => ids.has(d.id));
   })();
 
