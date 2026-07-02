@@ -6,6 +6,7 @@ import { useBookmarks } from "../../bookmarks.js";
 import { prepareMentions, matchMentions } from "../../mentions.js";
 import { DocCard, TypeBadge, TypeTag, useCampaign } from "./shared.js";
 import { docText } from "../../docText.js";
+import { relTime } from "../../format.js";
 import { CampaignOnboarding, foundationDoneCount } from "./CampaignOnboarding.js";
 import { ConsistencyCheck } from "./ConsistencyCheck.js";
 
@@ -13,19 +14,6 @@ import { ConsistencyCheck } from "./ConsistencyCheck.js";
 const SECTION_ORDER = ["pc", "npc", "location", "faction", "arc", "scene", "encounter", "secret", "item", "lore", "reference", "note"];
 // Порядок в «Быстром создании» (сессия — первой).
 const CREATE_ORDER = ["session", ...SECTION_ORDER];
-
-function relTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const s = Math.max(0, Math.floor(diff / 1000));
-  if (s < 60) return "только что";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m} мин назад`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ч назад`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d} дн назад`;
-  return new Date(iso).toLocaleDateString("ru-RU");
-}
 
 function sessionNum(d: Document): number {
   return typeof d.fields?.sessionNumber === "number" ? d.fields.sessionNumber : 0;

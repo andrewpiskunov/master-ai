@@ -3,18 +3,10 @@ import { Link } from "react-router-dom";
 import { ShieldAlert, Check, Loader, RefreshCw } from "lucide-react";
 import type { ConsistencyIssue, Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
+import { relTime } from "../../format.js";
 import { Modal } from "../../ui/Modal.js";
 
 interface CachedResult { issues: ConsistencyIssue[]; at: string }
-
-function ago(iso: string): string {
-  const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
-  if (m < 1) return "только что";
-  if (m < 60) return `${m} мин назад`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ч назад`;
-  return new Date(iso).toLocaleDateString("ru-RU");
-}
 
 // Проверка кампании на противоречия: кнопка запускает ИИ-сверку и показывает список
 // расхождений. Последний результат хранится в localStorage — закрытие модалки не
@@ -70,7 +62,7 @@ export function ConsistencyCheck({ campaignId, documents }: { campaignId: string
             <>
               {result && (
                 <div className="consistency-meta">
-                  <span className="muted">Проверено {ago(result.at)}</span>
+                  <span className="muted">Проверено {relTime(result.at)}</span>
                   <button type="button" className="btn-ghost consistency-refresh" onClick={run}>
                     <RefreshCw size={13} strokeWidth={1.9} /> Обновить
                   </button>

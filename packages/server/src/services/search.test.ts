@@ -40,6 +40,18 @@ describe("SearchService", () => {
     expect(search.search("c1", "песн замок")).toHaveLength(0);
   });
 
+  it("находит слово из второго пункта списка (пункты не склеиваются в индексе)", () => {
+    const { db } = createDb(":memory:");
+    const documents = new DocumentService(db);
+    const search = new SearchService(db);
+    const li = (text: string) => ({ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+    documents.create({
+      campaignId: "c1", type: "note", title: "Список",
+      contentJson: { type: "doc", content: [{ type: "bulletList", content: [li("алебарда"), li("шестопёр")] }] },
+    });
+    expect(search.search("c1", "шестопёр")).toHaveLength(1);
+  });
+
   it("не находит документы из другой кампании", () => {
     const { db } = createDb(":memory:");
     const documents = new DocumentService(db);
