@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { DocumentAssistant, blockKey, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
+import { DocumentAssistant } from "./DocumentAssistant.js";
+import { blockKey, type NewEntity, type EditEntity } from "./assistant-blocks.js";
 import { api } from "../api/client.js";
 import { ToastProvider } from "../ui/toast.js";
 

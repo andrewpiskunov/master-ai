@@ -1,122 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, Send, Pencil, Sparkles, Square, Trash2 } from "lucide-react";
-import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
+import { Send, Sparkles, Square, Trash2 } from "lucide-react";
 import { api } from "../api/client.js";
-import { plural } from "../format.js";
-import { markdownToDoc } from "../editor/DocumentEditor.js";
-import { pmText } from "../prosemirror-text.js";
-import { lineDiff } from "../lineDiff.js";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
 import { useToast } from "../ui/toast.js";
-import { TypeTag } from "./campaign/shared.js";
+import { entityBlocksPrompt, parseAssistant, type EditEntity, type NewEntity } from "./assistant-blocks.js";
+import { AssistantAnswer } from "./AssistantAnswer.js";
 
 interface Msg { role: "user" | "assistant"; content: string; createdAt?: string }
-export interface NewEntity { type: string; title: string; text: string }
-export interface EditEntity { title: string; rename?: string; text?: string }
-
-// Стабильный ключ блока ```doc``` — чтобы персистентно помнить, что его уже применяли.
-// Сравнение по тексту документа ненадёжно: markdown→doc→text расходится с сохранённым
-// контентом на сложном форматировании (списки, жирный, кавычки), и карточка «оживает».
-export function blockKey(block: string): string {
-  const s = block.trim();
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  return `${(h >>> 0).toString(36)}:${s.length}`;
-}
-
-const dequote = (s: string) => s.trim().replace(/^[«"']|[»"']$/g, "");
-
-// Разбирает блоки ```edit-doc … ``` — изменение существующих документов (переименование/правка).
-function parseEdits(content: string): { edits: EditEntity[]; rest: string } {
-  const edits: EditEntity[] = [];
-  let rest = content;
-  const re = /```edit-doc\s*\n([\s\S]*?)```/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(content)) !== null) {
-    const block = m[1];
-    const titleM = /^\s*title:\s*(.+)$/im.exec(block);
-    if (!titleM) continue;
-    const renameM = /^\s*rename:\s*(.+)$/im.exec(block);
-    const sep = block.indexOf("---");
-    const text = sep >= 0 ? block.slice(sep + 3).trim() : "";
-    edits.push({ title: dequote(titleM[1]), rename: renameM ? dequote(renameM[1]) : undefined, text: text || undefined });
-    rest = rest.replace(m[0], "");
-  }
-  return { edits, rest };
-}
-
-// Разбирает блок ```new-doc … ``` с предложением создать новую сущность.
-function parseNewDoc(block: string): NewEntity | null {
-  const typeM = /^\s*type:\s*([^\s]+)/im.exec(block);
-  const titleM = /^\s*title:\s*(.+)$/im.exec(block);
-  if (!typeM || !titleM) return null;
-  const sep = block.indexOf("---");
-  const text = sep >= 0
-    ? block.slice(sep + 3).trim()
-    : block.replace(/^\s*type:.*$/im, "").replace(/^\s*title:.*$/im, "").trim();
-  return { type: typeM[1].trim(), title: titleM[1].trim().replace(/^[«"']|[»"']$/g, ""), text };
-}
-
-// Выделяет из ответа ИИ: правки существующих документов (```edit-doc), правку
-// текущего документа (```doc), предложение новой сущности (```new-doc) и вводный текст.
-function parseAssistant(content: string): { intro: string; doc: string | null; newDocs: NewEntity[]; edits: EditEntity[] } {
-  const { edits, rest } = parseEdits(content);
-  // незакрытый блок edit-doc во время стрима — прячем хвост
-  let work = rest;
-  const openEdit = work.indexOf("```edit-doc");
-  if (openEdit >= 0) work = work.slice(0, openEdit);
-
-  // Все закрытые блоки new-doc (ассистент может предложить несколько связанных сущностей).
-  const newDocs: NewEntity[] = [];
-  const re = /```new-doc\s*\n([\s\S]*?)```/g;
-  let nm: RegExpExecArray | null;
-  while ((nm = re.exec(work)) !== null) {
-    const nd = parseNewDoc(nm[1]);
-    if (nd) newDocs.push(nd);
-  }
-  if (newDocs.length) {
-    return { intro: work.replace(/```new-doc\s*\n[\s\S]*?```/g, "").trim(), doc: null, newDocs, edits };
-  }
-  if (work.includes("```new-doc")) {
-    return { intro: work.slice(0, work.indexOf("```new-doc")).trim(), doc: null, newDocs: [], edits };
-  }
-  const closed = /```doc\s*\n([\s\S]*?)```/.exec(work);
-  if (closed) return { intro: work.replace(closed[0], "").trim(), doc: closed[1].trim(), newDocs: [], edits };
-  const open = work.indexOf("```doc");
-  if (open >= 0) return { intro: work.slice(0, open).trim(), doc: null, newDocs: [], edits };
-  return { intro: work.trim(), doc: null, newDocs: [], edits };
-}
-
-const TYPE_LIST = DOCUMENT_TYPES.map((t) => `${t.key} (${t.label})`).join(", ");
-
-// Превью изменений блока ```doc``` относительно текущего документа: только изменённые
-// строки (+/−) с короткими неизменными участками; длинные — сворачиваем.
-function DiffPreview({ current, proposed }: { current: string; proposed: string }) {
-  const diff = lineDiff(current, proposed);
-  if (!diff.some((l) => l.type !== "same")) {
-    return <div className="apply-preview apply-diff-empty">Изменений нет — текст совпадает с документом.</div>;
-  }
-  const rows: ({ collapse: number } | { type: "add" | "del" | "same"; text: string })[] = [];
-  let sameRun: string[] = [];
-  const flush = () => {
-    if (sameRun.length > 3) rows.push({ collapse: sameRun.length });
-    else sameRun.forEach((t) => rows.push({ type: "same", text: t }));
-    sameRun = [];
-  };
-  for (const l of diff) {
-    if (l.type === "same") sameRun.push(l.text);
-    else { flush(); rows.push(l); }
-  }
-  flush();
-  return (
-    <div className="apply-preview apply-diff">
-      {rows.map((r, i) => "collapse" in r
-        ? <div key={i} className="diff-collapse">··· {r.collapse} {plural(r.collapse, ["строка", "строки", "строк"])} без изменений ···</div>
-        : <div key={i} className={`diff-line diff-${r.type}`}><span className="diff-sign">{r.type === "add" ? "+" : r.type === "del" ? "−" : " "}</span>{r.text || " "}</div>)}
-    </div>
-  );
-}
 
 export function DocumentAssistant({
   docId,
@@ -160,12 +51,6 @@ export function DocumentAssistant({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  // Оптимистичная отметка «применено» сразу после клика (по тексту блока).
-  const [appliedLocal, setAppliedLocal] = useState<Set<string>>(() => new Set());
-  // Оптимистичная отметка «создано» сразу после клика (по типу+названию сущности).
-  const [createdLocal, setCreatedLocal] = useState<Set<string>>(() => new Set());
-  // Оптимистичная отметка «правка применена» сразу после клика.
-  const [editedLocal, setEditedLocal] = useState<Set<string>>(() => new Set());
   // Двухшаговая очистка беседы: первый клик — подтверждение, второй — удаление.
   const [confirmClear, setConfirmClear] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -215,7 +100,6 @@ export function DocumentAssistant({
   // Если по документу прямо сейчас идёт серверная генерация — подхватываем её.
   useEffect(() => {
     let cancelled = false;
-    setAppliedLocal(new Set());
     api.getDocumentConversation(docId)
       .then(async (msgs) => {
         if (cancelled) return;
@@ -273,20 +157,7 @@ export function DocumentAssistant({
             `Когда пользователь просит изменить, переписать или дополнить ЭТОТ документ — верни ПОЛНУЮ новую версию ` +
             `текста документа внутри блока \`\`\`doc и \`\`\` (обычный текст; при необходимости «## Заголовок», списки «- »). ` +
             `Вне блока коротко, по-русски, поясни, что изменил.\n\n` +
-            `Когда пользователь просит СОЗДАТЬ новую сущность (например «сделай из этой заметки персонажа», ` +
-            `«создай NPC», «добавь локацию») — НЕ переписывай текущий документ. Вместо этого предложи новую сущность ` +
-            `блоком \`\`\`new-doc и \`\`\` строго в формате:\n` +
-            `type: <ключ типа из списка>\ntitle: <короткое название, 1–3 слова, без кавычек>\n---\n<описание сущности обычным текстом>\n` +
-            `Доступные типы: ${TYPE_LIST}. Для персонажа игрока используй pc, для прочих персонажей — npc. ` +
-            `Для npc и pc давай полное имя — имя и фамилию (или родовое прозвище), а не одно голое имя: «Гаст Двукоготь», а не «Гаст». ` +
-            `Вне блока коротко поясни, что предлагаешь создать.\n\n` +
-            `Когда пользователь просит ИЗМЕНИТЬ, ПЕРЕИМЕНОВАТЬ или ОБНОВИТЬ уже существующие документы ` +
-            `(например «добавь всем NPC фамилии», «переименуй X», «обнови описание Y») — НЕ создавай новые. ` +
-            `Для КАЖДОГО изменяемого документа верни отдельный блок \`\`\`edit-doc и \`\`\` строго в формате:\n` +
-            `title: <точное название существующего документа из списка ниже>\nrename: <новое название> (только если меняешь имя)\n---\n<полный новый текст документа> (только если меняешь содержимое; иначе оставь пустым)\n` +
-            `Можно вернуть несколько блоков edit-doc подряд. Существующие документы кампании: ` +
-            `${documents.slice(0, 100).map((d) => `«${d.title}» (${getDocumentType(d.type)?.label ?? d.type})`).join(", ") || "(пока нет)"}.\n\n` +
-            `Если правка не нужна — отвечай обычным текстом без блоков.`
+            entityBlocksPrompt(documents)
         ),
       );
       await pollJob(true);
@@ -298,14 +169,6 @@ export function DocumentAssistant({
     }
   }
 
-  // Блок ```doc``` считается применённым, если его текст уже стал содержимым
-  // документа — это переживает перезаход/перезагрузку без отдельного хранилища.
-  const currentText = getText().trim();
-  const isApplied = (block: string): boolean => {
-    if (appliedLocal.has(block)) return true;
-    if ((appliedBlocks ?? []).includes(blockKey(block))) return true; // персистентная отметка из fields
-    try { return pmText(markdownToDoc(block)).trim() === currentText; } catch { return false; }
-  };
   // Сообщение «устарело», если документ сохранялся после него: применять такой блок
   // рискованно (перезапишет более свежие правки), а «оживать» после перезахода он не должен.
   const isStale = (m: Msg): boolean => {
@@ -314,16 +177,8 @@ export function DocumentAssistant({
     const dt = Date.parse(docUpdatedAt);
     return Number.isFinite(mt) && Number.isFinite(dt) && mt < dt;
   };
-  // Сущность считаем созданной, если её отметили локально или документ с таким названием
-  // уже есть в кампании — это переживает перезаход без отдельного хранилища.
-  const entityKey = (e: NewEntity) => `${e.type}:${e.title.trim().toLowerCase()}`;
-  const isCreated = (nd: NewEntity): boolean =>
-    createdLocal.has(entityKey(nd)) || documents.some((d) => d.title.trim().toLowerCase() === nd.title.trim().toLowerCase());
-  // Правку считаем применённой при локальной отметке, а для переименования — ещё и
-  // если в кампании уже есть документ с новым названием (переживает перезаход).
-  const editKey = (e: EditEntity) => `${e.title.trim().toLowerCase()}→${(e.rename ?? "").trim().toLowerCase()}`;
-  const isEdited = (e: EditEntity): boolean =>
-    editedLocal.has(editKey(e)) || (!!e.rename && documents.some((d) => d.title.trim().toLowerCase() === e.rename!.trim().toLowerCase()));
+
+  const currentText = getText().trim();
 
   return (
     <div className="doc-assistant">
@@ -340,71 +195,23 @@ export function DocumentAssistant({
               </div>
             );
           }
-          const { intro, doc, newDocs, edits } = parseAssistant(m.content);
           return (
             <div key={i} className="msg msg-assistant">
               <div className="msg-role">ИИ</div>
-              {m.content
-                ? (
-                  <>
-                    {intro && <Markdown>{intro}</Markdown>}
-                    {doc && (
-                      isApplied(doc) ? (
-                        <div className="apply-done"><Check size={15} /> Применено к документу</div>
-                      ) : isStale(m) ? (
-                        <div className="apply-card apply-stale">
-                          <DiffPreview current={currentText} proposed={pmText(markdownToDoc(doc)).trim()} />
-                          <div className="apply-stale-note">Документ менялся после этого предложения — применение перезапишет более свежий текст.</div>
-                          <button type="button" className="apply-btn apply-btn-ghost" onClick={() => { onApply(doc); setAppliedLocal((s) => new Set(s).add(doc)); }}>
-                            Применить всё равно
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="apply-card">
-                          <DiffPreview current={currentText} proposed={pmText(markdownToDoc(doc)).trim()} />
-                          <button type="button" className="apply-btn" onClick={() => { onApply(doc); setAppliedLocal((s) => new Set(s).add(doc)); }}>
-                            <Check size={15} /> Применить к документу
-                          </button>
-                        </div>
-                      )
-                    )}
-                    {newDocs.map((nd, ni) => (
-                      isCreated(nd) ? (
-                        <div className="apply-done" key={`nd-${ni}`}><Check size={15} /> Сущность «{nd.title}» создана</div>
-                      ) : (
-                        <div className="apply-card" key={`nd-${ni}`}>
-                          <div className="apply-head">
-                            <TypeTag type={nd.type} />
-                            <span className="apply-new-title">{nd.title}</span>
-                          </div>
-                          {nd.text && <div className="apply-preview">{nd.text}</div>}
-                          <button type="button" className="apply-btn" onClick={() => { onCreateEntity(nd); setCreatedLocal((s) => new Set(s).add(entityKey(nd))); }}>
-                            <Plus size={15} /> Создать сущность «{nd.title}»
-                          </button>
-                        </div>
-                      )
-                    ))}
-                    {edits.map((e, ei) => (
-                      isEdited(e) ? (
-                        <div className="apply-done" key={ei}><Check size={15} /> «{e.rename ?? e.title}» обновлено</div>
-                      ) : (
-                        <div className="apply-card" key={ei}>
-                          <div className="apply-head">
-                            <Pencil size={14} />
-                            <span className="apply-new-title">{e.title}{e.rename ? ` → ${e.rename}` : ""}</span>
-                          </div>
-                          {e.text && <div className="apply-preview">{e.text}</div>}
-                          <button type="button" className="apply-btn" onClick={() => { onEditEntity(e); setEditedLocal((s) => new Set(s).add(editKey(e))); }}>
-                            <Check size={15} /> Обновить «{e.rename ?? e.title}»
-                          </button>
-                        </div>
-                      )
-                    ))}
-                  </>
-                )
-                : (
-                  <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
-                )}
+              {m.content ? (
+                <AssistantAnswer
+                  content={m.content}
+                  stale={isStale(m)}
+                  currentText={currentText}
+                  appliedBlocks={appliedBlocks ?? []}
+                  documents={documents}
+                  onApply={onApply}
+                  onCreateEntity={onCreateEntity}
+                  onEditEntity={onEditEntity}
+                />
+              ) : (
+                <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
+              )}
             </div>
           );
         })}
@@ -428,7 +235,7 @@ export function DocumentAssistant({
               if (!confirmClear) { setConfirmClear(true); return; }
               setConfirmClear(false);
               api.clearDocumentConversation(docId)
-                .then(() => { setMessages([]); setAppliedLocal(new Set()); })
+                .then(() => { setMessages([]); })
                 .catch(() => showToast("Не удалось очистить беседу"));
             }}
             title="Удалить историю беседы с ассистентом по этому документу"
