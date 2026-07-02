@@ -297,6 +297,15 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     return conversationsSvc.listMessages(conv.id);
   });
 
+  // Очистка беседы ассистента документа («Очистить беседу» в помощнике).
+  app.delete<IdParams>("/api/documents/:id/conversation", (req, reply) => {
+    const { id } = req.params;
+    const doc = documentsSvc.get(id);
+    if (!doc) return reply.code(404).send({ error: "документ не найден" });
+    conversationsSvc.clearForDocument(id);
+    return reply.code(204).send();
+  });
+
   app.post<IdParams>("/api/documents/:id/conversation/messages", (req, reply) => {
     const { id } = req.params;
     const parsed = NewMessageSchema.safeParse(req.body);

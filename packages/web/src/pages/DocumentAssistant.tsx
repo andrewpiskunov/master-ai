@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, Send, Pencil, Sparkles, Square } from "lucide-react";
+import { Check, Plus, Send, Pencil, Sparkles, Square, Trash2 } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { plural } from "../format.js";
@@ -167,6 +167,8 @@ export function DocumentAssistant({
   const [createdLocal, setCreatedLocal] = useState<Set<string>>(() => new Set());
   // Оптимистичная отметка «правка применена» сразу после клика.
   const [editedLocal, setEditedLocal] = useState<Set<string>>(() => new Set());
+  // Двухшаговая очистка беседы: первый клик — подтверждение, второй — удаление.
+  const [confirmClear, setConfirmClear] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Контроллер текущей генерации — кнопка «Стоп» прерывает стрим, набранный текст остаётся.
@@ -240,7 +242,9 @@ export function DocumentAssistant({
             `Можно вернуть несколько блоков edit-doc подряд. Существующие документы кампании: ` +
             `${documents.slice(0, 100).map((d) => `«${d.title}» (${getDocumentType(d.type)?.label ?? d.type})`).join(", ") || "(пока нет)"}.\n\n` +
             `Если правка не нужна — отвечай обычным текстом без блоков.`,
-          messages: history,
+          // В LLM уходит только хвост беседы: полная история на долгоживущем
+          // документе разрастается и упирается в контекст модели.
+          messages: history.slice(-20),
         },
         (chunk) => {
           reply += chunk;
@@ -388,6 +392,24 @@ export function DocumentAssistant({
         >
           <Sparkles size={13} /> Предложить связанные
         </button>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            className={`chat-quick-chip chat-clear${confirmClear ? " confirm" : ""}`}
+            disabled={busy}
+            onBlur={() => setConfirmClear(false)}
+            onClick={() => {
+              if (!confirmClear) { setConfirmClear(true); return; }
+              setConfirmClear(false);
+              api.clearDocumentConversation(docId)
+                .then(() => { setMessages([]); setAppliedLocal(new Set()); })
+                .catch(() => showToast("Не удалось очистить беседу"));
+            }}
+            title="Удалить историю беседы с ассистентом по этому документу"
+          >
+            <Trash2 size={13} /> {confirmClear ? "Точно очистить?" : "Очистить беседу"}
+          </button>
+        )}
       </div>
       <form className="chat-form" onSubmit={send}>
         <label htmlFor="doc-assistant-input" className="sr-only">Сообщение помощнику</label>

@@ -39,6 +39,19 @@ export class ConversationService {
     return { id: row.id, role, content, createdAt: row.createdAt };
   }
 
+  // Очищает беседу ассистента документа: сообщения и саму беседу
+  // (при следующем обращении она создастся заново пустой).
+  clearForDocument(documentId: string): void {
+    const conv = this.db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.documentId, documentId))
+      .get();
+    if (!conv) return;
+    this.db.delete(messages).where(eq(messages.conversationId, conv.id)).run();
+    this.db.delete(conversations).where(eq(conversations.id, conv.id)).run();
+  }
+
   listMessages(conversationId: string): ConversationMessage[] {
     const rows = this.db
       .select()

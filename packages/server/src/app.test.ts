@@ -399,6 +399,20 @@ describe("беседа ассистента по документу", () => {
     expect(workshop.every((m: { content: string }) => m.content !== "добавь фамилию")).toBe(true);
   });
 
+  it("DELETE очищает беседу; повторное обращение начинает её заново", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+    await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "user", content: "привет" } });
+
+    const del = await app.inject({ method: "DELETE", url: `/api/documents/${d.id}/conversation` });
+    expect(del.statusCode).toBe(204);
+    expect((await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json()).toHaveLength(0);
+    // и снова можно писать
+    const again = await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "user", content: "заново" } });
+    expect(again.statusCode).toBe(201);
+  });
+
   it("по несуществующему документу → 404", async () => {
     const app = makeApp();
     expect((await app.inject({ method: "GET", url: "/api/documents/нет/conversation" })).statusCode).toBe(404);

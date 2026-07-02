@@ -1290,6 +1290,10 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .sessions-linked-more:hover { color: var(--text); border-color: var(--accent); }
 
+/* Очистка беседы помощника */
+.chat-clear { margin-left: auto; }
+.chat-clear.confirm { border-color: var(--danger); color: var(--danger); }
+
 /* Кнопка остановки генерации ИИ */
 .chat-stop { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
 .chat-stop:hover { border-color: var(--danger); color: var(--danger); filter: none; }

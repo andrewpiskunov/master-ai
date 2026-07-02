@@ -121,6 +121,19 @@ describe("DocumentAssistant карточки (smoke)", () => {
     expect(screen.queryByRole("button", { name: /Создать сущность/ })).not.toBeInTheDocument();
   });
 
+  it("«Очистить беседу»: двухшаговое подтверждение, чат пустеет", async () => {
+    vi.mocked(api.clearDocumentConversation).mockResolvedValue(undefined);
+    renderAssistant({ messages: [{ role: "assistant", content: "Старый ответ" }] });
+    expect(await screen.findByText("Старый ответ")).toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: /Очистить беседу/ });
+    await userEvent.click(clear);
+    // первый клик — только подтверждение, ничего не удалено
+    expect(api.clearDocumentConversation).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: /Точно очистить\?/ }));
+    await waitFor(() => expect(screen.queryByText("Старый ответ")).not.toBeInTheDocument());
+    expect(api.clearDocumentConversation).toHaveBeenCalledWith("d1");
+  });
+
   it("кнопка «Стоп» прерывает генерацию, набранный текст остаётся", async () => {
     vi.mocked(api.addDocumentMessage).mockResolvedValue({ id: "m", role: "user", content: "", createdAt: "x" });
     // стрим отдаёт кусок и «висит», пока его не прервут по signal

@@ -86,6 +86,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ role, content }),
     }),
+  clearDocumentConversation: (docId: string) =>
+    fetch(`/api/documents/${docId}/conversation`, { method: "DELETE" }).then((res) => {
+      if (!res.ok) throw new ApiError(res.status, res.statusText);
+    }),
   worldSummary: (campaignId: string) =>
     request<{ summary: string; question: string }>(`/api/campaigns/${campaignId}/world`),
   checkConsistency: (campaignId: string) =>
