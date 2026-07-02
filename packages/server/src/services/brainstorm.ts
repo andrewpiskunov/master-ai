@@ -72,11 +72,12 @@ export class BrainstormService {
   private consistencyCache = new Map<string, { hash: string; result: { issues: ConsistencyIssue[] } }>();
 
   constructor(
-    private deps: { llm: LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService },
+    private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService },
   ) {}
 
   async respond(campaignId: string, userMessage: string): Promise<BrainstormResponse> {
-    const { conversations, proposals, documents, campaigns, llm } = this.deps;
+    const { conversations, proposals, documents, campaigns } = this.deps;
+    const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
     conversations.addMessage(conv.id, "user", userMessage);
 
@@ -115,7 +116,8 @@ export class BrainstormService {
 
   // «Мир пока что»: сводка кампании по беседе + один открытый вопрос (как в Arks).
   async worldSummary(campaignId: string): Promise<{ summary: string; question: string }> {
-    const { conversations, campaigns, llm } = this.deps;
+    const { conversations, campaigns } = this.deps;
+    const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
     const history = conversations.listMessages(conv.id);
     if (history.length === 0) return { summary: "", question: "" };
@@ -149,7 +151,8 @@ export class BrainstormService {
 
   // Проверка кампании на фактические противоречия между документами.
   async checkConsistency(campaignId: string): Promise<{ issues: ConsistencyIssue[] }> {
-    const { documents, llm } = this.deps;
+    const { documents } = this.deps;
+    const llm = this.deps.llmFor(campaignId);
     const docs = documents.listByCampaign(campaignId);
     if (docs.length < 2) return { issues: [] };
     // Хэш содержимого — если ничего не менялось, отдаём кэш без тяжёлого запроса к ИИ.
@@ -181,9 +184,10 @@ export class BrainstormService {
 
   // Итоговая сводка сыгранной сессии: ИТОГИ (что было) + ЗАДЕЛ (крючки на следующую).
   async sessionSummary(sessionId: string): Promise<{ summary: string; seed: string }> {
-    const { documents, llm } = this.deps;
+    const { documents } = this.deps;
     const sess = documents.get(sessionId);
     if (!sess) return { summary: "", seed: "" };
+    const llm = this.deps.llmFor(sess.campaignId);
     // Ограничиваем объём входа, чтобы время генерации сводки не росло на больших сессиях.
     const log = (typeof sess.fields?.sessionLog === "string" ? sess.fields.sessionLog : "").slice(0, 4000);
     const text = proseMirrorToText(sess.contentJson).trim().slice(0, 4000);

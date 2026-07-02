@@ -23,6 +23,7 @@ import { LinkService } from "./services/links.js";
 import { SearchService } from "./services/search.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { loadProvider } from "./llm/config.js";
+import { providerForCampaign } from "./llm/resolve.js";
 
 type IdParams = { Params: { id: string } };
 
@@ -74,10 +75,13 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
 
   const llm = deps.llm ?? loadProvider();
   const campaignsSvc = new CampaignService(deps.db);
+  // Нейросеть выбирается настройками кампании; без кампании — провайдер по умолчанию.
+  const llmFor = (campaignId?: string | null): LLMProvider =>
+    providerForCampaign(campaignId ? campaignsSvc.get(campaignId) : undefined, llm);
   const documentsSvc = new DocumentService(deps.db);
   const conversationsSvc = new ConversationService(deps.db);
   const proposalsSvc = new ProposalService(deps.db);
-  const brainstormSvc = new BrainstormService({ llm, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc });
+  const brainstormSvc = new BrainstormService({ llmFor, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc });
   const linksSvc = new LinkService(deps.db);
   const searchSvc = new SearchService(deps.db);
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });
@@ -104,7 +108,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     // Приветствие ИИ генерируем в фоне и НЕ блокируем создание: клиент сразу
     // попадает в кампанию, а приветствие «допечатывается» в беседе, когда готово.
     const conv = conversationsSvc.getOrCreateForCampaign(campaign.id);
-    void generateWelcome(llm, campaign.name)
+    void generateWelcome(llmFor(campaign.id), campaign.name)
       // Пока генерировалось приветствие, кампанию могли удалить — не создаём «висячее» сообщение.
       .then((text) => { if (campaignsSvc.get(campaign.id)) conversationsSvc.addMessage(conv.id, "assistant", text); })
       .catch(() => { /* приветствие не критично для создания кампании */ });
@@ -341,7 +345,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     const parsed = CompleteInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     reply.type("text/plain; charset=utf-8");
-    return Readable.from(llm.complete(parsed.data));
+    return Readable.from(llmFor(parsed.data.campaignId).complete(parsed.data));
   });
 
   return app;

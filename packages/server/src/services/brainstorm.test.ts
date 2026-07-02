@@ -22,7 +22,7 @@ class CountingProvider implements LLMProvider {
 function make(reply: string) {
   const { db } = createDb(":memory:");
   return new BrainstormService({
-    llm: new FakeProvider([reply]),
+    llmFor: () => new FakeProvider([reply]),
     conversations: new ConversationService(db),
     proposals: new ProposalService(db),
     documents: new DocumentService(db),
@@ -47,7 +47,7 @@ describe("BrainstormService", () => {
     const docs = new DocumentService(db);
     const llm = new CountingProvider('{"issues":[{"documents":["«A»","«B»"],"contradiction":"тест","fix":"тест"}]}');
     const svc = new BrainstormService({
-      llm, conversations: new ConversationService(db), proposals: new ProposalService(db), documents: docs, campaigns: new CampaignService(db),
+      llmFor: () => llm, conversations: new ConversationService(db), proposals: new ProposalService(db), documents: docs, campaigns: new CampaignService(db),
     });
     docs.create({ campaignId: "c1", type: "npc", title: "A" });
     docs.create({ campaignId: "c1", type: "npc", title: "B" });
@@ -69,7 +69,7 @@ describe("BrainstormService", () => {
     const { db } = createDb(":memory:");
     const docs = new DocumentService(db);
     const svc = new BrainstormService({
-      llm: new FakeProvider(["ИТОГИ: Партия победила утопленников.\nЗАДЕЛ:\n- Хор вернётся.\n- Мэрла пропала."]),
+      llmFor: () => new FakeProvider(["ИТОГИ: Партия победила утопленников.\nЗАДЕЛ:\n- Хор вернётся.\n- Мэрла пропала."]),
       conversations: new ConversationService(db), proposals: new ProposalService(db), documents: docs, campaigns: new CampaignService(db),
     });
     const s = docs.create({ campaignId: "c1", type: "session", title: "Сессия 1", fields: { sessionLog: "Был бой." } });

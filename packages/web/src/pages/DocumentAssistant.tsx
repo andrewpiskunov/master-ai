@@ -129,6 +129,7 @@ export function DocumentAssistant({
   getText,
   appliedBlocks,
   docUpdatedAt,
+  campaignId,
   onApply,
   onCreateEntity,
   onEditEntity,
@@ -136,6 +137,8 @@ export function DocumentAssistant({
   onProposeDoc,
 }: {
   docId: string;
+  // Кампания документа — сервер выбирает её нейросеть для генерации.
+  campaignId?: string;
   title: string;
   typeLabel: string;
   template?: string;
@@ -245,6 +248,7 @@ export function DocumentAssistant({
           // В LLM уходит только хвост беседы: полная история на долгоживущем
           // документе разрастается и упирается в контекст модели.
           messages: history.slice(-20),
+          campaignId,
         },
         (chunk) => {
           reply += chunk;

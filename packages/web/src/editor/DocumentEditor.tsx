@@ -15,6 +15,8 @@ interface DocumentEditorProps {
   content: unknown;
   onChange: (json: unknown) => void;
   mentions?: MentionItem[];
+  // Кампания документа — сервер выбирает её нейросеть для автодополнения.
+  campaignId?: string;
   // Заполнить раздел (по заголовку) с ИИ — обрабатывается на странице документа.
   onFillSection?: (heading: string) => void;
   // Заголовок раздела, который сейчас заполняет ИИ (для подсветки/крутилки).
@@ -116,9 +118,12 @@ const SLASH_KEYWORDS: Record<string, string[]> = {
 interface MenuState { kind: "slash" | "mention"; items: MenuItem[]; index: number; top: number; left: number; queryLen: number; triggerLen: number }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { content, onChange, mentions, onFillSection, fillingHeading = null },
+  { content, onChange, mentions, campaignId, onFillSection, fillingHeading = null },
   ref,
 ) {
+  // Актуальный id кампании для колбэков редактора, сконфигурированных один раз.
+  const campaignIdRef = useRef(campaignId);
+  campaignIdRef.current = campaignId;
   // Держим актуальный колбэк заполнения в ref — расширение конфигурируется один раз.
   const fillSectionRef = useRef(onFillSection);
   fillSectionRef.current = onFillSection;
@@ -210,6 +215,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         {
           system: "Ты — соавтор мастера настольных ролевых игр. Продолжи текст ОДНИМ коротким фрагментом (полфразы–одна фраза), естественно стыкуясь с уже написанным. Не повторяй написанное, без кавычек и пояснений. Верни только продолжение.",
           messages: [{ role: "user", content: `Текст:\n${before}\n\nПродолжи с этого места.` }],
+          campaignId: campaignIdRef.current,
         },
         (c) => { out += c; },
       ).then(() => {

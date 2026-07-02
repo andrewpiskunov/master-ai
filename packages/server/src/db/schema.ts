@@ -6,6 +6,9 @@ export const campaigns = sqliteTable("campaigns", {
   system: text("system"),
   description: text("description"),
   realism: text("realism").notNull().default("balanced"),
+  // Нейросеть кампании: 'cli' (Claude Code) или 'openai'; настройки — JSON (ключ, модель, baseUrl).
+  llmProvider: text("llm_provider").notNull().default("cli"),
+  llmSettings: text("llm_settings").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
 });
 

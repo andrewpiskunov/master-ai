@@ -227,6 +227,7 @@ export function PlaySession() {
             "изменения статусов NPC, новые зацепки. Каждое событие — с новой строки, начиная с «- ». По-русски, лаконично. " +
             "Если ничего нового нет — верни пустую строку.",
           messages: [{ role: "user", content: `Текст сессии:\n${pmText(doc.contentJson).trim() || "(пусто)"}\n\nЧат с ассистентом:\n${chat || "(пусто)"}\n\nТекущий лог:\n${log || "(пусто)"}` }],
+          campaignId,
         },
         (c) => { out += c; },
       );
@@ -258,6 +259,7 @@ export function PlaySession() {
             "Верни ТОЛЬКО JSON {\"combatants\":[{\"name\":\"Имя\",\"init\":0,\"hp\":10}]}. init и hp можешь оценить по описанию (иначе 0 и 10). " +
             "Только тех, кто реально дерётся; если участников нет — {\"combatants\":[]}.",
           messages: [{ role: "user", content: `Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пусто)"}\n\nЧат с ассистентом:\n${chat || "(пусто)"}` }],
+          campaignId,
         },
         (c) => { out += c; },
       );
@@ -437,6 +439,7 @@ export function PlaySession() {
             <div className="play-assistant" style={{ display: tab === "assistant" ? undefined : "none" }}>
               <DocumentAssistant
                 docId={doc.id}
+                campaignId={campaignId}
                 title={doc.title}
                 typeLabel={getDocumentType(doc.type)?.label ?? doc.type}
                 documents={docs.map((d) => ({ title: d.title, type: d.type }))}

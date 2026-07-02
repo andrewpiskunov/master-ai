@@ -4,37 +4,49 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { Campaign, CampaignPatch, NewCampaign } from "@master-ai/shared";
 import { campaigns, documents, links, proposals, conversations, messages } from "../db/schema.js";
 
+type CampaignRow = typeof campaigns.$inferSelect;
+
+// llm_settings хранится JSON-строкой — наружу отдаём распарсенный объект.
+function toCampaign(row: CampaignRow): Campaign {
+  return { ...row, llmSettings: JSON.parse(row.llmSettings) } as Campaign;
+}
+
 export class CampaignService {
   constructor(private db: BetterSQLite3Database) {}
 
   create(input: NewCampaign): Campaign {
-    const row: Campaign = {
+    const row: CampaignRow = {
       id: randomUUID(),
       name: input.name,
       system: input.system ?? null,
       description: input.description ?? null,
       realism: input.realism ?? "balanced",
+      llmProvider: "cli",
+      llmSettings: "{}",
       createdAt: new Date().toISOString(),
     };
     this.db.insert(campaigns).values(row).run();
-    return row;
+    return toCampaign(row);
   }
 
   list(): Campaign[] {
-    return this.db.select().from(campaigns).all() as Campaign[];
+    return (this.db.select().from(campaigns).all() as CampaignRow[]).map(toCampaign);
   }
 
   get(id: string): Campaign | undefined {
-    return this.db.select().from(campaigns).where(eq(campaigns.id, id)).get() as Campaign | undefined;
+    const row = this.db.select().from(campaigns).where(eq(campaigns.id, id)).get() as CampaignRow | undefined;
+    return row ? toCampaign(row) : undefined;
   }
 
   update(id: string, patch: CampaignPatch): Campaign | undefined {
     if (!this.get(id)) return undefined;
-    const updates: Partial<Campaign> = {};
+    const updates: Partial<CampaignRow> = {};
     if (patch.name !== undefined) updates.name = patch.name;
     if (patch.system !== undefined) updates.system = patch.system;
     if (patch.description !== undefined) updates.description = patch.description;
     if (patch.realism !== undefined) updates.realism = patch.realism;
+    if (patch.llmProvider !== undefined) updates.llmProvider = patch.llmProvider;
+    if (patch.llmSettings !== undefined) updates.llmSettings = JSON.stringify(patch.llmSettings);
     if (Object.keys(updates).length) {
       this.db.update(campaigns).set(updates).where(eq(campaigns.id, id)).run();
     }

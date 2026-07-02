@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Trash2, Check, Loader, Download } from "lucide-react";
-import type { Realism } from "@master-ai/shared";
+import type { LlmProviderKind, Realism } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { useToast } from "../../ui/toast.js";
 import { Modal } from "../../ui/Modal.js";
@@ -24,12 +24,18 @@ export function ManageCampaign() {
   const [system, setSystem] = useState("");
   const [description, setDescription] = useState("");
   const [realism, setRealism] = useState<Realism>("balanced");
+  // Нейросеть кампании: Claude Code (cli) или OpenAI-совместимый API.
+  const [llmProvider, setLlmProvider] = useState<LlmProviderKind>("cli");
+  const [llmKey, setLlmKey] = useState("");
+  const [llmModel, setLlmModel] = useState("");
+  const [llmBaseUrl, setLlmBaseUrl] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   // Инициализируем поля один раз на кампанию, чтобы reloadCampaign не затирал ввод.
   const initedRef = useRef<string | null>(null);
   const savedRef = useRef<{ name: string; system: string; description: string }>({ name: "", system: "", description: "" });
+  const savedLlmRef = useRef<string>("");
 
   useEffect(() => {
     if (!campaign || initedRef.current === campaign.id) return;
@@ -38,8 +44,43 @@ export function ManageCampaign() {
     setSystem(campaign.system ?? "");
     setDescription(campaign.description ?? "");
     setRealism(campaign.realism);
+    setLlmProvider(campaign.llmProvider ?? "cli");
+    setLlmKey(campaign.llmSettings?.apiKey ?? "");
+    setLlmModel(campaign.llmSettings?.model ?? "");
+    setLlmBaseUrl(campaign.llmSettings?.baseUrl ?? "");
     savedRef.current = { name: campaign.name, system: campaign.system ?? "", description: campaign.description ?? "" };
+    savedLlmRef.current = JSON.stringify(campaign.llmSettings ?? {});
   }, [campaign]);
+
+  // Автосохранение настроек OpenAI (ключ, модель, base URL) — с задержкой, как остальные поля.
+  useEffect(() => {
+    if (!campaignId || initedRef.current !== campaignId) return;
+    const next = {
+      ...(llmKey.trim() ? { apiKey: llmKey.trim() } : {}),
+      ...(llmModel.trim() ? { model: llmModel.trim() } : {}),
+      ...(llmBaseUrl.trim() ? { baseUrl: llmBaseUrl.trim() } : {}),
+    };
+    if (JSON.stringify(next) === savedLlmRef.current) return;
+    setSaveState("saving");
+    const timer = setTimeout(() => {
+      api.updateCampaign(campaignId, { llmSettings: next })
+        .then(() => { savedLlmRef.current = JSON.stringify(next); setSaveState("saved"); reloadCampaign(); })
+        .catch(() => { setSaveState("idle"); showToast("Не удалось сохранить"); });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [llmKey, llmModel, llmBaseUrl, campaignId, reloadCampaign, showToast]);
+
+  // Выбор нейросети применяем сразу (как тумблер).
+  async function pickLlmProvider(p: LlmProviderKind) {
+    setLlmProvider(p);
+    if (!campaignId) return;
+    try {
+      await api.updateCampaign(campaignId, { llmProvider: p });
+      reloadCampaign();
+    } catch {
+      showToast("Не удалось сохранить");
+    }
+  }
 
   // Автосохранение названия, системы и брифа (как в документе) — без кнопки.
   useEffect(() => {
@@ -139,6 +180,52 @@ export function ManageCampaign() {
           ))}
         </div>
         <p className="muted manage-hint">{REALISM.find((r) => r.key === realism)?.hint}</p>
+      </section>
+
+      <section className="panel manage-section">
+        <h2>Нейросеть</h2>
+        <p className="muted manage-hint">Какая модель отвечает во всех ИИ-функциях кампании — мастерская, помощник документов, проверки, режим игры.</p>
+        <div className="realism-seg" role="group" aria-label="Нейросеть">
+          <button type="button" className={`realism-opt${llmProvider === "cli" ? " active" : ""}`} onClick={() => pickLlmProvider("cli")}>
+            Claude Code (CLI)
+          </button>
+          <button type="button" className={`realism-opt${llmProvider === "openai" ? " active" : ""}`} onClick={() => pickLlmProvider("openai")}>
+            OpenAI API
+          </button>
+        </div>
+        {llmProvider === "cli" ? (
+          <p className="muted manage-hint">Локальный Claude Code: запускается командой «claude» на этой машине, ключи не нужны.</p>
+        ) : (
+          <>
+            <label htmlFor="mc-llm-key">API-ключ</label>
+            <input
+              id="mc-llm-key"
+              type="password"
+              placeholder="sk-…"
+              autoComplete="off"
+              value={llmKey}
+              onChange={(e) => setLlmKey(e.target.value)}
+            />
+            <label htmlFor="mc-llm-model">Модель</label>
+            <input
+              id="mc-llm-model"
+              placeholder="gpt-4o-mini (по умолчанию)"
+              value={llmModel}
+              onChange={(e) => setLlmModel(e.target.value)}
+            />
+            <label htmlFor="mc-llm-base">Base URL (необязательно)</label>
+            <input
+              id="mc-llm-base"
+              placeholder="https://api.openai.com/v1 — или совместимый API (OpenRouter, локальная модель)"
+              value={llmBaseUrl}
+              onChange={(e) => setLlmBaseUrl(e.target.value)}
+            />
+            <p className="muted manage-hint">
+              Ключ хранится локально в базе этого приложения и никуда, кроме выбранного API, не отправляется.
+              {llmProvider === "openai" && !llmKey.trim() && " Пока ключ не заполнен, используется Claude Code."}
+            </p>
+          </>
+        )}
       </section>
 
       <section className="panel manage-section">

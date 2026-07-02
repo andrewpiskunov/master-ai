@@ -235,6 +235,7 @@ export function DocumentPage() {
         {
           system,
           messages: [{ role: "user", content: `Заполни раздел «${heading}».` }],
+          campaignId: doc.campaignId,
         },
         (chunk) => { out += chunk; },
       );
@@ -412,6 +413,7 @@ export function DocumentPage() {
             content={contentJson}
             onChange={setContentJson}
             mentions={mentions}
+            campaignId={doc.campaignId}
             onFillSection={fillSection}
             fillingHeading={fillingHeading}
           />
@@ -443,6 +445,7 @@ export function DocumentPage() {
             {panel === "assistant" ? (
               <DocumentAssistant
                 docId={doc.id}
+                campaignId={doc.campaignId}
                 title={title}
                 typeLabel={t?.label ?? doc.type}
                 template={getTemplate(doc.type)}

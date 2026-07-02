@@ -20,7 +20,7 @@ const sessionDoc = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.getDocument).mockResolvedValue(sessionDoc);
-  vi.mocked(api.getCampaign).mockResolvedValue({ id: "c1", name: "Корона", system: null, description: "", realism: "balanced", createdAt: "x" });
+  vi.mocked(api.getCampaign).mockResolvedValue({ id: "c1", name: "Корона", system: null, description: "", realism: "balanced", llmProvider: "cli" as const, llmSettings: {}, createdAt: "x" });
   vi.mocked(api.listCampaignDocuments).mockResolvedValue([]);
   vi.mocked(api.getDocumentConversation).mockResolvedValue([]);
 });

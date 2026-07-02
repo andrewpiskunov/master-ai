@@ -27,7 +27,7 @@ function renderPage() {
 describe("HomePage", () => {
   it("показывает загруженные кампании", async () => {
     vi.mocked(api.listCampaigns).mockResolvedValue([
-      { id: "c1", name: "Город Солнца", system: null, description: null, realism: "balanced", createdAt: "2026-06-28T22:04:00.000Z" },
+      { id: "c1", name: "Город Солнца", system: null, description: null, realism: "balanced", llmProvider: "cli" as const, llmSettings: {}, createdAt: "2026-06-28T22:04:00.000Z" },
     ]);
     renderPage();
     expect(await screen.findByText("Город Солнца")).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe("HomePage", () => {
   it("без кампаний показывает экран приветствия и создаёт первую", async () => {
     vi.mocked(api.listCampaigns).mockResolvedValue([]);
     vi.mocked(api.createCampaign).mockResolvedValue({
-      id: "c2", name: "Новая", system: null, description: null, realism: "balanced", createdAt: "x",
+      id: "c2", name: "Новая", system: null, description: null, realism: "balanced", llmProvider: "cli" as const, llmSettings: {}, createdAt: "x",
     });
     renderPage();
     expect(await screen.findByText(/создадим первую кампанию/i)).toBeInTheDocument();
