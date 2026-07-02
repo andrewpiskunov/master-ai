@@ -1290,6 +1290,11 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .sessions-linked-more:hover { color: var(--text); border-color: var(--accent); }
 
+/* Экспорт и резервная копия в управлении кампанией */
+.manage-export-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+.manage-backup { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: var(--radius-sm); font-size: 0.9rem; }
+.manage-backup:hover { text-decoration: none; }
+
 /* Шапка результата проверки противоречий: давность + обновление */
 .consistency-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-size: 0.85rem; }
 .consistency-refresh { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 0.82rem; }

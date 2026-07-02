@@ -11,6 +11,19 @@ function makeApp() {
 }
 
 describe("REST API", () => {
+  it("GET /api/backup отдаёт валидный файл SQLite; без sqlite-инстанса — 503", async () => {
+    const { db, sqlite } = createDb(":memory:");
+    const app = buildApp({ db, sqlite, llm: new FakeProvider([""]) });
+    const res = await app.inject({ method: "GET", url: "/api/backup" });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-disposition"]).toMatch(/master-ai-.*\.sqlite/);
+    expect(res.rawPayload.subarray(0, 15).toString()).toBe("SQLite format 3");
+
+    const bare = makeApp(); // без sqlite
+    const denied = await bare.inject({ method: "GET", url: "/api/backup" });
+    expect(denied.statusCode).toBe(503);
+  });
+
   it("POST затем GET кампаний", async () => {
     const app = makeApp();
     const created = await app.inject({

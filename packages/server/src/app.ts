@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { Readable } from "node:stream";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { Database as SqliteDatabase } from "better-sqlite3";
 import {
   NewCampaignSchema,
   CampaignPatchSchema,
@@ -67,7 +68,7 @@ const DocumentPatchSchema = z.object({
   fields: z.record(z.unknown()).optional(),
 });
 
-export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider }): FastifyInstance {
+export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; sqlite?: SqliteDatabase }): FastifyInstance {
   const app = Fastify();
   app.register(cors, { origin: true });
 
@@ -83,6 +84,16 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider })
   const NewMessageSchema = z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1) });
 
   app.get("/api/document-types", () => DOCUMENT_TYPES);
+
+  // Резервная копия базы одним файлом — «скачать бэкап» из управления кампанией.
+  app.get("/api/backup", (_req, reply) => {
+    if (!deps.sqlite) return reply.code(503).send({ error: "Бэкап недоступен" });
+    const stamp = new Date().toISOString().slice(0, 10);
+    return reply
+      .header("content-disposition", `attachment; filename="master-ai-${stamp}.sqlite"`)
+      .type("application/octet-stream")
+      .send(deps.sqlite.serialize());
+  });
 
   app.get("/api/campaigns", () => campaignsSvc.list());
 

@@ -144,7 +144,13 @@ export function ManageCampaign() {
       <section className="panel manage-section">
         <h2>Экспорт</h2>
         <p className="muted manage-hint">Собрать всю кампанию в один документ — для печати, сохранения в PDF или выгрузки в Markdown.</p>
-        <Link to={`/campaigns/${campaignId}/export`} className="btn manage-export"><Download size={16} strokeWidth={1.8} /> Экспорт кампании</Link>
+        <div className="manage-export-row">
+          <Link to={`/campaigns/${campaignId}/export`} className="btn manage-export"><Download size={16} strokeWidth={1.8} /> Экспорт кампании</Link>
+          <a href="/api/backup" download className="btn-ghost manage-backup" title="Полная копия базы (все кампании) — для восстановления">
+            <Download size={15} strokeWidth={1.8} /> Скачать резервную копию
+          </a>
+        </div>
+        <p className="muted manage-hint">Сервер также сам делает дневную копию базы в data/backups (хранятся последние 7).</p>
       </section>
 
       <section className="panel manage-danger">
