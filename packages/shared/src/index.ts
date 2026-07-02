@@ -7,3 +7,4 @@ export * from "./proposal.js";
 export * from "./links.js";
 export * from "./search.js";
 export * from "./consistency.js";
+export * from "./game.js";
