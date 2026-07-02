@@ -30,6 +30,11 @@ export function SearchBox({ campaignId }: { campaignId: string }) {
         value={q}
         onChange={(e) => run(e.target.value)}
       />
+      {!q && (
+        <kbd className="search-kbd" title="Палитра команд: поиск и быстрые действия">
+          {navigator.platform.toUpperCase().includes("MAC") ? "⌘K" : "Ctrl K"}
+        </kbd>
+      )}
       {hits.length > 0 && (
         <ul className="search-results">
           {hits.map((h) => (
