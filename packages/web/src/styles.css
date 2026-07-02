@@ -1268,6 +1268,10 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .sessions-linked-more:hover { color: var(--text); border-color: var(--accent); }
 
+/* Шапка результата проверки противоречий: давность + обновление */
+.consistency-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-size: 0.85rem; }
+.consistency-refresh { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 0.82rem; }
+
 /* Неоднозначное упоминание: несколько документов с одним названием */
 .mention-ambiguous { text-decoration: underline dashed; text-underline-offset: 3px; }
 
