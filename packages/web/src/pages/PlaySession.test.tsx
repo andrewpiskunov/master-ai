@@ -23,10 +23,11 @@ beforeEach(() => {
   vi.mocked(api.getCampaign).mockResolvedValue({ id: "c1", name: "Корона", system: null, description: "", realism: "balanced", llmProvider: "cli" as const, llmSettings: {}, createdAt: "x" });
   vi.mocked(api.listCampaignDocuments).mockResolvedValue([]);
   vi.mocked(api.getDocumentConversation).mockResolvedValue([]);
+  vi.mocked(api.assistantStatus).mockResolvedValue({ running: false, partial: "", error: null });
 });
 
 describe("PlaySession (smoke)", () => {
-  it("рендерит режим игры: вкладки, AI-лог и «Следующая сессия»", async () => {
+  it("рендерит режим игры: вкладки чата и «Следующая сессия»", async () => {
     render(
       <ToastProvider>
         <MemoryRouter initialEntries={["/campaigns/c1/sessions/d1/play"]}>
@@ -34,10 +35,9 @@ describe("PlaySession (smoke)", () => {
         </MemoryRouter>
       </ToastProvider>,
     );
-    expect(await screen.findByText("Лог сессии")).toBeInTheDocument();
-    expect(screen.getByText("Ассистент")).toBeInTheDocument();
+    expect(await screen.findByText("Сценарий")).toBeInTheDocument();
+    expect(screen.getByText("Документы")).toBeInTheDocument();
     expect(screen.getByText("Бой")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Дописать в лог с ИИ/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Следующая сессия/ })).toBeInTheDocument();
   });
 });

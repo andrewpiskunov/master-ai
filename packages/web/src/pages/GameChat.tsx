@@ -112,9 +112,10 @@ export type GameChatState = ReturnType<typeof useGameChat>;
 
 // Центральная колонка режима игры: лента чата с ИИ-мастером, чипы акторов, поле ввода.
 export function GameChat({
-  chat, pcs, npcs, documents, buildSystem, playerView,
+  docId, chat, pcs, npcs, documents, buildSystem, playerView,
   currentText, appliedBlocks, docUpdatedAt, onApply, onCreateEntity, onEditEntity,
 }: {
+  docId: string;
   chat: GameChatState;
   pcs: { id: string; title: string }[];
   npcs: { id: string; title: string }[];
@@ -132,6 +133,9 @@ export function GameChat({
   const [actor, setActor] = useState<Actor>(MASTER);
   // NPC, добавленные чипами на время сессии (в память — «временные» по спеке).
   const [extraNpcs, setExtraNpcs] = useState<{ id: string; title: string }[]>([]);
+
+  // Сброс временных NPC-чипов и выбранного актора при смене документа.
+  useEffect(() => { setExtraNpcs([]); setActor(MASTER); }, [docId]);
   const [npcOpen, setNpcOpen] = useState(false);
   const [npcQuery, setNpcQuery] = useState("");
   const feedRef = useRef<HTMLDivElement>(null);

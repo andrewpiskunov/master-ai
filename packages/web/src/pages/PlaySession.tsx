@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff, Sparkles } from "lucide-react";
-import { getDocumentType, type Document } from "@master-ai/shared";
+import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff } from "lucide-react";
+import type { Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { streamComplete } from "../api/stream.js";
 import { useToast } from "../ui/toast.js";
@@ -9,11 +9,11 @@ import { Markdown } from "../ui/Markdown.js";
 import { contentToHtml } from "../editor/contentToHtml.js";
 import { pmText } from "../prosemirror-text.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
-import { DocumentAssistant } from "./DocumentAssistant.js";
-import { blockKey, type NewEntity } from "./assistant-blocks.js";
+import { blockKey, entityBlocksPrompt, parseAssistant, type NewEntity } from "./assistant-blocks.js";
 import { CombatTracker, type CombatState } from "./CombatTracker.js";
 import { TypeTag, TypeBadge } from "./campaign/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
+import { GameChat, GameLogPanel, useGameChat, type GameMsg } from "./GameChat.js";
 
 // Делает названия упоминаемых документов кликабельными прямо в тексте сессии.
 function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
@@ -89,7 +89,7 @@ function parseCombatants(text: string): { name: string; init: number; hp: number
   }
 }
 
-// Режим прогона сессии за столом: текст сессии, просмотрщик связанных документов, лог и ассистент.
+// Режим прогона сессии за столом: игровой чат с ИИ-мастером, просмотрщик документов, лог и бой.
 export function PlaySession() {
   const { campaignId, documentId } = useParams<{ campaignId: string; documentId: string }>();
   const navigate = useNavigate();
@@ -101,10 +101,7 @@ export function PlaySession() {
   docRef.current = doc;
   const [docs, setDocs] = useState<Document[]>([]);
   const [campaignName, setCampaignName] = useState("");
-  const [tab, setTab] = useState<"log" | "assistant" | "combat">("log");
-  const [log, setLog] = useState("");
-  const [logSaved, setLogSaved] = useState(true);
-  const logRef = useRef<string>("");
+  const [tab, setTab] = useState<"scenario" | "docs" | "combat">("scenario");
   const contentRef = useRef<HTMLDivElement>(null);
   // История просмотрщика связанных документов.
   const [view, setView] = useState<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
@@ -112,7 +109,6 @@ export function PlaySession() {
   const [proposed, setProposed] = useState<Record<string, NewEntity>>({});
   const [nextBusy, setNextBusy] = useState(false);
   const [combatAiBusy, setCombatAiBusy] = useState(false);
-  const [logAiBusy, setLogAiBusy] = useState(false);
   // Режим показа игрокам — прячет секции, помеченные «только мастер».
   const [playerView, setPlayerView] = useState(false);
 
@@ -120,9 +116,6 @@ export function PlaySession() {
     if (!documentId) return;
     api.getDocument(documentId).then((d) => {
       setDoc(d);
-      const saved = typeof d.fields?.sessionLog === "string" ? d.fields.sessionLog : "";
-      setLog(saved);
-      logRef.current = saved;
     }).catch(() => showToast("Не удалось загрузить сессию"));
   }, [documentId, showToast]);
 
@@ -147,15 +140,46 @@ export function PlaySession() {
     }
   }, [documentId, showToast]);
 
-  // Автосохранение лога сессии (через единый писатель полей).
-  useEffect(() => {
-    if (!doc || log === logRef.current) return;
-    setLogSaved(false);
-    const timer = setTimeout(async () => {
-      if (await patchFields({ sessionLog: log })) { logRef.current = log; setLogSaved(true); }
-    }, 700);
-    return () => clearTimeout(timer);
-  }, [log, doc, patchFields]);
+  // Игровой чат с ИИ-мастером: состояние здесь, чтобы лог-панель строилась из тех же сообщений.
+  const chat = useGameChat(documentId!, (content) => {
+    openMentionedDocs(content);
+    parseAssistant(content).newDocs.forEach((nd) => showProposedDoc(nd));
+  });
+
+  // Текстовое представление лога событий — для промпта ИИ-мастера и сбора боя.
+  const gameLogText = (msgs: GameMsg[]) =>
+    msgs.filter((m) => m.meta?.log)
+      .map((m) => `- ${m.meta!.log!.important ? "[важно] " : ""}${m.meta!.log!.title}`)
+      .join("\n");
+
+  // Системный промпт ИИ-мастера: план сессии + лог + правила формата ответа.
+  function buildGameSystem(): string {
+    const d = docRef.current;
+    const logLines = gameLogText(chat.messages);
+    return (
+      `Ты — ИИ-мастер настольной ролевой игры, помогаешь живому мастеру вести сессию «${d?.title ?? ""}» кампании «${campaignName}». Всегда отвечай по-русски.\n\n` +
+      `План сессии:\n${d ? pmText(d.contentJson).trim() || "(пусто)" : "(пусто)"}\n\n` +
+      (logLines ? `Лог событий этой сессии:\n${logLines}\n\n` : "") +
+      `Сообщения вида «Действие (Имя): …» — заявки персонажей игроков или NPC. На такую заявку отвечай СТРОГО в формате:\n` +
+      `## Прочитай игрокам\n<живое описание происходящего для чтения игрокам вслух, 2–6 предложений>\n` +
+      `## Скрытое для мастера\n<то, что игроки не видят: механика, сложности проверок, скрытые последствия, планы NPC; если скрывать нечего — пропусти секцию целиком>\n` +
+      `В САМОМ КОНЦЕ такого ответа добавь служебный блок:\n` +
+      "```log\n" +
+      `{"title": "<краткий заголовок события, 3–7 слов>", "important": <true только для поворотных событий: смерть, крупная находка, раскрытие тайны, начало и исход боя; иначе false>}\n` +
+      "```\n\n" +
+      `Остальные сообщения — вопросы мастера тебе: отвечай обычным текстом, без секций и без log-блока.\n\n` +
+      entityBlocksPrompt(docs.map((x) => ({ title: x.title, type: x.type })))
+    );
+  }
+
+  // Переход из лога к сообщению в ленте чата.
+  function jumpToMessage(messageId: string) {
+    const el = document.querySelector(`[data-msg-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("msg-flash");
+    setTimeout(() => el.classList.remove("msg-flash"), 1600);
+  }
 
   const sections = useMemo(() => (doc ? splitSections(doc.contentJson) : []), [doc]);
   const sectionVis: Record<string, string> = (doc?.fields?.sectionVisibility as Record<string, string>) ?? {};
@@ -177,15 +201,16 @@ export function PlaySession() {
 
   function openDoc(id: string) {
     if (!id) return;
+    setTab("docs");
     setView((v) => {
-      if (v.idx >= 0 && v.stack[v.idx] === id) return v; // уже открыт — не дублируем
+      if (v.idx >= 0 && v.stack[v.idx] === id) return v;
       const stack = v.stack.slice(0, v.idx + 1);
       stack.push(id);
       return { stack, idx: stack.length - 1 };
     });
   }
 
-  // Открывает в просмотрщике документы кампании, упомянутые в реплике чата с ассистентом.
+  // Открывает в просмотрщике документы кампании, упомянутые в реплике чата с ИИ-мастером.
   function openMentionedDocs(text: string) {
     for (const span of matchMentions(text, prepared)) {
       if (span.href) openDoc(span.href);
@@ -212,46 +237,13 @@ export function PlaySession() {
     openDoc(id);
   }
 
-  // ИИ дописывает в лог важные события из чата и текста сессии (не перезаписывая).
-  async function aiAppendLog() {
-    if (!doc || !documentId || logAiBusy) return;
-    setLogAiBusy(true);
-    try {
-      const conv = await api.getDocumentConversation(documentId).catch(() => []);
-      const chat = conv.map((m) => `${m.role === "user" ? "Мастер" : "ИИ"}: ${m.content}`).join("\n");
-      let out = "";
-      await streamComplete(
-        {
-          system:
-            "Ты — ассистент мастера НРИ, ведёшь лог игровой сессии. По тексту сессии, чату с ассистентом и текущему логу " +
-            "выпиши КРАТКИЕ строки о важных событиях, которых ЕЩЁ НЕТ в логе: решения игроков, бой и его исход, находки/добыча, " +
-            "изменения статусов NPC, новые зацепки. Каждое событие — с новой строки, начиная с «- ». По-русски, лаконично. " +
-            "Если ничего нового нет — верни пустую строку.",
-          messages: [{ role: "user", content: `Текст сессии:\n${pmText(doc.contentJson).trim() || "(пусто)"}\n\nЧат с ассистентом:\n${chat || "(пусто)"}\n\nТекущий лог:\n${log || "(пусто)"}` }],
-          campaignId,
-        },
-        (c) => { out += c; },
-      );
-      // Берём только строки-события (маркер списка), отсекая пояснения ИИ вроде «Ничего нового…».
-      const lines = out.split("\n").map((l) => l.trim()).filter((l) => /^[-•*]\s+/.test(l));
-      if (!lines.length) { showToast("ИИ не нашёл новых событий для лога"); return; }
-      const add = lines.join("\n");
-      setLog((prev) => (prev.trim() ? `${prev.trimEnd()}\n${add}` : add));
-      showToast("Лог дополнен ИИ");
-    } catch {
-      showToast("Не удалось дополнить лог");
-    } finally {
-      setLogAiBusy(false);
-    }
-  }
-
-  // Собрать участников боя из чата ассистента + текста и лога сессии через ИИ.
+  // Собрать участников боя из чата ИИ-мастера + текста сессии через ИИ.
   async function aiFillCombat() {
     if (!doc || !documentId || combatAiBusy) return;
     setCombatAiBusy(true);
     try {
       const conv = await api.getDocumentConversation(documentId).catch(() => []);
-      const chat = conv.map((m) => `${m.role === "user" ? "Мастер" : "ИИ"}: ${m.content}`).join("\n");
+      const chat2 = conv.map((m) => `${m.role === "user" ? "Мастер" : "ИИ"}: ${m.content}`).join("\n");
       let out = "";
       await streamComplete(
         {
@@ -259,7 +251,7 @@ export function PlaySession() {
             "Ты — ассистент мастера НРИ. Определи участников БОЯ (враги и союзники, вступающие в схватку) из контекста ниже. " +
             "Верни ТОЛЬКО JSON {\"combatants\":[{\"name\":\"Имя\",\"init\":0,\"hp\":10}]}. init и hp можешь оценить по описанию (иначе 0 и 10). " +
             "Только тех, кто реально дерётся; если участников нет — {\"combatants\":[]}.",
-          messages: [{ role: "user", content: `Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пусто)"}\n\nЧат с ассистентом:\n${chat || "(пусто)"}` }],
+          messages: [{ role: "user", content: `Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${gameLogText(chat.messages) || "(пусто)"}\n\nЧат с ИИ-мастером:\n${chat2 || "(пусто)"}` }],
           campaignId,
         },
         (c) => { out += c; },
@@ -312,6 +304,12 @@ export function PlaySession() {
     }
   }
 
+  // Акторы для чипов в игровом чате.
+  const pcs = docs
+    .filter((d) => d.type === "pc" && d.status !== "retired" && d.status !== "deceased")
+    .map((d) => ({ id: d.id, title: d.title }));
+  const npcs = docs.filter((d) => d.type === "npc").map((d) => ({ id: d.id, title: d.title }));
+
   if (!doc) return <div className="play-mode"><p className="muted" style={{ padding: 24 }}>…</p></div>;
 
   return (
@@ -334,126 +332,117 @@ export function PlaySession() {
       </header>
 
       <div className="play-body">
-        <div
-          className="play-content"
-          ref={contentRef}
-          onClick={(e) => {
-            const a = (e.target as HTMLElement).closest("a.play-link") as HTMLElement | null;
-            if (!a?.dataset.docId) return;
-            e.preventDefault();
-            // Одноимённые документы: повторный клик открывает следующий по кругу.
-            const ids = a.dataset.docIds ? a.dataset.docIds.split(",") : [];
-            if (ids.length > 1) openDoc(ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length]);
-            else openDoc(a.dataset.docId);
-          }}
-        >
-          {sections.length === 0 ? (
-            <p className="muted">Сессия пуста — заполните её на странице документа.</p>
-          ) : (
-            sections.map((sec, i) => {
-              const gm = isGmOnly(sec.heading);
-              if (playerView && gm) return null;
-              return (
-                <div key={i} className={`play-section${gm ? " gm" : ""}`}>
-                  {sec.heading && (
-                    <div className="play-section-bar">
-                      <button type="button" className="play-eye" onClick={() => toggleSectionVis(sec.heading!)} title={gm ? "Виден игрокам (снять пометку)" : "Пометить «только мастер»"}>
-                        {gm ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                      {gm && <span className="play-section-lock">только мастер</span>}
-                    </div>
-                  )}
-                  <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(sec.doc) }} />
-                </div>
-              );
-            })
-          )}
+        <div className="play-center">
+          <GameChat
+            docId={documentId!}
+            chat={chat}
+            pcs={pcs}
+            npcs={npcs}
+            documents={docs.map((d) => ({ title: d.title, type: d.type }))}
+            buildSystem={buildGameSystem}
+            playerView={playerView}
+            currentText={pmText(doc.contentJson).trim()}
+            appliedBlocks={(doc.fields?.appliedDocBlocks as string[] | undefined) ?? []}
+            docUpdatedAt={(doc.fields?.contentUpdatedAt as string | undefined) ?? doc.updatedAt}
+            onApply={applyToSession}
+            onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
+            onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
+          />
         </div>
 
         <aside className="play-side">
-          <div className="play-viewer">
-            <div className="play-viewer-nav">
-              <button type="button" title="Назад" aria-label="Назад" disabled={view.idx <= 0} onClick={() => setView((v) => ({ ...v, idx: v.idx - 1 }))}><ArrowLeft size={15} /></button>
-              <button type="button" title="Вперёд" aria-label="Вперёд" disabled={view.idx >= view.stack.length - 1} onClick={() => setView((v) => ({ ...v, idx: v.idx + 1 }))}><ArrowRight size={15} /></button>
-              {viewerDoc && <span className="play-viewer-title">{viewerDoc.title}</span>}
-              {viewerProposed && <span className="play-viewer-title">{viewerProposed.title} <span className="play-proposed-tag">предлагается создать</span></span>}
-              {viewerDoc && (
-                <button
-                  type="button"
-                  className={`play-pin-btn${pins.includes(viewerDoc.id) ? " active" : ""}`}
-                  onClick={() => togglePin(viewerDoc.id)}
-                  title={pins.includes(viewerDoc.id) ? "Открепить" : "Закрепить под рукой"}
-                  aria-label={pins.includes(viewerDoc.id) ? "Открепить" : "Закрепить"}
-                >
-                  <Pin size={14} strokeWidth={1.9} />
-                </button>
-              )}
-            </div>
-            {pinnedDocs.length > 0 && (
-              <div className="play-pins">
-                {pinnedDocs.map((d) => (
-                  <span key={d.id} className={`play-pin${viewerId === d.id ? " active" : ""}`}>
-                    <button type="button" className="play-pin-open" onClick={() => openDoc(d.id)} title={d.title}>
-                      <TypeBadge type={d.type} size={14} /> <span>{d.title}</span>
-                    </button>
-                    <button type="button" className="play-pin-x" onClick={() => togglePin(d.id)} aria-label="Открепить">×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="play-viewer-body">
-              {viewerDoc ? (
-                <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(viewerDoc.contentJson) }} />
-              ) : viewerProposed ? (
-                <div className="play-proposed">
-                  <div className="play-proposed-head"><TypeTag type={viewerProposed.type} /></div>
-                  {viewerProposed.text ? <Markdown>{viewerProposed.text}</Markdown> : <p className="muted">Описание появится после создания.</p>}
-                </div>
-              ) : (
-                <p className="muted play-viewer-empty">Кликните по ссылке в сессии, чтобы открыть документ здесь.</p>
-              )}
-            </div>
-          </div>
+          {!playerView && (
+            <GameLogPanel messages={chat.messages} onJump={jumpToMessage} onToggleImportant={(id) => void chat.toggleImportant(id)} />
+          )}
 
           <div className="play-panel">
             <div className="play-tabs2">
-              <button type="button" className={tab === "log" ? "active" : ""} onClick={() => setTab("log")}>Лог сессии</button>
-              <button type="button" className={tab === "assistant" ? "active" : ""} onClick={() => setTab("assistant")}>Ассистент</button>
+              <button type="button" className={tab === "scenario" ? "active" : ""} onClick={() => setTab("scenario")}>Сценарий</button>
+              <button type="button" className={tab === "docs" ? "active" : ""} onClick={() => setTab("docs")}>Документы</button>
               <button type="button" className={tab === "combat" ? "active" : ""} onClick={() => setTab("combat")}>Бой</button>
-              {tab === "log" && <span className={`play-draft${logSaved ? " saved" : ""}`}>{logSaved ? "Сохранено" : "Черновик"}</span>}
             </div>
-            {/* Обе панели смонтированы всегда — переключение прячет, а не размонтирует,
-                чтобы не терялись состояние ассистента (например, «применено») и черновик. */}
-            <div className="play-log-wrap" style={{ display: tab === "log" ? undefined : "none" }}>
-              <textarea
-                className="play-log"
-                placeholder="Записывайте, что происходит — имена, решения, добыча. Введите «@», чтобы сослаться на что угодно в кампании."
-                value={log}
-                onChange={(e) => setLog(e.target.value)}
-              />
-              <div className="play-log-bar">
-                <button type="button" className="play-log-ai" onClick={aiAppendLog} disabled={logAiBusy} title="ИИ выпишет важные события из чата и текста сессии и допишет их в лог">
-                  <Sparkles size={13} /> {logAiBusy ? "Дописываю…" : "Дописать в лог с ИИ"}
-                </button>
+            {/* Все вкладки смонтированы всегда — переключение прячет, а не размонтирует. */}
+            <div
+              className="play-content play-scenario"
+              style={{ display: tab === "scenario" ? undefined : "none" }}
+              ref={contentRef}
+              onClick={(e) => {
+                const a = (e.target as HTMLElement).closest("a.play-link") as HTMLElement | null;
+                if (!a?.dataset.docId) return;
+                e.preventDefault();
+                // Одноимённые документы: повторный клик открывает следующий по кругу.
+                const ids = a.dataset.docIds ? a.dataset.docIds.split(",") : [];
+                if (ids.length > 1) openDoc(ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length]);
+                else openDoc(a.dataset.docId);
+              }}
+            >
+              {sections.length === 0 ? (
+                <p className="muted">Сессия пуста — заполните её на странице документа.</p>
+              ) : (
+                sections.map((sec, i) => {
+                  const gm = isGmOnly(sec.heading);
+                  if (playerView && gm) return null;
+                  return (
+                    <div key={i} className={`play-section${gm ? " gm" : ""}`}>
+                      {sec.heading && (
+                        <div className="play-section-bar">
+                          <button type="button" className="play-eye" onClick={() => toggleSectionVis(sec.heading!)} title={gm ? "Виден игрокам (снять пометку)" : "Пометить «только мастер»"}>
+                            {gm ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                          {gm && <span className="play-section-lock">только мастер</span>}
+                        </div>
+                      )}
+                      <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(sec.doc) }} />
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="play-viewer" style={{ display: tab === "docs" ? undefined : "none" }}>
+              <div className="play-viewer-nav">
+                <button type="button" title="Назад" aria-label="Назад" disabled={view.idx <= 0} onClick={() => setView((v) => ({ ...v, idx: v.idx - 1 }))}><ArrowLeft size={15} /></button>
+                <button type="button" title="Вперёд" aria-label="Вперёд" disabled={view.idx >= view.stack.length - 1} onClick={() => setView((v) => ({ ...v, idx: v.idx + 1 }))}><ArrowRight size={15} /></button>
+                {viewerDoc && <span className="play-viewer-title">{viewerDoc.title}</span>}
+                {viewerProposed && <span className="play-viewer-title">{viewerProposed.title} <span className="play-proposed-tag">предлагается создать</span></span>}
+                {viewerDoc && (
+                  <button
+                    type="button"
+                    className={`play-pin-btn${pins.includes(viewerDoc.id) ? " active" : ""}`}
+                    onClick={() => togglePin(viewerDoc.id)}
+                    title={pins.includes(viewerDoc.id) ? "Открепить" : "Закрепить под рукой"}
+                    aria-label={pins.includes(viewerDoc.id) ? "Открепить" : "Закрепить"}
+                  >
+                    <Pin size={14} strokeWidth={1.9} />
+                  </button>
+                )}
+              </div>
+              {pinnedDocs.length > 0 && (
+                <div className="play-pins">
+                  {pinnedDocs.map((d) => (
+                    <span key={d.id} className={`play-pin${viewerId === d.id ? " active" : ""}`}>
+                      <button type="button" className="play-pin-open" onClick={() => openDoc(d.id)} title={d.title}>
+                        <TypeBadge type={d.type} size={14} /> <span>{d.title}</span>
+                      </button>
+                      <button type="button" className="play-pin-x" onClick={() => togglePin(d.id)} aria-label="Открепить">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="play-viewer-body">
+                {viewerDoc ? (
+                  <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(viewerDoc.contentJson) }} />
+                ) : viewerProposed ? (
+                  <div className="play-proposed">
+                    <div className="play-proposed-head"><TypeTag type={viewerProposed.type} /></div>
+                    {viewerProposed.text ? <Markdown>{viewerProposed.text}</Markdown> : <p className="muted">Описание появится после создания.</p>}
+                  </div>
+                ) : (
+                  <p className="muted play-viewer-empty">Кликните по ссылке в сессии, чтобы открыть документ здесь.</p>
+                )}
               </div>
             </div>
-            <div className="play-assistant" style={{ display: tab === "assistant" ? undefined : "none" }}>
-              <DocumentAssistant
-                docId={doc.id}
-                title={doc.title}
-                typeLabel={getDocumentType(doc.type)?.label ?? doc.type}
-                documents={docs.map((d) => ({ title: d.title, type: d.type }))}
-                campaignBrief={`Идёт игровая сессия «${doc.title}». Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пока пусто)"}`}
-                getText={() => pmText(doc.contentJson).trim()}
-                appliedBlocks={(doc.fields?.appliedDocBlocks as string[] | undefined) ?? []}
-                docUpdatedAt={(doc.fields?.contentUpdatedAt as string | undefined) ?? doc.updatedAt}
-                onApply={applyToSession}
-                onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
-                onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
-                onMessage={openMentionedDocs}
-                onProposeDoc={showProposedDoc}
-              />
-            </div>
+
             <div className="play-combat-wrap" style={{ display: tab === "combat" ? undefined : "none" }}>
               <CombatTracker
                 combat={(doc.fields?.combat as CombatState) ?? null}
