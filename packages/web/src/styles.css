@@ -1249,6 +1249,11 @@ a.mention:hover { filter: brightness(1.12); }
 .apply-new-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
 .apply-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; border-radius: 0; }
 .apply-done { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.85rem; color: var(--success, #4ade80); }
+/* Устаревшее предложение: документ менялся после сообщения ИИ */
+.apply-stale .apply-preview { opacity: 0.65; }
+.apply-stale-note { padding: 8px 12px; font-size: 0.8rem; color: var(--muted); background: var(--surface-2); border-top: 1px solid var(--border); }
+.apply-btn-ghost { background: transparent; color: var(--muted); border-top: 1px solid var(--border); font-size: 0.85rem; }
+.apply-btn-ghost:hover { color: var(--text); background: var(--surface-2); }
 
 /* ---------- Тосты ---------- */
 .toaster { position: fixed; right: 16px; bottom: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; z-index: 1000; }

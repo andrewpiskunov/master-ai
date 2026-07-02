@@ -11,16 +11,17 @@ vi.mock("../api/stream.js");
 const fence = "```";
 
 function renderAssistant(over: {
-  messages?: { role: "user" | "assistant"; content: string }[];
+  messages?: { role: "user" | "assistant"; content: string; createdAt?: string }[];
   documents?: { title: string; type: string }[];
   getText?: () => string;
   appliedBlocks?: string[];
+  docUpdatedAt?: string;
   onApply?: (t: string) => void;
   onCreateEntity?: (e: NewEntity) => void;
   onEditEntity?: (e: EditEntity) => void;
 } = {}) {
   vi.mocked(api.getDocumentConversation).mockResolvedValue(
-    (over.messages ?? []).map((m, i) => ({ id: `m${i}`, conversationId: "cv", role: m.role, content: m.content, createdAt: "x" })),
+    (over.messages ?? []).map((m, i) => ({ id: `m${i}`, conversationId: "cv", role: m.role, content: m.content, createdAt: m.createdAt ?? "x" })),
   );
   return render(
     <ToastProvider>
@@ -31,6 +32,7 @@ function renderAssistant(over: {
         documents={over.documents ?? []}
         getText={over.getText ?? (() => "")}
         appliedBlocks={over.appliedBlocks}
+        docUpdatedAt={over.docUpdatedAt}
         onApply={over.onApply ?? vi.fn()}
         onCreateEntity={over.onCreateEntity ?? vi.fn()}
         onEditEntity={over.onEditEntity ?? vi.fn()}
@@ -60,6 +62,40 @@ describe("DocumentAssistant карточки (smoke)", () => {
     });
     expect(await screen.findByText(/Применено к документу/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Применить к документу/ })).not.toBeInTheDocument();
+  });
+
+  it("карточка без ключа помечается устаревшей, если документ менялся после сообщения", async () => {
+    renderAssistant({
+      messages: [{ role: "assistant", content: `Правка.\n${fence}doc\n## Цель\nНовая цель\n${fence}`, createdAt: "2026-07-01T10:00:00.000Z" }],
+      getText: () => "Совсем другой текст",
+      docUpdatedAt: "2026-07-01T12:00:00.000Z",
+    });
+    expect(await screen.findByText(/Документ менялся после этого предложения/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Применить к документу$/ })).not.toBeInTheDocument();
+    // применить всё равно можно, но второстепенной кнопкой
+    expect(screen.getByRole("button", { name: /Применить всё равно/ })).toBeInTheDocument();
+  });
+
+  it("карточка активна, если документ не менялся после сообщения", async () => {
+    renderAssistant({
+      messages: [{ role: "assistant", content: `Правка.\n${fence}doc\n## Цель\nНовая цель\n${fence}`, createdAt: "2026-07-01T12:00:00.000Z" }],
+      getText: () => "Старый текст",
+      docUpdatedAt: "2026-07-01T10:00:00.000Z",
+    });
+    expect(await screen.findByRole("button", { name: /Применить к документу/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Документ менялся после этого предложения/)).not.toBeInTheDocument();
+  });
+
+  it("персистентный ключ важнее устаревания: блок с ключом показан применённым", async () => {
+    const inner = "## Цель\nНовая цель";
+    renderAssistant({
+      messages: [{ role: "assistant", content: `Правка.\n${fence}doc\n${inner}\n${fence}`, createdAt: "2026-07-01T10:00:00.000Z" }],
+      appliedBlocks: [blockKey(inner)],
+      getText: () => "Совсем другой текст",
+      docUpdatedAt: "2026-07-01T12:00:00.000Z",
+    });
+    expect(await screen.findByText(/Применено к документу/)).toBeInTheDocument();
+    expect(screen.queryByText(/Документ менялся после этого предложения/)).not.toBeInTheDocument();
   });
 
   it("карточка создания сущности: активна, когда сущности ещё нет", async () => {

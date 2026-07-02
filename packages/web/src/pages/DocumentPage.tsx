@@ -52,6 +52,10 @@ export function DocumentPage() {
   const [addingTag, setAddingTag] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const editorRef = useRef<DocumentEditorHandle>(null);
+  // Актуальные fields для обработчиков, которые могут сработать до ре-рендера
+  // (например, два применения doc-блоков подряд) — иначе второй PATCH затрёт ключ первого.
+  const fieldsRef = useRef<Record<string, unknown>>({});
+  useEffect(() => { fieldsRef.current = fields; }, [fields]);
   // Снимок последнего сохранённого состояния — чтобы автосохранение не дёргало сервер зря.
   const savedRef = useRef<{ title: string; content: string } | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -119,6 +123,30 @@ export function DocumentPage() {
   function removeTag(t: string) {
     const cur = Array.isArray(fields.tags) ? (fields.tags as string[]) : [];
     patchDoc({ fields: { ...fields, tags: cur.filter((x) => x !== t) } });
+  }
+
+  // Применяет блок ```doc``` от ассистента: контент и персистентная отметка «применено»
+  // уходят одним PATCH — ключ не теряется при быстрой навигации и повторных применениях
+  // (автосохранение с задержкой 700 мс для этого недостаточно надёжно).
+  async function applyDocBlock(text: string) {
+    if (!documentId) return;
+    editorRef.current?.applyText(text);
+    const prevFields = fieldsRef.current;
+    const prev = (prevFields.appliedDocBlocks as string[] | undefined) ?? [];
+    const key = blockKey(text);
+    const nextFields = prev.includes(key) ? prevFields : { ...prevFields, appliedDocBlocks: [...prev, key] };
+    fieldsRef.current = nextFields;
+    setFields(nextFields);
+    showToast("Текст применён");
+    try {
+      const updated = await api.updateDocument(documentId, { contentJson: markdownToDoc(text), fields: nextFields });
+      setDoc(updated);
+      savedRef.current = { title: updated.title, content: JSON.stringify(updated.contentJson) };
+      setSaveState("saved");
+      campaignCtx?.reload();
+    } catch {
+      showToast("Не удалось сохранить");
+    }
   }
 
   // Создаёт новую сущность по предложению ИИ и связывает её с текущим документом.
@@ -415,13 +443,8 @@ export function DocumentPage() {
                 campaignBrief={campaignCtx?.campaign?.description ?? undefined}
                 getText={() => pmText(contentJson).trim()}
                 appliedBlocks={(fields.appliedDocBlocks as string[] | undefined) ?? []}
-                onApply={(text) => {
-                  editorRef.current?.applyText(text);
-                  const key = blockKey(text);
-                  const prev = (fields.appliedDocBlocks as string[] | undefined) ?? [];
-                  if (!prev.includes(key)) patchDoc({ fields: { ...fields, appliedDocBlocks: [...prev, key] } });
-                  showToast("Текст применён");
-                }}
+                docUpdatedAt={doc.updatedAt}
+                onApply={applyDocBlock}
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
               />

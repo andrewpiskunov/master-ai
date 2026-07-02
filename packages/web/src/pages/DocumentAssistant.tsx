@@ -11,7 +11,7 @@ import { MentionTextarea } from "../ui/MentionTextarea.js";
 import { useToast } from "../ui/toast.js";
 import { TypeTag } from "./campaign/shared.js";
 
-interface Msg { role: "user" | "assistant"; content: string }
+interface Msg { role: "user" | "assistant"; content: string; createdAt?: string }
 export interface NewEntity { type: string; title: string; text: string }
 export interface EditEntity { title: string; rename?: string; text?: string }
 
@@ -127,6 +127,7 @@ export function DocumentAssistant({
   campaignBrief,
   getText,
   appliedBlocks,
+  docUpdatedAt,
   onApply,
   onCreateEntity,
   onEditEntity,
@@ -142,6 +143,9 @@ export function DocumentAssistant({
   getText: () => string;
   // Ключи блоков ```doc```, уже применённых к документу (из fields) — переживают перезаход.
   appliedBlocks?: string[];
+  // updatedAt документа: блоки из сообщений старше него без персистентного ключа
+  // помечаются устаревшими (легаси-правки до появления appliedDocBlocks).
+  docUpdatedAt?: string;
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => void;
   onEditEntity: (edit: EditEntity) => void;
@@ -170,7 +174,7 @@ export function DocumentAssistant({
     let cancelled = false;
     setAppliedLocal(new Set());
     api.getDocumentConversation(docId)
-      .then((msgs) => { if (!cancelled) setMessages(msgs.map((m) => ({ role: m.role, content: m.content }))); })
+      .then((msgs) => { if (!cancelled) setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt }))); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [docId]);
@@ -265,6 +269,14 @@ export function DocumentAssistant({
     if ((appliedBlocks ?? []).includes(blockKey(block))) return true; // персистентная отметка из fields
     try { return pmText(markdownToDoc(block)).trim() === currentText; } catch { return false; }
   };
+  // Сообщение «устарело», если документ сохранялся после него: применять такой блок
+  // рискованно (перезапишет более свежие правки), а «оживать» после перезахода он не должен.
+  const isStale = (m: Msg): boolean => {
+    if (!docUpdatedAt || !m.createdAt) return false;
+    const mt = Date.parse(m.createdAt);
+    const dt = Date.parse(docUpdatedAt);
+    return Number.isFinite(mt) && Number.isFinite(dt) && mt < dt;
+  };
   // Сущность считаем созданной, если её отметили локально или документ с таким названием
   // уже есть в кампании — это переживает перезаход без отдельного хранилища.
   const entityKey = (e: NewEntity) => `${e.type}:${e.title.trim().toLowerCase()}`;
@@ -302,6 +314,14 @@ export function DocumentAssistant({
                     {doc && (
                       isApplied(doc) ? (
                         <div className="apply-done"><Check size={15} /> Применено к документу</div>
+                      ) : isStale(m) ? (
+                        <div className="apply-card apply-stale">
+                          <DiffPreview current={currentText} proposed={pmText(markdownToDoc(doc)).trim()} />
+                          <div className="apply-stale-note">Документ менялся после этого предложения — применение перезапишет более свежий текст.</div>
+                          <button type="button" className="apply-btn apply-btn-ghost" onClick={() => { onApply(doc); setAppliedLocal((s) => new Set(s).add(doc)); }}>
+                            Применить всё равно
+                          </button>
+                        </div>
                       ) : (
                         <div className="apply-card">
                           <DiffPreview current={currentText} proposed={pmText(markdownToDoc(doc)).trim()} />
