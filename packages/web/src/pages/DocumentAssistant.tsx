@@ -15,6 +15,16 @@ interface Msg { role: "user" | "assistant"; content: string }
 export interface NewEntity { type: string; title: string; text: string }
 export interface EditEntity { title: string; rename?: string; text?: string }
 
+// Стабильный ключ блока ```doc``` — чтобы персистентно помнить, что его уже применяли.
+// Сравнение по тексту документа ненадёжно: markdown→doc→text расходится с сохранённым
+// контентом на сложном форматировании (списки, жирный, кавычки), и карточка «оживает».
+export function blockKey(block: string): string {
+  const s = block.trim();
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return `${(h >>> 0).toString(36)}:${s.length}`;
+}
+
 const dequote = (s: string) => s.trim().replace(/^[«"']|[»"']$/g, "");
 
 // Разбирает блоки ```edit-doc … ``` — изменение существующих документов (переименование/правка).
@@ -116,6 +126,7 @@ export function DocumentAssistant({
   documents,
   campaignBrief,
   getText,
+  appliedBlocks,
   onApply,
   onCreateEntity,
   onEditEntity,
@@ -129,6 +140,8 @@ export function DocumentAssistant({
   documents: { title: string; type: string }[];
   campaignBrief?: string;
   getText: () => string;
+  // Ключи блоков ```doc```, уже применённых к документу (из fields) — переживают перезаход.
+  appliedBlocks?: string[];
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => void;
   onEditEntity: (edit: EditEntity) => void;
@@ -249,6 +262,7 @@ export function DocumentAssistant({
   const currentText = getText().trim();
   const isApplied = (block: string): boolean => {
     if (appliedLocal.has(block)) return true;
+    if ((appliedBlocks ?? []).includes(blockKey(block))) return true; // персистентная отметка из fields
     try { return pmText(markdownToDoc(block)).trim() === currentText; } catch { return false; }
   };
   // Сущность считаем созданной, если её отметили локально или документ с таким названием

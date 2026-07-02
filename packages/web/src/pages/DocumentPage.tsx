@@ -8,7 +8,7 @@ import { useGoBack } from "../useGoBack.js";
 import { useToast } from "../ui/toast.js";
 import { Select } from "../ui/Select.js";
 import { Modal } from "../ui/Modal.js";
-import { DocumentAssistant, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
+import { DocumentAssistant, blockKey, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
 import { PlayPanel } from "./PlayPanel.js";
 import { MentionedInPanel } from "./MentionedInPanel.js";
 import { ChangeTypeMenu, typeColor, typeColors, useCampaign } from "./campaign/shared.js";
@@ -414,7 +414,14 @@ export function DocumentPage() {
                 documents={allDocuments.map((d) => ({ title: d.title, type: d.type }))}
                 campaignBrief={campaignCtx?.campaign?.description ?? undefined}
                 getText={() => pmText(contentJson).trim()}
-                onApply={(text) => { editorRef.current?.applyText(text); showToast("Текст применён"); }}
+                appliedBlocks={(fields.appliedDocBlocks as string[] | undefined) ?? []}
+                onApply={(text) => {
+                  editorRef.current?.applyText(text);
+                  const key = blockKey(text);
+                  const prev = (fields.appliedDocBlocks as string[] | undefined) ?? [];
+                  if (!prev.includes(key)) patchDoc({ fields: { ...fields, appliedDocBlocks: [...prev, key] } });
+                  showToast("Текст применён");
+                }}
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
               />

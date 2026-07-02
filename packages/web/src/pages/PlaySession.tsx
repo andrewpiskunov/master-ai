@@ -9,7 +9,7 @@ import { Markdown } from "../ui/Markdown.js";
 import { contentToHtml } from "../editor/contentToHtml.js";
 import { pmText } from "../prosemirror-text.js";
 import { markdownToDoc } from "../editor/DocumentEditor.js";
-import { DocumentAssistant, type NewEntity } from "./DocumentAssistant.js";
+import { DocumentAssistant, blockKey, type NewEntity } from "./DocumentAssistant.js";
 import { CombatTracker, type CombatState } from "./CombatTracker.js";
 import { TypeTag, TypeBadge } from "./campaign/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../mentions.js";
@@ -186,9 +186,14 @@ export function PlaySession() {
   }
 
   // Применяет предложенный ассистентом текст к самому документу сессии и обновляет левую панель.
+  // Отмечаем блок применённым в fields — чтобы карточка не «оживала» после перезахода.
   function applyToSession(text: string) {
     if (!doc || !documentId) return;
-    api.updateDocument(documentId, { contentJson: markdownToDoc(text) })
+    const prevFields = docRef.current?.fields ?? {};
+    const prev = (prevFields.appliedDocBlocks as string[] | undefined) ?? [];
+    const key = blockKey(text);
+    const appliedDocBlocks = prev.includes(key) ? prev : [...prev, key];
+    api.updateDocument(documentId, { contentJson: markdownToDoc(text), fields: { ...prevFields, appliedDocBlocks } })
       .then((updated) => { setDoc(updated); showToast("Документ обновлён"); })
       .catch(() => showToast("Не удалось обновить документ"));
   }
@@ -426,6 +431,7 @@ export function PlaySession() {
                 documents={docs.map((d) => ({ title: d.title, type: d.type }))}
                 campaignBrief={`Идёт игровая сессия «${doc.title}». Текст сессии:\n${pmText(doc.contentJson).trim()}\n\nЛог за столом:\n${log || "(пока пусто)"}`}
                 getText={() => pmText(doc.contentJson).trim()}
+                appliedBlocks={(doc.fields?.appliedDocBlocks as string[] | undefined) ?? []}
                 onApply={applyToSession}
                 onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
                 onEditEntity={() => showToast("Изменяйте документы вне режима игры")}

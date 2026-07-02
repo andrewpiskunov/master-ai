@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { DocumentAssistant, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
+import { DocumentAssistant, blockKey, type NewEntity, type EditEntity } from "./DocumentAssistant.js";
 import { api } from "../api/client.js";
 import { ToastProvider } from "../ui/toast.js";
 
@@ -14,6 +14,7 @@ function renderAssistant(over: {
   messages?: { role: "user" | "assistant"; content: string }[];
   documents?: { title: string; type: string }[];
   getText?: () => string;
+  appliedBlocks?: string[];
   onApply?: (t: string) => void;
   onCreateEntity?: (e: NewEntity) => void;
   onEditEntity?: (e: EditEntity) => void;
@@ -29,6 +30,7 @@ function renderAssistant(over: {
         typeLabel="Заметка"
         documents={over.documents ?? []}
         getText={over.getText ?? (() => "")}
+        appliedBlocks={over.appliedBlocks}
         onApply={over.onApply ?? vi.fn()}
         onCreateEntity={over.onCreateEntity ?? vi.fn()}
         onEditEntity={over.onEditEntity ?? vi.fn()}
@@ -48,6 +50,16 @@ describe("DocumentAssistant карточки (smoke)", () => {
     await userEvent.click(btn);
     expect(onApply).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.getByText(/Применено к документу/)).toBeInTheDocument());
+  });
+
+  it("apply-карточка свёрнута, если блок уже отмечен применённым (переживает перезаход)", async () => {
+    const inner = "## Цель\nНовая цель"; // содержимое блока ```doc```, по нему считается ключ
+    renderAssistant({
+      messages: [{ role: "assistant", content: `Правка.\n${fence}doc\n${inner}\n${fence}` }],
+      appliedBlocks: [blockKey(inner)],
+    });
+    expect(await screen.findByText(/Применено к документу/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Применить к документу/ })).not.toBeInTheDocument();
   });
 
   it("карточка создания сущности: активна, когда сущности ещё нет", async () => {
