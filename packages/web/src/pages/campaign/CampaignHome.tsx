@@ -4,7 +4,7 @@ import { Bookmark, Clock, Plus, FileText, Play, ArrowRight, ExternalLink, PartyP
 import { DOCUMENT_TYPES, getDocumentType, statusLabel, type Document } from "@master-ai/shared";
 import { useBookmarks } from "../../bookmarks.js";
 import { prepareMentions, matchMentions } from "../../mentions.js";
-import { DocCard, TypeBadge, TypeTag, TypeSection, useCampaign } from "./shared.js";
+import { DocCard, TypeBadge, TypeTag, useCampaign } from "./shared.js";
 import { pmText } from "../../prosemirror-text.js";
 import { CampaignOnboarding, foundationDoneCount } from "./CampaignOnboarding.js";
 import { ConsistencyCheck } from "./ConsistencyCheck.js";
@@ -56,6 +56,7 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
   const docHref = (id: string) => `/campaigns/${campaignId}/documents/${id}`;
   const playHref = (id: string) => `/campaigns/${campaignId}/sessions/${id}/play`;
   const [selectedId, setSelectedId] = useState(current?.id);
+  const [showAllLinked, setShowAllLinked] = useState(false);
   const selected = sorted.find((s) => s.id === selectedId) ?? current;
   // Документы, упомянутые (@) в выбранной сессии — её «связанные документы».
   const linked = (() => {
@@ -94,7 +95,7 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
         </div>
         <ul className="sessions-list">
           {sorted.map((s) => (
-            <li key={s.id} className={`sessions-row${s.id === selectedId ? " selected" : ""}`} onClick={() => setSelectedId(s.id)}>
+            <li key={s.id} className={`sessions-row${s.id === selectedId ? " selected" : ""}`} onClick={() => { setSelectedId(s.id); setShowAllLinked(false); }}>
               <FileText size={16} strokeWidth={1.7} className="sessions-row-icon" />
               <span className="sessions-row-title">{s.title}</span>
               <SessionStatus doc={s} />
@@ -113,17 +114,24 @@ function SessionsBoard({ campaignId, sessions, documents, onNew }: { campaignId:
             {linked.length === 0 ? (
               <p className="muted sessions-preview-empty">Свяжите документы через «@»-упоминания в тексте сессии — и они появятся здесь.</p>
             ) : (
-              <ul className="sessions-linked">
-                {linked.map((d) => (
-                  <li key={d.id}>
-                    <Link to={docHref(d.id)} className="sessions-linked-item">
-                      <TypeBadge type={d.type} size={20} />
-                      <span className="sessions-linked-title">{d.title}</span>
-                      <TypeTag type={d.type} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="sessions-linked">
+                  {(showAllLinked ? linked : linked.slice(0, 6)).map((d) => (
+                    <li key={d.id}>
+                      <Link to={docHref(d.id)} className="sessions-linked-item">
+                        <TypeBadge type={d.type} size={20} />
+                        <span className="sessions-linked-title">{d.title}</span>
+                        <TypeTag type={d.type} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {linked.length > 6 && (
+                  <button type="button" className="sessions-linked-more" onClick={() => setShowAllLinked((v) => !v)}>
+                    {showAllLinked ? "Свернуть" : `Показать все (${linked.length})`}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -201,7 +209,7 @@ export function CampaignHome() {
             </section>
           )}
 
-          {present.length === 0 && bookmarked.length === 0 ? (
+          {present.length === 0 && bookmarked.length === 0 && (
             <section className="panel home2-empty">
               <h2>С чего начать</h2>
               <p className="muted">
@@ -213,8 +221,6 @@ export function CampaignHome() {
                 <Link className="btn btn-ghost" to="knowledge">База знаний</Link>
               </div>
             </section>
-          ) : (
-            present.map((t) => <TypeSection key={t} type={t} documents={documents} view="grid" />)
           )}
         </div>
 
