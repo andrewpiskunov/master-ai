@@ -24,6 +24,7 @@ export function DocumentAssistant({
   onEditEntity,
   onMessage,
   onProposeDoc,
+  clearConfirmText,
 }: {
   docId: string;
   title: string;
@@ -46,6 +47,9 @@ export function DocumentAssistant({
   // Вызывается, когда ассистент предлагает создать новую сущность — режим игры
   // показывает её превью в просмотрщике (документа ещё нет в базе).
   onProposeDoc?: (entity: NewEntity) => void;
+  // Текст второго шага подтверждения очистки беседы. У документов типа «session»
+  // передаётся особый текст: беседа общая с режимом игры, в мета-полях — лог событий.
+  clearConfirmText?: string;
 }) {
   const { showToast } = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -240,7 +244,7 @@ export function DocumentAssistant({
             }}
             title="Удалить историю беседы с ассистентом по этому документу"
           >
-            <Trash2 size={13} /> {confirmClear ? "Точно очистить?" : "Очистить беседу"}
+            <Trash2 size={13} /> {confirmClear ? (clearConfirmText ?? "Точно очистить?") : "Очистить беседу"}
           </button>
         )}
       </div>

@@ -45,6 +45,9 @@ export function useGameChat(docId: string, onAssistantMessage?: (content: string
           setMessages(msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, meta: m.meta })));
           const last = msgs[msgs.length - 1];
           if (notify && last?.role === "assistant") onAssistantMessage?.(last.content);
+        } else {
+          // Сервер недоступен: убираем пустую заглушку ответа, чтобы не висел вечный «печатает».
+          setMessages((prev) => (prev[prev.length - 1]?.role === "assistant" && !prev[prev.length - 1].content ? prev.slice(0, -1) : prev));
         }
         setBusy(false);
         return;

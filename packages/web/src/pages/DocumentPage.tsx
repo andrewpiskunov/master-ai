@@ -465,6 +465,8 @@ export function DocumentPage() {
                 onApply={applyDocBlock}
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
+                // У сессий беседа общая с режимом игры, в мета-полях — лог событий: предупреждаем.
+                clearConfirmText={doc.type === "session" ? "Удалится и игровой чат с логом событий — точно?" : undefined}
               />
             </div>
             {panel === "play" && <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />}
