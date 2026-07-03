@@ -23,7 +23,17 @@ describe("extractLogBlock", () => {
   });
 
   it("без блока — текст как есть", () => {
-    expect(extractLogBlock("Просто ответ")).toEqual({ log: null, rest: "Просто ответ" });
+    expect(extractLogBlock("Просто ответ")).toEqual({ log: null, rest: "Просто ответ", after: "" });
+  });
+
+  it("текст после log-блока отдаётся отдельно (after)", () => {
+    const { log, rest, after } = extractLogBlock(
+      "## Прочитай игрокам\nСцена.\n```log\n{\"title\": \"Событие\", \"important\": false}\n```\nПродолжение сцены после блока.",
+    );
+    expect(log?.title).toBe("Событие");
+    expect(rest).toContain("Сцена.");
+    expect(rest).not.toContain("Продолжение");
+    expect(after).toBe("Продолжение сцены после блока.");
   });
 
   it("important не-boolean трактуется как false", () => {

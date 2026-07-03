@@ -201,9 +201,14 @@ export function GameChat({
         ) : (
           <div key={m.id ?? `i${i}`} className="msg gmsg-ai" data-msg-id={m.id}>
             <div className="msg-role">ИИ-мастер</div>
-            {m.content ? (
+            {m.content ? (() => {
+              // По контракту log-блок завершает ответ; если модель дописала сцену после него,
+              // показываем хвост обычным текстом — он не «скрытое» и не должен краситься жёлтым.
+              const { rest, after } = extractLogBlock(m.content);
+              return (
+              <>
               <AssistantAnswer
-                content={extractLogBlock(m.content).rest}
+                content={rest}
                 stale={isStale(m)}
                 currentText={currentText}
                 appliedBlocks={appliedBlocks}
@@ -232,7 +237,10 @@ export function GameChat({
                   );
                 }}
               />
-            ) : (
+              {after && <Markdown mentions={feedMentions}>{after}</Markdown>}
+              </>
+              );
+            })() : (
               <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
             )}
           </div>

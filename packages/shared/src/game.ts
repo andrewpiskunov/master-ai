@@ -16,23 +16,26 @@ export interface MessageMeta {
 
 // Вырезает служебный блок ```log {"title":…,"important":…}``` из ответа ИИ.
 // Незакрытый блок (стрим ещё идёт) — прячем хвост; битый JSON — блок убираем, log null.
-export function extractLogBlock(text: string): { log: GameLogEntry | null; rest: string } {
+// after — текст ПОСЛЕ log-блока: по контракту блок завершает ответ, но модель может
+// дописать продолжение сцены; отдаём его отдельно, чтобы UI не красил его «скрытым».
+export function extractLogBlock(text: string): { log: GameLogEntry | null; rest: string; after: string } {
   const fence = /```log\s*\n?([\s\S]*?)```/.exec(text);
   if (!fence) {
     const open = text.indexOf("```log");
-    if (open >= 0) return { log: null, rest: text.slice(0, open) };
-    return { log: null, rest: text };
+    if (open >= 0) return { log: null, rest: text.slice(0, open), after: "" };
+    return { log: null, rest: text, after: "" };
   }
-  const rest = text.replace(fence[0], "").trim();
+  const rest = text.slice(0, fence.index).trim();
+  const after = text.slice(fence.index + fence[0].length).trim();
   try {
     const parsed = JSON.parse(fence[1].trim()) as { title?: unknown; important?: unknown };
     if (typeof parsed.title === "string" && parsed.title.trim()) {
-      return { log: { title: parsed.title.trim(), important: parsed.important === true }, rest };
+      return { log: { title: parsed.title.trim(), important: parsed.important === true }, rest, after };
     }
   } catch {
     // битый JSON — событие потеряно не будет: сервер подставит заголовок из действия
   }
-  return { log: null, rest };
+  return { log: null, rest, after };
 }
 
 // Заголовок записи лога, когда ИИ не вернул log-блок: первые слова действия.
