@@ -600,4 +600,31 @@ describe("игровой режим ассистента и PATCH меты со�
     const res = await app.inject({ method: "PATCH", url: "/api/messages/nope/meta", payload: { log: { title: "x", important: true } } });
     expect(res.statusCode).toBe(404);
   });
+
+  it("игровой режим: история для LLM уходит без служебных log-блоков, содержимое сохраняется", async () => {
+    const { db } = createDb(":memory:");
+    const seen: string[] = [];
+    const reply = "## Прочитай игрокам\nСцена.\n```log\n{\"title\": \"Событие\", \"important\": false}\n```\nХвост после блока.";
+    const llm = {
+      async *complete(input: { messages: { content: string }[] }) {
+        seen.push(input.messages.map((m) => m.content).join("\n---\n"));
+        yield reply;
+      },
+    };
+    const app = buildApp({ db, llm: llm as unknown as LLMProvider });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const s = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "session", title: "Сессия 1" } })).json();
+
+    const game = { mode: "game", meta: { actorName: "Фури", actorKind: "pc" } };
+    await app.inject({ method: "POST", url: `/api/documents/${s.id}/assistant`, payload: { message: "первое действие", ...game } });
+    await waitAssistant(app, s.id);
+    await app.inject({ method: "POST", url: `/api/documents/${s.id}/assistant`, payload: { message: "второе действие", ...game } });
+    await waitAssistant(app, s.id);
+
+    // Во втором вызове история содержит первый ответ ИИ: без log-блока, но с хвостом.
+    const second = seen[seen.length - 1];
+    expect(second).toContain("Сцена.");
+    expect(second).toContain("Хвост после блока.");
+    expect(second).not.toContain("```log");
+  });
 });

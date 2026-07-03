@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Lock, Plus, Send, Square, Star, User } from "lucide-react";
-import { extractLogBlock, parseGameSections, type MessageMeta } from "@master-ai/shared";
+import { dedupeGameTail, extractLogBlock, parseGameSections, type MessageMeta } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
@@ -204,7 +204,10 @@ export function GameChat({
             {m.content ? (() => {
               // По контракту log-блок завершает ответ; если модель дописала сцену после него,
               // показываем хвост обычным текстом — он не «скрытое» и не должен краситься жёлтым.
-              const { rest, after } = extractLogBlock(m.content);
+              // Абзацы хвоста, дословно повторяющие уже показанный текст, отбрасываем.
+              const parts = extractLogBlock(m.content);
+              const rest = parts.rest;
+              const after = dedupeGameTail(parts.after, parts.rest);
               return (
               <>
               <AssistantAnswer
@@ -218,6 +221,8 @@ export function GameChat({
                 onEditEntity={onEditEntity}
                 renderIntro={(intro) => {
                   const s = parseGameSections(intro);
+                  // Модель может продублировать сцену внутри «Скрытого» — вычищаем повторы.
+                  const hidden = s.hidden ? dedupeGameTail(s.hidden, [s.intro, s.read].filter(Boolean).join("\n")) : null;
                   return (
                     <>
                       {s.intro && <Markdown mentions={feedMentions}>{s.intro}</Markdown>}
@@ -227,10 +232,10 @@ export function GameChat({
                           <Markdown mentions={feedMentions}>{s.read}</Markdown>
                         </div>
                       )}
-                      {s.hidden && !playerView && (
+                      {hidden && !playerView && (
                         <div className="game-hidden">
                           <div className="game-block-head"><Lock size={14} /> Скрытое для мастера</div>
-                          <Markdown mentions={feedMentions}>{s.hidden}</Markdown>
+                          <Markdown mentions={feedMentions}>{hidden}</Markdown>
                         </div>
                       )}
                     </>

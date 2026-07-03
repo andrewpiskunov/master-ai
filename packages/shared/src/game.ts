@@ -38,6 +38,28 @@ export function extractLogBlock(text: string): { log: GameLogEntry | null; rest:
   return { log: null, rest, after };
 }
 
+// Версия ответа для истории LLM: без служебного log-блока (текст до и после склеен).
+// Модель не должна видеть в истории паттерн «текст после log-блока» — иначе имитирует его.
+export function stripLogFence(text: string): string {
+  const { rest, after } = extractLogBlock(text);
+  return [rest, after].filter(Boolean).join("\n\n");
+}
+
+// Убирает из хвоста after абзацы, дословно повторяющие уже показанный текст rest
+// (модель в длинном контексте склонна переписывать сцену заново после log-блока).
+export function dedupeGameTail(after: string, rest: string): string {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+  const restNorm = norm(rest);
+  return after
+    .split(/\n{2,}/)
+    .filter((p) => {
+      const n = norm(p);
+      return n && !restNorm.includes(n);
+    })
+    .join("\n\n")
+    .trim();
+}
+
 // Заголовок записи лога, когда ИИ не вернул log-блок: первые слова действия.
 export function fallbackLogTitle(action: string, max = 60): string {
   const s = action.trim().replace(/\s+/g, " ");

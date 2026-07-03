@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractLogBlock, fallbackLogTitle, parseGameSections } from "./game.js";
+import { dedupeGameTail, extractLogBlock, fallbackLogTitle, parseGameSections, stripLogFence } from "./game.js";
 
 describe("extractLogBlock", () => {
   it("вырезает закрытый log-блок и парсит JSON", () => {
@@ -39,6 +39,33 @@ describe("extractLogBlock", () => {
   it("important не-boolean трактуется как false", () => {
     const { log } = extractLogBlock("```log\n{\"title\": \"Событие\", \"important\": \"да\"}\n```");
     expect(log).toEqual({ title: "Событие", important: false });
+  });
+});
+
+describe("stripLogFence", () => {
+  it("удаляет log-блок, склеивая текст до и после", () => {
+    const s = stripLogFence("Сцена.\n```log\n{\"title\": \"Событие\", \"important\": false}\n```\nПродолжение.");
+    expect(s).toBe("Сцена.\n\nПродолжение.");
+    expect(s).not.toContain("```log");
+  });
+  it("текст без блока — как есть", () => {
+    expect(stripLogFence("Просто ответ")).toBe("Просто ответ");
+  });
+});
+
+describe("dedupeGameTail", () => {
+  it("убирает абзацы, дословно повторяющие показанный текст", () => {
+    const rest = "## Прочитай игрокам\nТы входишь в зал. Свет гаснет.";
+    const after = "Ты входишь в зал. Свет гаснет.\n\nИз темноты слышен голос.";
+    expect(dedupeGameTail(after, rest)).toBe("Из темноты слышен голос.");
+  });
+  it("повтор с другими пробелами тоже считается дублем", () => {
+    const rest = "Ты входишь в зал.\nСвет гаснет.";
+    const after = "Ты входишь в зал. Свет гаснет.";
+    expect(dedupeGameTail(after, rest)).toBe("");
+  });
+  it("новый текст не трогает", () => {
+    expect(dedupeGameTail("Совсем новый абзац.", "Старая сцена.")).toBe("Совсем новый абзац.");
   });
 });
 

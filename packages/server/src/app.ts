@@ -13,6 +13,7 @@ import {
   NewLinkSchema,
   extractLogBlock,
   fallbackLogTitle,
+  stripLogFence,
   type MessageMeta,
 } from "@master-ai/shared";
 import { z } from "zod";
@@ -361,12 +362,16 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     conversationsSvc.addMessage(conv.id, "user", parsed.data.message, parsed.data.meta);
     // В LLM уходит только хвост беседы — полная история упирается в контекст модели.
     // Действия игрового чата префиксуются актором, чтобы ИИ видел, кто действует.
+    // Ответы ИИ в игровом режиме уходят в историю без служебных log-блоков —
+    // иначе модель имитирует паттерн «текст после log-блока» из своих прошлых ответов.
     const history = conversationsSvc.listMessages(conv.id).slice(-20).map((m) => ({
       role: m.role,
       content:
         m.role === "user" && m.meta?.actorName && m.meta.actorKind && m.meta.actorKind !== "master"
           ? `Действие (${m.meta.actorName}): ${m.content}`
-          : m.content,
+          : m.role === "assistant" && parsed.data.mode === "game"
+            ? stripLogFence(m.content)
+            : m.content,
     }));
     const stream = llmFor(doc.campaignId).complete({ system: parsed.data.system, messages: history });
     // Действие персонажа всегда порождает запись лога: из log-блока ответа,
