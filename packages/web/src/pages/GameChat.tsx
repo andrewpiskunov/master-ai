@@ -7,6 +7,7 @@ import { MentionTextarea } from "../ui/MentionTextarea.js";
 import { useToast } from "../ui/toast.js";
 import { AssistantAnswer } from "./AssistantAnswer.js";
 import type { EditEntity, NewEntity } from "./assistant-blocks.js";
+import type { MentionItem } from "../mentions.js";
 
 export interface Actor { kind: "pc" | "npc" | "master"; id: string | null; name: string }
 export interface GameMsg { id?: string; role: "user" | "assistant"; content: string; createdAt?: string; meta?: MessageMeta }
@@ -117,6 +118,7 @@ export type GameChatState = ReturnType<typeof useGameChat>;
 export function GameChat({
   docId, chat, pcs, npcs, documents, buildSystem, playerView,
   currentText, appliedBlocks, docUpdatedAt, onApply, onCreateEntity, onEditEntity,
+  mentions, onMentionClick,
 }: {
   docId: string;
   chat: GameChatState;
@@ -131,6 +133,10 @@ export function GameChat({
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => void;
   onEditEntity: (edit: EditEntity) => void;
+  // Сущности кампании для подсветки в ленте (пилюли, как в Мастерской); href = id документа.
+  mentions?: MentionItem[];
+  // Клик по пилюле — открыть документ (например, во вкладке «Документы»).
+  onMentionClick?: (docId: string) => void;
 }) {
   const [input, setInput] = useState("");
   const [actor, setActor] = useState<Actor>(MASTER);
@@ -167,16 +173,30 @@ export function GameChat({
   const q = npcQuery.trim().toLowerCase();
   const npcResults = (q ? npcs.filter((n) => n.title.toLowerCase().includes(q)) : npcs).slice(0, 8);
 
+  // Пилюли сущностей показываем только мастеру («Всё видно») — в показе игрокам они выдают структуру кампании.
+  const feedMentions = playerView ? undefined : mentions;
+
   return (
     <div className="game-chat">
-      <div className="chat game-feed" ref={feedRef}>
+      <div
+        className="chat game-feed"
+        ref={feedRef}
+        onClick={(e) => {
+          // Пилюля — <a href="<id документа>">: не даём браузеру перейти по «ссылке», открываем в просмотрщике.
+          const a = (e.target as HTMLElement).closest("a.mention") as HTMLAnchorElement | null;
+          if (!a) return;
+          e.preventDefault();
+          const id = a.getAttribute("href");
+          if (id && onMentionClick) onMentionClick(id);
+        }}
+      >
         {chat.messages.length === 0 && !chat.busy && (
           <p className="chat-empty">Выберите персонажа и опишите его действие — ИИ-мастер ответит. Чип «Мастер» — для вопросов без привязки к персонажу.</p>
         )}
         {chat.messages.map((m, i) => m.role === "user" ? (
           <div key={m.id ?? `i${i}`} className="msg gmsg-user" data-msg-id={m.id}>
             <div className="msg-role">{m.meta?.actorName ?? "Мастер"}</div>
-            <Markdown>{m.content}</Markdown>
+            <Markdown mentions={feedMentions}>{m.content}</Markdown>
           </div>
         ) : (
           <div key={m.id ?? `i${i}`} className="msg gmsg-ai" data-msg-id={m.id}>
@@ -195,17 +215,17 @@ export function GameChat({
                   const s = parseGameSections(intro);
                   return (
                     <>
-                      {s.intro && <Markdown>{s.intro}</Markdown>}
+                      {s.intro && <Markdown mentions={feedMentions}>{s.intro}</Markdown>}
                       {s.read && (
                         <div className="game-read">
                           <div className="game-block-head"><BookOpen size={14} /> Прочитай игрокам</div>
-                          <Markdown>{s.read}</Markdown>
+                          <Markdown mentions={feedMentions}>{s.read}</Markdown>
                         </div>
                       )}
                       {s.hidden && !playerView && (
                         <div className="game-hidden">
                           <div className="game-block-head"><Lock size={14} /> Скрытое для мастера</div>
-                          <Markdown>{s.hidden}</Markdown>
+                          <Markdown mentions={feedMentions}>{s.hidden}</Markdown>
                         </div>
                       )}
                     </>

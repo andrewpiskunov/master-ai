@@ -346,6 +346,8 @@ export function PlaySession() {
             onApply={applyToSession}
             onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
             onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
+            mentions={prepared}
+            onMentionClick={(id) => { setTab("docs"); openDoc(id); }}
           />
         </div>
 
