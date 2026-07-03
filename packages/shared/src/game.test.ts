@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dedupeGameTail, extractLogBlock, fallbackLogTitle, parseGameSections, stripLogFence } from "./game.js";
+import { dedupeGameTail, extractLogBlock, fallbackLogTitle, parseGameSections, stripChoicePrompts, stripLogFence } from "./game.js";
 
 describe("extractLogBlock", () => {
   it("вырезает закрытый log-блок и парсит JSON", () => {
@@ -66,6 +66,27 @@ describe("dedupeGameTail", () => {
   });
   it("новый текст не трогает", () => {
     expect(dedupeGameTail("Совсем новый абзац.", "Старая сцена.")).toBe("Совсем новый абзац.");
+  });
+});
+
+describe("stripChoicePrompts", () => {
+  it("убирает блок с заголовком «Как ты ответишь…?» и список пунктов-вопросов", () => {
+    const text =
+      "Голос стар и скрипуч.\n\n**Как ты ответишь Ра'Кширу Шепчущему?**\n\n" +
+      "*   Представишься и скажешь, что вы пришли за мудростью?\n*   Спросишь, кто он?\n*   Или у тебя есть другая идея?";
+    expect(stripChoicePrompts(text)).toBe("Голос стар и скрипуч.");
+  });
+  it("«Что вы делаете дальше?» тоже вычищается", () => {
+    const text = "Сцена.\n\n**Что вы делаете дальше?**\n\n* Идти к мудрецу?\n* Осмотреть библиотеку?";
+    expect(stripChoicePrompts(text)).toBe("Сцена.");
+  });
+  it("полезные пункты-утверждения не трогает", () => {
+    const text = "- Перед сундуком растяжка: Восприятие СЛ 13.\n- Охранник появится через 2 раунда.";
+    expect(stripChoicePrompts(text)).toBe(text);
+  });
+  it("обычный текст с вопросом в диалоге сохраняется", () => {
+    const text = "Старец щурится. \"Зачем пришли?\" — спрашивает он.";
+    expect(stripChoicePrompts(text)).toBe(text);
   });
 });
 

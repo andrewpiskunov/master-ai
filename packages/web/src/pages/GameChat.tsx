@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Lock, Plus, Send, Square, Star, User } from "lucide-react";
-import { dedupeGameTail, extractLogBlock, parseGameSections, type MessageMeta } from "@master-ai/shared";
+import { dedupeGameTail, extractLogBlock, parseGameSections, stripChoicePrompts, type MessageMeta } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { Markdown } from "../ui/Markdown.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
@@ -207,7 +207,7 @@ export function GameChat({
               // Абзацы хвоста, дословно повторяющие уже показанный текст, отбрасываем.
               const parts = extractLogBlock(m.content);
               const rest = parts.rest;
-              const after = dedupeGameTail(parts.after, parts.rest);
+              const after = dedupeGameTail(stripChoicePrompts(parts.after), parts.rest);
               return (
               <>
               <AssistantAnswer
@@ -221,11 +221,15 @@ export function GameChat({
                 onEditEntity={onEditEntity}
                 renderIntro={(intro) => {
                   const s = parseGameSections(intro);
-                  // Модель может продублировать сцену внутри «Скрытого» — вычищаем повторы.
-                  const hidden = s.hidden ? dedupeGameTail(s.hidden, [s.intro, s.read].filter(Boolean).join("\n")) : null;
+                  // Модель может продублировать сцену внутри «Скрытого» и навязать «меню выборов» —
+                  // вычищаем повторы и меню детерминированно.
+                  const hidden = s.hidden
+                    ? dedupeGameTail(stripChoicePrompts(s.hidden), [s.intro, s.read].filter(Boolean).join("\n")) || null
+                    : null;
+                  const intro2 = s.intro ? stripChoicePrompts(s.intro) : s.intro;
                   return (
                     <>
-                      {s.intro && <Markdown mentions={feedMentions}>{s.intro}</Markdown>}
+                      {intro2 && <Markdown mentions={feedMentions}>{intro2}</Markdown>}
                       {s.read && (
                         <div className="game-read">
                           <div className="game-block-head"><BookOpen size={14} /> Прочитай игрокам</div>

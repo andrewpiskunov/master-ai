@@ -60,6 +60,25 @@ export function dedupeGameTail(after: string, rest: string): string {
     .trim();
 }
 
+// Заголовок блока-меню выборов, которые ИИ-мастеру писать запрещено, но модель их навязывает.
+const CHOICE_HEAD = /(как\s+(ты|вы)\s+ответ|что\s+(ты|вы)\s+(делае|решае|буде)|следующ(ие|ий)\s+шаг|что\s+дальше)/i;
+
+// Вычищает «меню выборов для игрока»: блок с заголовком вида «Как ты ответишь…?» /
+// «Что вы делаете дальше?» и списки, целиком состоящие из пунктов-вопросов.
+// Решения за столом принимают мастер и игроки — такие меню это мусор в любом месте ответа.
+export function stripChoicePrompts(text: string): string {
+  const blocks = text.split(/\n{2,}/);
+  const keep = blocks.filter((b) => {
+    const lines = b.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (!lines.length) return true;
+    if (CHOICE_HEAD.test(lines[0])) return false;
+    const isBullet = (l: string) => /^[-*•]\s+/.test(l);
+    if (lines.every(isBullet) && lines.every((l) => l.replace(/[*_\s]+$/, "").endsWith("?"))) return false;
+    return true;
+  });
+  return keep.join("\n\n").trim();
+}
+
 // Заголовок записи лога, когда ИИ не вернул log-блок: первые слова действия.
 export function fallbackLogTitle(action: string, max = 60): string {
   const s = action.trim().replace(/\s+/g, " ");

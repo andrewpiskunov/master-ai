@@ -13,6 +13,7 @@ import {
   NewLinkSchema,
   extractLogBlock,
   fallbackLogTitle,
+  stripChoicePrompts,
   stripLogFence,
   type MessageMeta,
 } from "@master-ai/shared";
@@ -370,7 +371,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
         m.role === "user" && m.meta?.actorName && m.meta.actorKind && m.meta.actorKind !== "master"
           ? `Действие (${m.meta.actorName}): ${m.content}`
           : m.role === "assistant" && parsed.data.mode === "game"
-            ? stripLogFence(m.content)
+            ? stripChoicePrompts(stripLogFence(m.content))
             : m.content,
     }));
     const stream = llmFor(doc.campaignId).complete({ system: parsed.data.system, messages: history });
