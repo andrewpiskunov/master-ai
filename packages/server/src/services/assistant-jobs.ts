@@ -9,6 +9,7 @@ export interface AssistantJobStatus {
 
 interface Job extends AssistantJobStatus {
   stopped: boolean;
+  abort?: AbortController;
 }
 
 const CLEANUP_MS = 60_000;
@@ -23,19 +24,22 @@ export class AssistantJobService {
       : { running: false, partial: "", error: null };
   }
 
-  // Останавливает генерацию; накопленный текст будет сохранён как ответ.
+  // Останавливает генерацию НЕМЕДЛЕННО (сигнал обрывает CLI/HTTP у провайдера);
+  // накопленный текст будет сохранён как ответ.
   stop(docId: string): boolean {
     const j = this.jobs.get(docId);
     if (!j?.running) return false;
     j.stopped = true;
+    j.abort?.abort();
     return true;
   }
 
   // Запускает генерацию в фоне; onFinish получает накопленный текст (в том числе
   // частичный при остановке). Одна задача на документ; повторный старт — false.
-  start(docId: string, stream: AsyncIterable<string>, onFinish: (text: string) => void): boolean {
+  // abort — контроллер, чей signal передан провайдеру: stop() обрывает генерацию через него.
+  start(docId: string, stream: AsyncIterable<string>, onFinish: (text: string) => void, abort?: AbortController): boolean {
     if (this.jobs.get(docId)?.running) return false;
-    const job: Job = { running: true, partial: "", error: null, stopped: false };
+    const job: Job = { running: true, partial: "", error: null, stopped: false, abort };
     this.jobs.set(docId, job);
     void (async () => {
       try {
@@ -44,7 +48,8 @@ export class AssistantJobService {
           if (job.stopped) break; // ранний return генератора корректно гасит CLI/поток
         }
       } catch (e) {
-        job.error = e instanceof Error ? e.message : String(e);
+        // Обрыв потока после stop — штатная остановка, а не ошибка.
+        if (!job.stopped) job.error = e instanceof Error ? e.message : String(e);
       } finally {
         job.running = false;
         try {

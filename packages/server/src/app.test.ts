@@ -529,6 +529,40 @@ describe("сессии: следующая сессия", () => {
     expect(next.fields.sessionNumber).toBe(2);
   });
 
+  it("сессия с авторским названием без номера: следующая — «Сессия 2», а не «Сессия 1»", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const sess = (await app.inject({
+      method: "POST", url: "/api/documents",
+      payload: { campaignId: c.id, type: "session", title: "Испытание Шпигельгрунда", fields: { sessionLog: "лог" } },
+    })).json();
+
+    const next = (await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` })).json();
+    expect(next.title).toBe("Сессия 2");
+    expect(next.fields.sessionNumber).toBe(2);
+  });
+
+  it("стоп мастерской: без запущенной генерации → 404", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    expect((await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm/stop` })).statusCode).toBe(404);
+  });
+
+  it("учитывает токены запросов и отдаёт статистику по кампании", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    // Мастерская: синхронный ответ фейкового ИИ — расход должен записаться с фичей workshop.
+    await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm`, payload: { message: "придумай злодея" } });
+
+    const stats = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/llm-usage` })).json();
+    expect(stats.total.requests).toBeGreaterThanOrEqual(1);
+    expect(stats.total.promptTokens).toBeGreaterThan(0);
+    expect(stats.total.completionTokens).toBeGreaterThan(0);
+    expect(stats.total.estimated).toBe(true); // фейковый провайдер отдаёт оценку
+    const features = stats.byFeature.map((f: { feature: string }) => f.feature);
+    expect(features).toContain("workshop");
+  });
+
   it("для не-сессии → 400, для отсутствующего документа → 404", async () => {
     const app = makeApp();
     const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();

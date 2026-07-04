@@ -39,8 +39,8 @@ export function DocumentAssistant({
   // updatedAt): блоки из сообщений старше него без персистентного ключа помечаются устаревшими.
   docUpdatedAt?: string;
   onApply: (text: string) => void;
-  onCreateEntity: (entity: NewEntity) => void;
-  onEditEntity: (edit: EditEntity) => void;
+  onCreateEntity: (entity: NewEntity) => boolean | Promise<boolean>;
+  onEditEntity: (edit: EditEntity) => boolean | Promise<boolean>;
   // Вызывается с текстом каждой завершённой реплики (вопрос и ответ) —
   // режим игры использует это, чтобы открывать обсуждаемые документы в просмотрщике.
   onMessage?: (content: string) => void;

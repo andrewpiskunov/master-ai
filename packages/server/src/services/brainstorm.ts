@@ -25,6 +25,7 @@ import type { CampaignService } from "./campaigns.js";
 import type { ConversationService } from "./conversations.js";
 import type { DocumentService } from "./documents.js";
 import type { ProposalService } from "./proposals.js";
+import type { UsageService } from "./usage.js";
 
 const TEMPLATES_BLOCK = Object.entries(DOCUMENT_TEMPLATES)
   .map(([type, tpl]) => `Шаблон для ${type}:\n${tpl}`)
@@ -72,12 +73,17 @@ export class BrainstormService {
   private consistencyCache = new Map<string, { hash: string; result: { issues: ConsistencyIssue[] } }>();
 
   constructor(
-    private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService },
+    private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService; usage?: UsageService },
   ) {}
+
+  // Колбэк учёта токенов для запроса от имени кампании.
+  private track(campaignId: string, feature: string) {
+    return { onUsage: (u: Parameters<UsageService["record"]>[2]) => this.deps.usage?.record(campaignId, feature, u) };
+  }
 
   // Готовит генерацию ответа мастерской: сохраняет вопрос и строит промт.
   // Стрим отдаётся вызывающему — фоновой задаче или синхронному respond.
-  prepareRespond(campaignId: string, userMessage: string): { conversationId: string; stream: AsyncIterable<string> } {
+  prepareRespond(campaignId: string, userMessage: string, signal?: AbortSignal): { conversationId: string; stream: AsyncIterable<string> } {
     const { conversations, documents, campaigns } = this.deps;
     const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
@@ -101,7 +107,7 @@ export class BrainstormService {
       : "(пока нет)";
     const system = `${SYSTEM_PROMPT}${brief}${tone}\n\nУже существующие документы кампании (для action: update используй их точные названия): ${docList}.`;
 
-    return { conversationId: conv.id, stream: llm.complete({ system, messages: history }) };
+    return { conversationId: conv.id, stream: llm.complete({ system, messages: history }, { ...this.track(campaignId, "workshop"), signal }) };
   }
 
   // Завершение генерации: разбирает предложения, сохраняет ответ и предложения.
@@ -145,7 +151,7 @@ export class BrainstormService {
         "(2) Затем с новой строки, начиная строго со слова «ВОПРОС:», задай ОДИН самый важный открытый вопрос, который стоит прояснить дальше." +
         brief,
       messages: [{ role: "user", content: `Беседа:\n${transcript}\n\nСделай сводку.` }],
-    })) {
+    }, this.track(campaignId, "world"))) {
       out += chunk;
     }
 
@@ -184,7 +190,7 @@ export class BrainstormService {
         "Цитируй ТОЧНЫЕ названия документов из списка. Если явных противоречий нет — верни {\"issues\":[]}. " +
         "Не выдумывай и не придирайся к стилю — только реальные фактические расхождения.",
       messages: [{ role: "user", content: `Документы кампании:\n${digest}\n\nНайди противоречия.` }],
-    })) {
+    }, this.track(campaignId, "consistency"))) {
       out += chunk;
     }
     const result = { issues: parseIssues(out) };
@@ -220,7 +226,7 @@ export class BrainstormService {
         "(1) Блок ИТОГИ: 2–4 предложения — что произошло, ключевые решения игроков, изменения статусов, добыча. Живым языком, без списков. " +
         "(2) С новой строки, начиная строго со слова «ЗАДЕЛ:», дай 2–4 зацепки для следующей сессии — незакрытые нити, реакции мира, назревающие угрозы. Каждую с новой строки как «- …».",
       messages: [{ role: "user", content: `Лог сессии:\n${log || "(пусто)"}\n\nХод игры (чат с ИИ-мастером):\n${chatTail || "(пусто)"}\n\nЗаметки сессии:\n${text || "(пусто)"}` }],
-    })) {
+    }, this.track(sess.campaignId, "session-summary"))) {
       out += chunk;
     }
 

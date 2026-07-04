@@ -15,6 +15,7 @@ import {
   fallbackLogTitle,
   stripChoicePrompts,
   stripLogFence,
+  type LlmUsage,
   type MessageMeta,
 } from "@master-ai/shared";
 import { z } from "zod";
@@ -27,6 +28,8 @@ import { BrainstormService } from "./services/brainstorm.js";
 import { LinkService } from "./services/links.js";
 import { SearchService } from "./services/search.js";
 import { AssistantJobService } from "./services/assistant-jobs.js";
+import { UsageService } from "./services/usage.js";
+import { TransferService } from "./services/transfer.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { loadProvider } from "./llm/config.js";
 import { providerForCampaign } from "./llm/resolve.js";
@@ -47,7 +50,7 @@ function buildWelcome(name: string): string {
 }
 
 // Приветствие подбирается ИИ под название кампании; при сбое — статичный текст.
-async function generateWelcome(llm: LLMProvider, name: string): Promise<string> {
+async function generateWelcome(llm: LLMProvider, name: string, onUsage?: (u: LlmUsage) => void): Promise<string> {
   try {
     let out = "";
     for await (const chunk of llm.complete({
@@ -58,7 +61,7 @@ async function generateWelcome(llm: LLMProvider, name: string): Promise<string> 
         "3) Задай 1–2 открытых вопроса: как мастер видит игру на практике, кем будут герои и какая завязка столкнёт их на первой сессии. " +
         "Пиши живо и по делу, обращайся на «вы».",
       messages: [{ role: "user", content: `Название кампании: «${name}». Напиши приветствие.` }],
-    })) {
+    }, { onUsage })) {
       out += chunk;
     }
     return out.trim() || buildWelcome(name);
@@ -87,7 +90,12 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   const documentsSvc = new DocumentService(deps.db);
   const conversationsSvc = new ConversationService(deps.db);
   const proposalsSvc = new ProposalService(deps.db);
-  const brainstormSvc = new BrainstormService({ llmFor, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc });
+  const usageSvc = new UsageService(deps.db);
+  // Колбэк учёта токенов; кампании без id (нет контекста) не учитываем.
+  const trackUsage = (campaignId: string | null | undefined, feature: string) => ({
+    onUsage: (u: LlmUsage) => { if (campaignId) usageSvc.record(campaignId, feature, u); },
+  });
+  const brainstormSvc = new BrainstormService({ llmFor, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc, usage: usageSvc });
   const linksSvc = new LinkService(deps.db);
   const searchSvc = new SearchService(deps.db);
   const BrainstormBodySchema = z.object({ message: z.string().min(1) });
@@ -131,7 +139,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     // Приветствие ИИ генерируем в фоне и НЕ блокируем создание: клиент сразу
     // попадает в кампанию, а приветствие «допечатывается» в беседе, когда готово.
     const conv = conversationsSvc.getOrCreateForCampaign(campaign.id);
-    void generateWelcome(llmFor(campaign.id), campaign.name)
+    void generateWelcome(llmFor(campaign.id), campaign.name, trackUsage(campaign.id, "welcome").onUsage)
       // Пока генерировалось приветствие, кампанию могли удалить — не создаём «висячее» сообщение.
       .then((text) => { if (campaignsSvc.get(campaign.id)) conversationsSvc.addMessage(conv.id, "assistant", text); })
       .catch(() => { /* приветствие не критично для создания кампании */ });
@@ -264,15 +272,22 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     if (!campaignsSvc.get(id)) return reply.code(404).send({ error: "кампания не найдена" });
     if (workshopJobs.status(id).running) return reply.code(409).send({ error: "Генерация мастерской уже идёт" });
-    const { conversationId, stream } = brainstormSvc.prepareRespond(id, parsed.data.message);
+    const abort = new AbortController();
+    const { conversationId, stream } = brainstormSvc.prepareRespond(id, parsed.data.message, abort.signal);
     workshopJobs.start(id, stream, (full) => {
       // Пока шла генерация, кампанию могли удалить — не создаём «висячие» записи.
       if (campaignsSvc.get(id)) brainstormSvc.finishRespond(id, conversationId, full);
-    });
+    }, abort);
     return reply.code(202).send({ started: true });
   });
 
   app.get("/api/campaigns/:id/brainstorm/status", (req) => workshopJobs.status((req.params as { id: string }).id));
+
+  // Остановка генерации мастерской: сигнал обрывает CLI/HTTP, набранный текст сохраняется.
+  app.post("/api/campaigns/:id/brainstorm/stop", (req, reply) => {
+    if (!workshopJobs.stop((req.params as { id: string }).id)) return reply.code(404).send({ error: "генерация не идёт" });
+    return reply.code(204).send();
+  });
 
   app.get("/api/campaigns/:id/world", async (req) => {
     const { id } = req.params as { id: string };
@@ -308,7 +323,9 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
       return m ? Number(m[1]) : 0;
     };
     const sessions = documentsSvc.listByCampaign(sess.campaignId).filter((d) => d.type === "session");
-    const nextNum = Math.max(0, ...sessions.map(sessionNum)) + 1;
+    // Сессии без номера (авторские названия вроде «Испытание Шпигельгрунда») дают 0 —
+    // страхуемся количеством сессий, чтобы следующая после такой не стала «Сессией 1».
+    const nextNum = Math.max(sessions.length, ...sessions.map(sessionNum)) + 1;
     const md = [
       "## Цель сессии", "",
       "## Что было в прошлый раз", summary || "",
@@ -374,7 +391,12 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
             ? stripChoicePrompts(stripLogFence(m.content))
             : m.content,
     }));
-    const stream = llmFor(doc.campaignId).complete({ system: parsed.data.system, messages: history });
+    // Контроллер остановки: stop() обрывает генерацию у провайдера (CLI/HTTP) сразу.
+    const abort = new AbortController();
+    const stream = llmFor(doc.campaignId).complete(
+      { system: parsed.data.system, messages: history },
+      { ...trackUsage(doc.campaignId, parsed.data.mode === "game" ? "game" : "assistant"), signal: abort.signal },
+    );
     // Действие персонажа всегда порождает запись лога: из log-блока ответа,
     // а если ИИ его не вернул — с заголовком из первых слов действия.
     const isAction = parsed.data.mode === "game" && !!parsed.data.meta?.actorKind && parsed.data.meta.actorKind !== "master";
@@ -389,7 +411,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
         }
         conversationsSvc.addMessage(conv.id, "assistant", text, meta);
       }
-    });
+    }, abort);
     return reply.code(202).send({ started: true });
   });
 
@@ -447,7 +469,38 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     const parsed = CompleteInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     reply.type("text/plain; charset=utf-8");
-    return Readable.from(llmFor(parsed.data.campaignId).complete(parsed.data));
+    return Readable.from(llmFor(parsed.data.campaignId).complete(parsed.data, trackUsage(parsed.data.campaignId, "tools")));
+  });
+
+  app.get("/api/campaigns/:id/llm-usage", (req) => {
+    const { id } = req.params as { id: string };
+    return usageSvc.statsByCampaign(id);
+  });
+
+  // Итоговая статистика расхода по всему сайту (все кампании).
+  app.get("/api/llm-usage", () => usageSvc.statsGlobal((id) => campaignsSvc.get(id)?.name));
+
+  const transferSvc = new TransferService(deps.db);
+
+  // Полный экспорт кампании одним JSON-файлом (документы, беседы, предложения, связи, статистика).
+  app.get("/api/campaigns/:id/export-json", (req, reply) => {
+    const { id } = req.params as { id: string };
+    const data = transferSvc.export(id);
+    if (!data) return reply.code(404).send({ error: "кампания не найдена" });
+    const slug = data.campaign.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "campaign";
+    reply.header("content-disposition", `attachment; filename*=UTF-8''${encodeURIComponent(`${slug}.master-ai.json`)}`);
+    reply.type("application/json; charset=utf-8");
+    return reply.send(JSON.stringify(data, null, 2));
+  });
+
+  // Импорт кампании из такого же JSON — создаёт НОВУЮ кампанию, id перевязываются.
+  app.post("/api/campaigns/import-json", { bodyLimit: 64 * 1024 * 1024 }, (req, reply) => {
+    try {
+      const created = transferSvc.import(req.body);
+      return reply.code(201).send(created);
+    } catch {
+      return reply.code(400).send({ error: "Файл не похож на экспорт кампании MasterAI (master-ai-campaign, версия 1)" });
+    }
   });
 
   return app;

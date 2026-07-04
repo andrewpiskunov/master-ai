@@ -12,6 +12,10 @@ export function relTime(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU");
 }
 
+// Форматирование расхода нейросети: токены с разделителями, длительность в секундах.
+export const fmtTokens = (n: number): string => n.toLocaleString("ru-RU");
+export const fmtDuration = (ms: number): string => (ms > 0 ? `${(ms / 1000).toFixed(1)} с` : "—");
+
 // Русское склонение существительного по числу: [1, 2-4, 5-0/11-14].
 export function plural(n: number, forms: [string, string, string]): string {
   const a = Math.abs(n) % 100;

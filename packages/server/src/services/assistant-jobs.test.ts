@@ -72,6 +72,39 @@ describe("AssistantJobService", () => {
     expect(savedCalls).toBe(0);
   });
 
+  it("stop обрывает генерацию через AbortController, не дожидаясь следующего чанка", async () => {
+    const svc = new AssistantJobService();
+    const abort = new AbortController();
+    let saved = "";
+    // Поток «завис» в ожидании следующего чанка (как CLI без стрима) и проснётся только по сигналу.
+    const stuck = (async function* (): AsyncIterable<string> {
+      yield "Начало";
+      await new Promise<void>((resolve) => abort.signal.addEventListener("abort", () => resolve(), { once: true }));
+    })();
+    svc.start("d1", stuck, (t) => { saved = t; }, abort);
+    await tick();
+    expect(svc.stop("d1")).toBe(true);
+    expect(abort.signal.aborted).toBe(true); // сигнал ушёл провайдеру немедленно
+    await tick();
+    expect(svc.status("d1")).toMatchObject({ running: false, error: null });
+    expect(saved).toBe("Начало");
+  });
+
+  it("обрыв потока после stop — не ошибка", async () => {
+    const svc = new AssistantJobService();
+    const abort = new AbortController();
+    const failing = (async function* (): AsyncIterable<string> {
+      yield "Часть";
+      await new Promise<void>((resolve) => abort.signal.addEventListener("abort", () => resolve(), { once: true }));
+      throw new Error("aborted");
+    })();
+    svc.start("d1", failing, () => {}, abort);
+    await tick();
+    svc.stop("d1");
+    await tick();
+    expect(svc.status("d1")).toMatchObject({ running: false, error: null });
+  });
+
   it("stop без задачи → false", () => {
     expect(new AssistantJobService().stop("нет")).toBe(false);
   });

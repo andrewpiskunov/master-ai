@@ -19,8 +19,8 @@ function renderAssistant(over: {
   docUpdatedAt?: string;
   customMocks?: boolean;
   onApply?: (t: string) => void;
-  onCreateEntity?: (e: NewEntity) => void;
-  onEditEntity?: (e: EditEntity) => void;
+  onCreateEntity?: (e: NewEntity) => boolean | Promise<boolean>;
+  onEditEntity?: (e: EditEntity) => boolean | Promise<boolean>;
 } = {}) {
   // Дефолтные моки; customMocks — тест настроил свои до вызова renderAssistant.
   if (!over.customMocks) {
@@ -106,7 +106,7 @@ describe("DocumentAssistant карточки (smoke)", () => {
   });
 
   it("карточка создания сущности: активна, когда сущности ещё нет", async () => {
-    const onCreateEntity = vi.fn();
+    const onCreateEntity = vi.fn().mockResolvedValue(true);
     renderAssistant({
       messages: [{ role: "assistant", content: `Идея.\n${fence}new-doc\ntype: npc\ntitle: Барон\n---\nЗлодей.\n${fence}` }],
       documents: [],
@@ -116,6 +116,19 @@ describe("DocumentAssistant карточки (smoke)", () => {
     await userEvent.click(btn);
     expect(onCreateEntity).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.getByText(/Сущность «Барон» создана/)).toBeInTheDocument());
+  });
+
+  it("не помечает сущность созданной, если обработчик не создал её", async () => {
+    const onCreateEntity = vi.fn().mockResolvedValue(false);
+    renderAssistant({
+      messages: [{ role: "assistant", content: `Идея.\n${fence}new-doc\ntype: npc\ntitle: Барон\n---\nЗлодей.\n${fence}` }],
+      documents: [],
+      onCreateEntity,
+    });
+    await userEvent.click(await screen.findByRole("button", { name: /Создать сущность «Барон»/ }));
+    expect(onCreateEntity).toHaveBeenCalledOnce();
+    expect(screen.queryByText(/Сущность «Барон» создана/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Создать сущность «Барон»/ })).toBeInTheDocument();
   });
 
   it("карточка создания свёрнута, если сущность уже есть в кампании", async () => {

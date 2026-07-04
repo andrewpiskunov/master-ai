@@ -583,8 +583,12 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* Боевой трекер */
 .play-combat-wrap { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.combat { display: flex; flex-direction: column; gap: 10px; padding: 10px 14px; }
-.combat-empty { display: flex; align-items: center; gap: 8px; }
+.combat { display: flex; flex-direction: column; gap: 14px; padding: 10px 14px; }
+.combat-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px 4px; text-align: center; color: var(--muted); }
+.combat-empty p { margin: 0; font-weight: 600; color: var(--text-strong); }
+.combat-empty span { font-size: 0.8rem; line-height: 1.45; }
+.combat-section { display: flex; flex-direction: column; gap: 8px; }
+.combat-section-head { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
 .combat-head { display: flex; align-items: center; gap: 10px; }
 .combat-round { font-weight: 700; color: var(--text-strong); }
 .combat-next { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: var(--accent); color: var(--accent-fg); border: none; border-radius: 8px; }
@@ -600,26 +604,30 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .combat-hp-in { width: 42px; padding: 2px 4px; text-align: center; }
 .combat-dmg, .combat-heal { padding: 2px 7px; font-size: 0.75rem; font-weight: 700; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); }
 .combat-dmg { color: #f87171; } .combat-heal { color: #4ade80; }
+.combat-hpbar { display: block; height: 3px; border-radius: 2px; background: var(--surface); overflow: hidden; }
+.combat-hpbar-fill { display: block; height: 100%; border-radius: 2px; transition: width 0.2s; }
 .combat-cond { width: 100%; padding: 3px 6px; font-size: 0.78rem; }
 .combat-x { flex: none; padding: 4px; background: none; border: none; color: var(--muted); }
 .combat-x:hover { filter: none; color: #f87171; }
-.combat-add { display: flex; gap: 6px; }
+/* Формы трекера — однострочные: перебиваем глобальное form { flex-direction: column }. */
+.combat-add { display: flex; flex-direction: row; align-items: stretch; gap: 6px; }
 .combat-add-name { flex: 1 1 auto; min-width: 0; }
-.combat-add-init { width: 72px; text-align: center; }
-.combat-add-btn { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; font-size: 0.85rem; }
+.combat-add-init { flex: none; width: 68px; text-align: center; }
+.combat-add-btn { flex: none; align-self: stretch; display: inline-flex; align-items: center; padding: 0 11px; }
 .combat-sources { display: flex; flex-wrap: wrap; gap: 6px; }
 .combat-pick { flex: 1 1 140px; padding: 6px 8px; font-size: 0.8rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); color-scheme: dark; }
 .combat-ai { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; font-size: 0.8rem; font-weight: 500; background: var(--accent-soft); border: 1px solid rgba(59,130,246,0.32); border-radius: 8px; color: var(--accent-hover); }
 .combat-ai:disabled { opacity: 0.6; }
-.combat-dice { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.combat-dice { border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .combat-dice-quick { display: flex; flex-wrap: wrap; gap: 5px; }
 .combat-dice-quick button { padding: 3px 9px; font-size: 0.78rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text); }
 .combat-dice-quick button:hover { filter: none; border-color: var(--accent); }
-.combat-dice-form { display: flex; gap: 6px; }
-.combat-dice-form input { flex: 1 1 auto; }
-.combat-dice-form button { flex: none; display: inline-flex; align-items: center; gap: 5px; }
-.combat-roll { display: flex; align-items: baseline; gap: 8px; }
-.combat-roll strong { font-size: 1.4rem; color: var(--accent-hover); }
+.combat-dice-quick button.active { border-color: var(--accent); color: var(--accent-hover); background: var(--accent-soft); }
+.combat-dice-form { display: flex; flex-direction: row; align-items: stretch; gap: 6px; }
+.combat-dice-form input { flex: 1 1 auto; min-width: 0; }
+.combat-dice-form button { flex: none; align-self: stretch; display: inline-flex; align-items: center; gap: 5px; }
+.combat-roll { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; }
+.combat-roll strong { font-size: 1.5rem; line-height: 1.1; color: var(--accent-hover); }
 .combat-roll-detail { font-size: 0.78rem; color: var(--muted); }
 .play-viewer-nav button { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
 .play-viewer-nav button:disabled { opacity: 0.4; }
@@ -649,10 +657,16 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .msg-flash { animation: msg-flash 1.6s ease; }
 @keyframes msg-flash { 0%, 60% { box-shadow: 0 0 0 2px var(--accent); } 100% { box-shadow: none; } }
 .game-actors { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px 0; }
-.actor-chip { padding: 4px 12px; font-size: 0.8rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text); }
+.actor-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text); }
 .actor-chip:hover { filter: none; border-color: var(--accent); }
 .actor-chip.active { color: var(--accent-hover); border-color: var(--accent); background: var(--accent-soft); }
-.actor-chip-npc { border-style: dashed; }
+/* Цвета типов как у пилюль-упоминаний: pc — лайм, npc — зелёный (пунктир). */
+.actor-chip-pc { color: #a3e635; border-color: rgba(163, 230, 53, 0.3); }
+.actor-chip-pc:hover { border-color: #a3e635; }
+.actor-chip-pc.active { color: #d9f99d; border-color: #a3e635; background: #1a2e05; }
+.actor-chip-npc { color: #34d399; border-color: rgba(52, 211, 153, 0.3); border-style: dashed; }
+.actor-chip-npc:hover { border-color: #34d399; }
+.actor-chip-npc.active { color: #6ee7b7; border-color: #34d399; background: #0e2a20; }
 .actor-add, .actor-master { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
 .actor-npc { position: relative; }
 .actor-npc-pop { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 10; width: 230px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 6px; }
@@ -985,10 +999,10 @@ form button { align-self: flex-start; }
 /* Компактная карточка предложения: иконка + заголовок/тег + краткое описание + кнопки ✓ ✗ */
 .proposal { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .proposal-icon { flex: none; align-self: flex-start; }
-.proposal-main { flex: 1 1 auto; min-width: 0; }
-.proposal-titlerow { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.proposal-title { flex: 0 1 auto; min-width: 0; color: var(--text-strong); font-weight: 700; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.proposal-titlerow .type-tag { flex: none; max-width: 120px; overflow: hidden; }
+.proposal-main { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+.proposal-main:hover .proposal-title, .proposal-main:focus-visible .proposal-title { color: var(--accent-hover); }
+.proposal-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-strong); font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
+.proposal-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
 .proposal-snippet { margin: 2px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .type-tag {
   display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
@@ -1000,6 +1014,23 @@ form button { align-self: flex-start; }
 .prop-accept:hover { filter: none; background: #1f7a4d; border-color: transparent; color: #fff; }
 .prop-reject { background: transparent; border: 1px solid var(--border); color: var(--muted); }
 .prop-reject:hover { filter: none; border-color: var(--danger); color: #fca5a5; }
+/* Предпросмотр предложения: широкая модалка, содержимое прокручивается внутри. */
+.modal-proposal { max-width: 680px; }
+.proposal-preview-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.proposal-preview-body { max-height: 60vh; overflow-y: auto; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+
+/* ---------- Расход нейросети (управление кампанией, главная) ---------- */
+.home-usage { margin-top: 26px; }
+.home-usage-head { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1rem; color: var(--text-strong); }
+.usage-total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.usage-total-num { font-size: 1.6rem; font-weight: 700; color: var(--text-strong); }
+.usage-total-sub { color: var(--muted); font-size: 0.85rem; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.usage-table + .usage-table { margin-top: 14px; }
+.usage-table th { text-align: left; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); }
+.usage-table td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.usage-table tr:last-child td { border-bottom: none; }
+.usage-table td:not(:first-child), .usage-table th:not(:first-child) { text-align: right; white-space: nowrap; }
 
 /* ---------- Markdown ---------- */
 .md > :first-child { margin-top: 0; }

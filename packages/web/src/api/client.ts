@@ -15,6 +15,8 @@ import type {
   ConsistencyResult,
   MessageMeta,
   GameLogEntry,
+  LlmUsageStats,
+  GlobalLlmUsageStats,
 } from "@master-ai/shared";
 
 export class ApiError extends Error {
@@ -104,6 +106,8 @@ export const api = {
     request<{ running: boolean; partial: string; error: string | null }>(`/api/documents/${docId}/assistant`),
   stopAssistant: (docId: string) =>
     fetch(`/api/documents/${docId}/assistant/stop`, { method: "POST" }).then(() => undefined),
+  stopBrainstorm: (campaignId: string) =>
+    fetch(`/api/campaigns/${campaignId}/brainstorm/stop`, { method: "POST" }).then(() => undefined),
   // Переключение важности записи лога в игровом чате.
   updateMessageMeta: (messageId: string, patch: { log: GameLogEntry }) =>
     request<ConversationMessage>(`/api/messages/${messageId}/meta`, {
@@ -116,6 +120,11 @@ export const api = {
     }),
   worldSummary: (campaignId: string) =>
     request<{ summary: string; question: string }>(`/api/campaigns/${campaignId}/world`),
+  llmUsage: (campaignId: string) =>
+    request<LlmUsageStats>(`/api/campaigns/${campaignId}/llm-usage`),
+  llmUsageGlobal: () => request<GlobalLlmUsageStats>("/api/llm-usage"),
+  importCampaignJson: (data: unknown) =>
+    request<Campaign>("/api/campaigns/import-json", { method: "POST", body: JSON.stringify(data) }),
   checkConsistency: (campaignId: string) =>
     request<ConsistencyResult>(`/api/campaigns/${campaignId}/consistency`),
   search: (campaignId: string, q: string) =>

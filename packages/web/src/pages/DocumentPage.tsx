@@ -154,13 +154,13 @@ export function DocumentPage() {
 
   // Создаёт новую сущность по предложению ИИ и связывает её с текущим документом.
   // При совпадении имени и типа с существующим документом спрашивает, а не плодит дубликат.
-  async function createEntity(entity: NewEntity, force = false) {
-    if (!doc) return;
+  async function createEntity(entity: NewEntity, force = false): Promise<boolean> {
+    if (!doc) return false;
     const type = getDocumentType(entity.type) ? entity.type : "note";
     const existing = allDocuments.find(
       (d) => d.type === type && d.title.trim().toLowerCase() === entity.title.trim().toLowerCase(),
     );
-    if (existing && !force) { setDupEntity(entity); return; }
+    if (existing && !force) { setDupEntity(entity); return false; }
     try {
       const created = await api.createDocument({
         campaignId: doc.campaignId,
@@ -172,25 +172,29 @@ export function DocumentPage() {
       campaignCtx?.reload();
       showToast(`Создано: «${created.title}»`);
       navigate(`/campaigns/${doc.campaignId}/documents/${created.id}`);
+      return true;
     } catch {
       showToast("Не удалось создать сущность");
+      return false;
     }
   }
 
   // Применяет предложенную ИИ правку существующего документа (переименование/новый текст).
-  async function editEntity(edit: EditEntity) {
+  async function editEntity(edit: EditEntity): Promise<boolean> {
     const target = allDocuments.find((d) => d.title.toLowerCase() === edit.title.toLowerCase());
-    if (!target) { showToast(`Не найден документ «${edit.title}»`); return; }
+    if (!target) { showToast(`Не найден документ «${edit.title}»`); return false; }
     const patch: { title?: string; contentJson?: unknown } = {};
     if (edit.rename && edit.rename !== target.title) patch.title = edit.rename;
     if (edit.text) patch.contentJson = markdownToDoc(edit.text);
-    if (patch.title === undefined && patch.contentJson === undefined) { showToast("Нечего менять"); return; }
+    if (patch.title === undefined && patch.contentJson === undefined) { showToast("Нечего менять"); return false; }
     try {
       await api.updateDocument(target.id, patch);
       campaignCtx?.reload();
       showToast(`Обновлено: «${edit.rename ?? target.title}»`);
+      return true;
     } catch {
       showToast("Не удалось обновить документ");
+      return false;
     }
   }
 

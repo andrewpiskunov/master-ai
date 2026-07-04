@@ -64,6 +64,20 @@
       "when": 1782759200000,
       "tag": "0008_message_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1782759300000,
+      "tag": "0009_llm_usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1782759400000,
+      "tag": "0010_llm_usage_provider_duration",
+      "breakpoints": true
     }
   ]
 }

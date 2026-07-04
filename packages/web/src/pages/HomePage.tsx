@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Plus, Sparkles, RefreshCw, MessageCircle, FileText } from "lucide-react";
-import type { Campaign } from "@master-ai/shared";
+import { ArrowRight, Plus, Sparkles, RefreshCw, MessageCircle, FileText, Cpu } from "lucide-react";
+import type { Campaign, GlobalLlmUsageStats } from "@master-ai/shared";
 import { api } from "../api/client.js";
+import { fmtDuration, fmtTokens, plural } from "../format.js";
 import { useToast } from "../ui/toast.js";
 
 function formatWhen(iso: string): string {
@@ -83,12 +84,14 @@ export function HomePage() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ideas, setIdeas] = useState<string[]>(() => pickIdeas());
+  const [usage, setUsage] = useState<GlobalLlmUsageStats | null>(null);
 
   useEffect(() => {
     api.listCampaigns()
       .then(setCampaigns)
       .catch(() => showToast("Не удалось загрузить кампании"))
       .finally(() => setLoaded(true));
+    api.llmUsageGlobal().then(setUsage).catch(() => {});
   }, [showToast]);
 
   async function create(rawName: string) {
@@ -172,6 +175,34 @@ export function HomePage() {
         <button type="button" className="btn-ghost home-new" onClick={() => setCreating(true)}>
           <Plus size={18} strokeWidth={2} /> Новая кампания
         </button>
+      )}
+
+      {usage && usage.total.requests > 0 && (
+        <section className="panel home-usage">
+          <h2 className="home-usage-head"><Cpu size={16} strokeWidth={1.9} /> Расход нейросети по всем кампаниям</h2>
+          <div className="usage-total">
+            <span className="usage-total-num">{usage.total.estimated ? "≈ " : ""}{fmtTokens(usage.total.promptTokens + usage.total.completionTokens)}</span>
+            <span className="usage-total-sub">
+              токенов за {fmtTokens(usage.total.requests)} {plural(usage.total.requests, ["запрос", "запроса", "запросов"])} ·
+              среднее время ответа {fmtDuration(usage.total.avgDurationMs)}
+            </span>
+          </div>
+          <table className="usage-table">
+            <thead>
+              <tr><th>Кампания</th><th>Запросы</th><th>Токены</th><th>Ср. время</th></tr>
+            </thead>
+            <tbody>
+              {usage.byCampaign.map((c) => (
+                <tr key={c.campaignId}>
+                  <td>{c.name}</td>
+                  <td>{fmtTokens(c.requests)}</td>
+                  <td>{c.estimated ? "≈ " : ""}{fmtTokens(c.promptTokens + c.completionTokens)}</td>
+                  <td>{fmtDuration(c.avgDurationMs)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       )}
     </main>
   );

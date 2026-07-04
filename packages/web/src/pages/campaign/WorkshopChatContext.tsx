@@ -15,6 +15,8 @@ interface WorkshopChat {
   draft: string;
   setDraft: (v: string) => void;
   send: (text: string) => void;
+  // Останавливает генерацию мастерской — набранный текст сохранится как ответ.
+  stop: () => void;
   approve: (id: string) => void;
   reject: (id: string) => void;
   world: WorldState | null;
@@ -160,6 +162,8 @@ export function WorkshopChatProvider({
       });
   }, [busy, campaignId, showToast, pollBrainstorm]);
 
+  const stop = useCallback(() => { void api.stopBrainstorm(campaignId); }, [campaignId]);
+
   const approve = useCallback((id: string) => {
     api.approveProposal(id)
       .then(() => { setProposals((prev) => prev.filter((p) => p.id !== id)); onApproved(); })
@@ -185,7 +189,7 @@ export function WorkshopChatProvider({
     if (!world && !worldBusy && messages.length >= 2) refreshWorld();
   }, [messages.length, world, worldBusy, refreshWorld]);
 
-  return <Ctx.Provider value={{ messages, proposals, busy, awaitingWelcome, draft, setDraft, send, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ messages, proposals, busy, awaitingWelcome, draft, setDraft, send, stop, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
 }
 
 export function useWorkshopChat(): WorkshopChat {

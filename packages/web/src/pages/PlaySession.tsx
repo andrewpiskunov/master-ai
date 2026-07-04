@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff } from "lucide-react";
-import type { Document } from "@master-ai/shared";
+import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { streamComplete } from "../api/stream.js";
 import { useToast } from "../ui/toast.js";
@@ -176,7 +176,7 @@ export function PlaySession() {
       `## Прочитай игрокам\nДверь со скрипом поддаётся. За ней — тёмный коридор; пахнет сыростью, где-то впереди мерно капает вода. У дальней стены угадывается силуэт сундука.\n` +
       `## Скрытое для мастера\n- Перед сундуком растяжка: Восприятие СЛ 13, иначе дротики, 1d4 урона.\n- Скрип двери услышал охранник этажом выше — появится через 2 раунда.\n` +
       "```log\n" + `{"title": "Партия вскрыла дверь в подвал", "important": false}\n` + "```\n\n" +
-      `Остальные сообщения — вопросы мастера тебе: отвечай обычным текстом, без секций и без log-блока.\n\n` +
+      `Остальные сообщения — вопросы мастера тебе: отвечай обычным текстом и без log-блока. Но если в ответе есть текст, который мастер будет читать игрокам вслух (вступление, описание сцены, реплики NPC), — оформи его секцией «## Прочитай игрокам»; а всё, что игрокам знать рано (сюрпризы, скрытые механики, истинные планы NPC), — короткими пунктами в «## Скрытое для мастера». Порядок частей: сначала обычный текст мастеру, затем «Прочитай игрокам», затем «Скрытое для мастера». НЕ выдумывай свои заголовки вроде «Вступление (читать вслух)» — только эти две секции.\n\n` +
       entityBlocksPrompt(docs.map((x) => ({ title: x.title, type: x.type })))
     );
   }
@@ -236,6 +236,29 @@ export function PlaySession() {
     api.updateDocument(documentId, { contentJson: markdownToDoc(text), fields: { ...prevFields, appliedDocBlocks } })
       .then((updated) => { setDoc(updated); showToast("Документ обновлён"); })
       .catch(() => showToast("Не удалось обновить документ"));
+  }
+
+  // Создаёт предложенную ИИ сущность прямо из игрового чата (например, персонажей
+  // игроков по ходу сессии) и связывает её с текущей сессией.
+  async function createGameEntity(entity: NewEntity): Promise<boolean> {
+    if (!campaignId || !documentId) return false;
+    const dup = docs.find((d) => d.title.trim().toLowerCase() === entity.title.trim().toLowerCase());
+    if (dup) { showToast(`«${dup.title}» уже есть в кампании`); return true; }
+    try {
+      const created = await api.createDocument({
+        campaignId,
+        type: getDocumentType(entity.type) ? entity.type : "note",
+        title: entity.title,
+        contentJson: markdownToDoc(entity.text),
+      });
+      await api.createLink({ campaignId, fromDocId: documentId, toDocId: created.id, kind: "упоминает" }).catch(() => {});
+      api.listCampaignDocuments(campaignId).then(setDocs).catch(() => {});
+      showToast(`Создано: «${created.title}»`);
+      return true;
+    } catch {
+      showToast("Не удалось создать сущность");
+      return false;
+    }
   }
 
   // Показывает превью предлагаемой к созданию сущности (реального документа ещё нет).
@@ -353,8 +376,8 @@ export function PlaySession() {
             appliedBlocks={(doc.fields?.appliedDocBlocks as string[] | undefined) ?? []}
             docUpdatedAt={(doc.fields?.contentUpdatedAt as string | undefined) ?? doc.updatedAt}
             onApply={applyToSession}
-            onCreateEntity={() => showToast("Создавайте сущности вне режима игры")}
-            onEditEntity={() => showToast("Изменяйте документы вне режима игры")}
+            onCreateEntity={createGameEntity}
+            onEditEntity={() => { showToast("Изменяйте документы вне режима игры"); return false; }}
             mentions={prepared}
             onMentionClick={(id) => { setTab("docs"); openDoc(id); }}
           />

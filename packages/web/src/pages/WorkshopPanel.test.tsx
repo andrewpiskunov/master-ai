@@ -54,4 +54,28 @@ describe("WorkshopPanel", () => {
     await waitFor(() => expect(api.approveProposal).toHaveBeenCalledWith("p1"));
     expect(onApproved).toHaveBeenCalled();
   });
+
+  it("открывает предпросмотр предложения по клику и принимает из него", async () => {
+    vi.mocked(api.getConversation).mockResolvedValue([{ id: "w", role: "assistant", content: "Привет!", createdAt: "x" }]);
+    vi.mocked(api.listProposals).mockResolvedValue([{
+      id: "p1", campaignId: "c1", conversationId: "k1", type: "npc", title: "Барон Кройц",
+      content: "## Core Profile\n- **Role / Occupation**: глава гильдии\n- **Personality**: суровый, но справедливый",
+      fields: {}, action: "create", status: "pending", createdAt: "x",
+    }]);
+    vi.mocked(api.worldSummary).mockResolvedValue({ summary: "", question: "" });
+    vi.mocked(api.brainstormStatus).mockResolvedValue({ running: false, partial: "", error: null });
+    vi.mocked(api.approveProposal).mockResolvedValue({
+      id: "d1", campaignId: "c1", type: "npc", title: "Барон Кройц", status: null, contentJson: null, fields: {}, createdAt: "x", updatedAt: "x",
+    });
+    renderPanel();
+
+    // Клик по карточке открывает модалку с полным содержимым (в карточке — только первое поле).
+    await userEvent.click(await screen.findByText("Барон Кройц"));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("суровый, но справедливый");
+
+    await userEvent.click(screen.getByRole("button", { name: "Принять" }));
+    await waitFor(() => expect(api.approveProposal).toHaveBeenCalledWith("p1"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });

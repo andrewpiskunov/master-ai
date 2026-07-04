@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Lock, Plus, Send, Square, Star, User } from "lucide-react";
+import { BookOpen, Crown, Lock, Plus, Send, Shield, Square, Star, User } from "lucide-react";
 import { dedupeGameTail, extractLogBlock, parseGameSections, stripChoicePrompts, type MessageMeta } from "@master-ai/shared";
 import { api } from "../api/client.js";
 import { Markdown } from "../ui/Markdown.js";
@@ -131,8 +131,8 @@ export function GameChat({
   appliedBlocks: string[];
   docUpdatedAt?: string;
   onApply: (text: string) => void;
-  onCreateEntity: (entity: NewEntity) => void;
-  onEditEntity: (edit: EditEntity) => void;
+  onCreateEntity: (entity: NewEntity) => boolean | Promise<boolean>;
+  onEditEntity: (edit: EditEntity) => boolean | Promise<boolean>;
   // Сущности кампании для подсветки в ленте (пилюли, как в Мастерской); href = id документа.
   mentions?: MentionItem[];
   // Клик по пилюле — открыть документ (например, во вкладке «Документы»).
@@ -171,7 +171,11 @@ export function GameChat({
   };
 
   const q = npcQuery.trim().toLowerCase();
-  const npcResults = (q ? npcs.filter((n) => n.title.toLowerCase().includes(q)) : npcs).slice(0, 8);
+  // Уже добавленные чипами NPC в списке не показываем — их незачем добавлять повторно.
+  const npcResults = npcs
+    .filter((n) => !extraNpcs.some((x) => x.id === n.id))
+    .filter((n) => !q || n.title.toLowerCase().includes(q))
+    .slice(0, 8);
 
   // Пилюли сущностей показываем только мастеру («Всё видно») — в показе игрокам они выдают структуру кампании.
   const feedMentions = playerView ? undefined : mentions;
@@ -258,12 +262,14 @@ export function GameChat({
 
       <div className="game-actors">
         {pcs.map((p) => (
-          <button key={p.id} type="button" className={`actor-chip${actor.id === p.id ? " active" : ""}`}
-            onClick={() => setActor({ kind: "pc", id: p.id, name: p.title })}>{p.title}</button>
+          <button key={p.id} type="button" className={`actor-chip actor-chip-pc${actor.id === p.id ? " active" : ""}`}
+            title="Персонаж игрока"
+            onClick={() => setActor({ kind: "pc", id: p.id, name: p.title })}><Shield size={12} strokeWidth={2.1} /> {p.title}</button>
         ))}
         {extraNpcs.map((n) => (
           <button key={n.id} type="button" className={`actor-chip actor-chip-npc${actor.id === n.id ? " active" : ""}`}
-            onClick={() => setActor({ kind: "npc", id: n.id, name: n.title })}>{n.title}</button>
+            title="NPC"
+            onClick={() => setActor({ kind: "npc", id: n.id, name: n.title })}><User size={12} strokeWidth={2.1} /> {n.title}</button>
         ))}
         <div className="actor-npc">
           <button type="button" className="actor-chip actor-add" onClick={() => setNpcOpen((v) => !v)}><Plus size={13} /> NPC</button>
@@ -285,7 +291,7 @@ export function GameChat({
           )}
         </div>
         <button type="button" className={`actor-chip actor-master${actor.kind === "master" ? " active" : ""}`}
-          onClick={() => setActor(MASTER)}><User size={13} /> Мастер</button>
+          onClick={() => setActor(MASTER)}><Crown size={13} /> Мастер</button>
       </div>
 
       <form className="chat-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>

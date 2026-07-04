@@ -1,12 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, Check, Loader, Download } from "lucide-react";
-import type { LlmProviderKind, Realism } from "@master-ai/shared";
+import { ArrowLeft, Trash2, Check, Loader, Download, Upload } from "lucide-react";
+import type { LlmProviderKind, LlmUsageStats, Realism } from "@master-ai/shared";
 import { api } from "../../api/client.js";
+import { fmtDuration, fmtTokens, plural } from "../../format.js";
 import { useToast } from "../../ui/toast.js";
 import { Modal } from "../../ui/Modal.js";
 import { useGoBack } from "../../useGoBack.js";
 import { useCampaign } from "./shared.js";
+
+// Русские подписи фич в статистике расхода токенов.
+const FEATURE_LABELS: Record<string, string> = {
+  workshop: "Мастерская",
+  game: "Игровой чат",
+  assistant: "Ассистент документов",
+  world: "Сводка мира",
+  consistency: "Проверка противоречий",
+  "session-summary": "Итоги сессий",
+  welcome: "Приветствие",
+  tools: "Инструменты (бой, импорт)",
+};
 
 const REALISM: { key: Realism; label: string; hint: string }[] = [
   { key: "stylized", label: "Стилизованно", hint: "Героический, яркий тон — смелые образы, без приземлённости." },
@@ -30,12 +43,34 @@ export function ManageCampaign() {
   const [llmModel, setLlmModel] = useState("");
   const [llmBaseUrl, setLlmBaseUrl] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [usage, setUsage] = useState<LlmUsageStats | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  // Импорт кампании из JSON-файла экспорта: создаёт новую кампанию и открывает её.
+  async function importFromFile(file: File) {
+    setImporting(true);
+    try {
+      const data: unknown = JSON.parse(await file.text());
+      const created = await api.importCampaignJson(data);
+      showToast(`Кампания «${created.name}» импортирована`);
+      navigate(`/campaigns/${created.id}`);
+    } catch (e) {
+      showToast(e instanceof SyntaxError ? "Файл не является корректным JSON" : e instanceof Error ? e.message : "Не удалось импортировать кампанию");
+      setImporting(false);
+    }
+  }
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   // Инициализируем поля один раз на кампанию, чтобы reloadCampaign не затирал ввод.
   const initedRef = useRef<string | null>(null);
   const savedRef = useRef<{ name: string; system: string; description: string }>({ name: "", system: "", description: "" });
   const savedLlmRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!campaignId) return;
+    api.llmUsage(campaignId).then(setUsage).catch(() => {});
+  }, [campaignId]);
 
   useEffect(() => {
     if (!campaign || initedRef.current === campaign.id) return;
@@ -228,8 +263,59 @@ export function ManageCampaign() {
         )}
       </section>
 
+      {usage && usage.total.requests > 0 && (
+        <section className="panel manage-section">
+          <h2>Расход нейросети</h2>
+          <p className="muted manage-hint">
+            Токены и время ответа по запросам этой кампании.
+            {usage.total.estimated && " Значения с «≈» — оценка по длине текста: провайдер не отдаёт точный расход."}
+          </p>
+          <div className="usage-total">
+            <span className="usage-total-num">{usage.total.estimated ? "≈ " : ""}{fmtTokens(usage.total.promptTokens + usage.total.completionTokens)}</span>
+            <span className="usage-total-sub">
+              токенов за {fmtTokens(usage.total.requests)} {plural(usage.total.requests, ["запрос", "запроса", "запросов"])} ·
+              среднее время ответа {fmtDuration(usage.total.avgDurationMs)}
+            </span>
+          </div>
+          <table className="usage-table">
+            <thead>
+              <tr><th>Фича</th><th>Запросы</th><th>Промпт</th><th>Ответ</th><th>Ср. время</th></tr>
+            </thead>
+            <tbody>
+              {usage.byFeature.map((f) => (
+                <tr key={f.feature}>
+                  <td>{FEATURE_LABELS[f.feature] ?? f.feature}</td>
+                  <td>{fmtTokens(f.requests)}</td>
+                  <td>{f.estimated ? "≈ " : ""}{fmtTokens(f.promptTokens)}</td>
+                  <td>{f.estimated ? "≈ " : ""}{fmtTokens(f.completionTokens)}</td>
+                  <td>{fmtDuration(f.avgDurationMs)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {usage.byModel.length > 0 && (
+            <table className="usage-table">
+              <thead>
+                <tr><th>Модель</th><th>Способ</th><th>Запросы</th><th>Токены</th><th>Ср. время</th></tr>
+              </thead>
+              <tbody>
+                {usage.byModel.map((m) => (
+                  <tr key={`${m.provider}:${m.model}`}>
+                    <td>{m.model}</td>
+                    <td>{m.provider === "cli" ? "Claude Code (CLI)" : m.provider === "openai" ? "API" : m.provider}</td>
+                    <td>{fmtTokens(m.requests)}</td>
+                    <td>{fmtTokens(m.promptTokens + m.completionTokens)}</td>
+                    <td>{fmtDuration(m.avgDurationMs)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
+
       <section className="panel manage-section">
-        <h2>Экспорт</h2>
+        <h2>Экспорт и импорт</h2>
         <p className="muted manage-hint">Собрать всю кампанию в один документ — для печати, сохранения в PDF или выгрузки в Markdown.</p>
         <div className="manage-export-row">
           <Link to={`/campaigns/${campaignId}/export`} className="btn manage-export"><Download size={16} strokeWidth={1.8} /> Экспорт кампании</Link>
@@ -237,7 +323,27 @@ export function ManageCampaign() {
             <Download size={15} strokeWidth={1.8} /> Скачать резервную копию
           </a>
         </div>
-        <p className="muted manage-hint">Сервер также сам делает дневную копию базы в data/backups (хранятся последние 7).</p>
+        <p className="muted manage-hint">
+          Полный перенос кампании: JSON-файл со всем содержимым — документы, беседы и игровые чаты,
+          предложения ИИ, связи и статистика расхода. Импорт создаёт новую кампанию из такого файла.
+          Ключ API нейросети в файл не выгружается.
+        </p>
+        <div className="manage-export-row">
+          <a href={`/api/campaigns/${campaignId}/export-json`} download className="btn-ghost manage-backup" title="Скачать всё содержимое кампании одним JSON-файлом">
+            <Download size={15} strokeWidth={1.8} /> Экспорт в JSON
+          </a>
+          <button type="button" className="btn-ghost manage-backup" onClick={() => importFileRef.current?.click()} disabled={importing}>
+            <Upload size={15} strokeWidth={1.8} /> {importing ? "Импортируем…" : "Импорт из JSON"}
+          </button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            aria-label="Файл экспорта кампании"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFromFile(f); e.target.value = ""; }}
+          />
+        </div>
       </section>
 
       <section className="panel manage-danger">

@@ -70,7 +70,11 @@ export function CombatTracker({
   return (
     <div className="combat">
       {list.length === 0 ? (
-        <p className="muted combat-empty"><Swords size={16} /> Добавьте участников боя — по инициативе, HP и состояниям.</p>
+        <div className="combat-empty">
+          <Swords size={22} strokeWidth={1.8} />
+          <p>Бой ещё не начался</p>
+          <span>Добавьте участников — вручную, из персонажей кампании или соберите из чата с ИИ-мастером.</span>
+        </div>
       ) : (
         <div className="combat-head">
           <span className="combat-round">Раунд {state.round}</span>
@@ -80,7 +84,10 @@ export function CombatTracker({
       )}
 
       <ul className="combat-list">
-        {list.map((c, i) => (
+        {list.map((c, i) => {
+          const pct = c.maxHp > 0 ? Math.max(0, Math.min(1, c.hp / c.maxHp)) * 100 : 0;
+          const hpColor = pct > 50 ? "#4ade80" : pct > 25 ? "#fbbf24" : "#f87171";
+          return (
           <li key={c.id} className={`combat-row${i === state.turn ? " active" : ""}${c.hp <= 0 ? " down" : ""}`}>
             <input className="combat-init" value={c.init} onChange={(e) => patchCombatant(c.id, { init: Number(e.target.value) || 0 })} title="Инициатива" />
             <div className="combat-main">
@@ -94,46 +101,52 @@ export function CombatTracker({
                 <button type="button" className="combat-dmg" title="−1 урона" onClick={() => patchCombatant(c.id, { hp: c.hp - 1 })}>−1</button>
                 <button type="button" className="combat-heal" title="+1 лечения" onClick={() => patchCombatant(c.id, { hp: Math.min(c.maxHp, c.hp + 1) })}>+1</button>
               </span>
+              <span className="combat-hpbar"><span className="combat-hpbar-fill" style={{ width: `${pct}%`, background: hpColor }} /></span>
               <input className="combat-cond" placeholder="состояния…" value={c.conditions} onChange={(e) => patchCombatant(c.id, { conditions: e.target.value })} />
             </div>
             <button type="button" className="combat-x" onClick={() => removeCombatant(c.id)} aria-label="Убрать"><X size={14} /></button>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
-      <form className="combat-add" onSubmit={addCombatant}>
-        <input className="combat-add-name" placeholder="Имя участника" aria-label="Имя участника" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="combat-add-init" placeholder="Иниц." aria-label="Инициатива" inputMode="numeric" value={init} onChange={(e) => setInit(e.target.value)} />
-        <button type="submit" className="combat-add-btn"><Plus size={15} /> Добавить</button>
-      </form>
+      <div className="combat-section">
+        <div className="combat-section-head">Участники</div>
+        <form className="combat-add" onSubmit={addCombatant}>
+          <input className="combat-add-name" placeholder="Имя участника" aria-label="Имя участника" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="combat-add-init" placeholder="Иниц." aria-label="Инициатива" inputMode="numeric" value={init} onChange={(e) => setInit(e.target.value)} />
+          <button type="submit" className="combat-add-btn" aria-label="Добавить"><Plus size={16} /></button>
+        </form>
 
-      <div className="combat-sources">
-        {candidates.length > 0 && (
-          <select
-            className="combat-pick"
-            value=""
-            onChange={(e) => { const c = candidates.find((x) => x.id === e.target.value); if (c) addNamed(c.title); e.currentTarget.value = ""; }}
-            title="Добавить из существующих персонажей кампании"
-          >
-            <option value="">+ Из кампании…</option>
-            {candidates.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-          </select>
-        )}
-        {onAiFill && (
-          <button type="button" className="combat-ai" onClick={onAiFill} disabled={aiBusy} title="Собрать участников боя из чата и текста сессии">
-            <Sparkles size={13} /> {aiBusy ? "Собираю…" : "Из чата"}
-          </button>
-        )}
+        <div className="combat-sources">
+          {candidates.length > 0 && (
+            <select
+              className="combat-pick"
+              value=""
+              onChange={(e) => { const c = candidates.find((x) => x.id === e.target.value); if (c) addNamed(c.title); e.currentTarget.value = ""; }}
+              title="Добавить из существующих персонажей кампании"
+            >
+              <option value="">+ Из кампании…</option>
+              {candidates.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          )}
+          {onAiFill && (
+            <button type="button" className="combat-ai" onClick={onAiFill} disabled={aiBusy} title="Собрать участников боя из чата и текста сессии">
+              <Sparkles size={13} /> {aiBusy ? "Собираю…" : "Из чата"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="combat-dice">
+        <div className="combat-section-head">Кубы</div>
         <div className="combat-dice-quick">
           {QUICK_DICE.map((d) => (
-            <button key={d} type="button" onClick={() => { setFormula(d); setRoll(rollDice(d)); }}>{d}</button>
+            <button key={d} type="button" className={formula === d ? "active" : ""} onClick={() => { setFormula(d); setRoll(rollDice(d)); }}>{d}</button>
           ))}
         </div>
         <form className="combat-dice-form" onSubmit={(e) => { e.preventDefault(); setRoll(rollDice(formula)); }}>
-          <input value={formula} onChange={(e) => setFormula(e.target.value)} placeholder="2d6+3" />
+          <input value={formula} onChange={(e) => setFormula(e.target.value)} placeholder="2d6+3" aria-label="Формула броска" />
           <button type="submit"><Dices size={15} /> Бросить</button>
         </form>
         {roll && (

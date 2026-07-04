@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 
 // Простое модальное окно: затемнение + панель, закрытие по фону и Esc.
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({ title, onClose, children, className }: { title: string; onClose: () => void; children: ReactNode; className?: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -10,7 +10,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div className={className ? `modal ${className}` : "modal"} role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <h3 className="modal-title">{title}</h3>
         {children}
       </div>

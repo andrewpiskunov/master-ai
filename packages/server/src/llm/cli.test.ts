@@ -43,6 +43,25 @@ describe("CliProvider", () => {
     await expect(collect(provider.complete(input))).rejects.toBeInstanceOf(LlmError);
   });
 
+  it("сигнал остановки убивает процесс сразу, без ошибки; частичный вывод сохраняется", async () => {
+    // Команда печатает начало и «зависает» надолго — как claude -p, который не стримит.
+    const provider = new CliProvider({
+      command: "node",
+      args: ["-e", "process.stdout.write('Начало');setTimeout(()=>process.stdout.write('хвост'),60_000)"],
+    });
+    const abort = new AbortController();
+    let out = "";
+    const started = Date.now();
+    const run = (async () => {
+      for await (const c of provider.complete(input, { signal: abort.signal })) out += c;
+    })();
+    await new Promise((r) => setTimeout(r, 150)); // дождались первого чанка
+    abort.abort();
+    await run; // завершилось без LlmError
+    expect(out).toBe("Начало");
+    expect(Date.now() - started).toBeLessThan(5_000); // не ждали 60 секунд
+  });
+
   it("корректно собирает многобайтовые символы (UTF-8) при разбивке на границах чанков", async () => {
     // Пишет первые 3 байта «Привет» (оба байта П + первый байт р), затем остаток.
     // Без setEncoding('utf8') первый чанк даст «П» + replacement char, итог будет не «Привет».

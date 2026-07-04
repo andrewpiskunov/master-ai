@@ -48,8 +48,10 @@ export function AssistantAnswer({
   appliedBlocks: string[];
   documents: { title: string; type: string }[];
   onApply: (text: string) => void;
-  onCreateEntity: (entity: NewEntity) => void;
-  onEditEntity: (edit: EditEntity) => void;
+  // Возвращают true, только если сущность реально создана/обновлена —
+  // отметка «создана»/«обновлено» ставится строго по этому результату.
+  onCreateEntity: (entity: NewEntity) => boolean | Promise<boolean>;
+  onEditEntity: (edit: EditEntity) => boolean | Promise<boolean>;
   renderIntro?: (intro: string) => ReactNode;
 }) {
   // Оптимистичные отметки «применено/создано/обновлено» — состояние на карточку-сообщение.
@@ -103,7 +105,7 @@ export function AssistantAnswer({
               <span className="apply-new-title">{nd.title}</span>
             </div>
             {nd.text && <div className="apply-preview">{nd.text}</div>}
-            <button type="button" className="apply-btn" onClick={() => { onCreateEntity(nd); setCreatedLocal((s) => new Set(s).add(entityKey(nd))); }}>
+            <button type="button" className="apply-btn" onClick={async () => { if (await onCreateEntity(nd)) setCreatedLocal((s) => new Set(s).add(entityKey(nd))); }}>
               <Plus size={15} /> Создать сущность «{nd.title}»
             </button>
           </div>
@@ -119,7 +121,7 @@ export function AssistantAnswer({
               <span className="apply-new-title">{e.title}{e.rename ? ` → ${e.rename}` : ""}</span>
             </div>
             {e.text && <div className="apply-preview">{e.text}</div>}
-            <button type="button" className="apply-btn" onClick={() => { onEditEntity(e); setEditedLocal((s) => new Set(s).add(editKey(e))); }}>
+            <button type="button" className="apply-btn" onClick={async () => { if (await onEditEntity(e)) setEditedLocal((s) => new Set(s).add(editKey(e))); }}>
               <Check size={15} /> Обновить «{e.rename ?? e.title}»
             </button>
           </div>

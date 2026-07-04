@@ -12,7 +12,14 @@ vi.mock("react-router-dom", async (orig) => ({
   useNavigate: () => vi.fn(),
 }));
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  // Глобальная статистика запрашивается на каждом рендере главной — по умолчанию пустая.
+  vi.mocked(api.llmUsageGlobal).mockResolvedValue({
+    total: { promptTokens: 0, completionTokens: 0, requests: 0, estimated: false, avgDurationMs: 0 },
+    byFeature: [], byModel: [], byCampaign: [],
+  });
+});
 
 function renderPage() {
   return render(

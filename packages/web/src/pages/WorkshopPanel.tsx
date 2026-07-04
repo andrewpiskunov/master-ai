@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Globe, RefreshCw, MessageCircle, Check, X, Plus, FileUp } from "lucide-react";
+import type { Proposal } from "@master-ai/shared";
+import { Globe, RefreshCw, MessageCircle, Check, X, Plus, FileUp, Square } from "lucide-react";
 import { Markdown } from "../ui/Markdown.js";
 import { Modal } from "../ui/Modal.js";
 import { MentionTextarea } from "../ui/MentionTextarea.js";
@@ -27,7 +28,7 @@ function clip(s: string): string {
 }
 
 export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
-  const { messages, busy, awaitingWelcome, send, draft, setDraft } = useWorkshopChat();
+  const { messages, busy, awaitingWelcome, send, stop, draft, setDraft } = useWorkshopChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const [importing, setImporting] = useState(false);
@@ -105,7 +106,13 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
           mentions={(mentions ?? []).map((m) => ({ title: m.title, type: m.type }))}
           disabled={busy}
         />
-        <button type="submit" disabled={busy}>Отправить</button>
+        {busy ? (
+          <button type="button" className="chat-send chat-stop" onClick={stop} title="Остановить генерацию — набранный текст останется">
+            <Square size={13} strokeWidth={2.2} /> Стоп
+          </button>
+        ) : (
+          <button type="submit">Отправить</button>
+        )}
       </form>
 
       {importing && (
@@ -163,6 +170,7 @@ export function WorldSummary() {
 // Предложения ИИ — в правой колонке, рядом с «Недавно созданными».
 export function WorkshopProposals() {
   const { proposals, approve, reject } = useWorkshopChat();
+  const [preview, setPreview] = useState<Proposal | null>(null);
   if (proposals.length === 0) return null;
   return (
     <aside className="panel">
@@ -179,11 +187,18 @@ export function WorkshopProposals() {
         {proposals.map((p) => (
           <div key={p.id} className="proposal">
             <span className="proposal-icon"><TypeBadge type={p.type} size={26} /></span>
-            <div className="proposal-main">
-              <div className="proposal-titlerow">
-                <span className="proposal-title">{p.title}</span>
-                {p.action === "update" && <span className="proposal-tag-update">Изменить</span>}
+            <div
+              className="proposal-main"
+              role="button"
+              tabIndex={0}
+              title="Посмотреть полностью"
+              onClick={() => setPreview(p)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPreview(p); } }}
+            >
+              <span className="proposal-title">{p.title}</span>
+              <div className="proposal-meta">
                 <TypeTag type={p.type} />
+                {p.action === "update" && <span className="proposal-tag-update">Изменить</span>}
               </div>
               <p className="proposal-snippet">{snippet(p.content)}</p>
             </div>
@@ -198,6 +213,24 @@ export function WorkshopProposals() {
           </div>
         ))}
       </div>
+      {preview && (
+        <Modal title={preview.title} className="modal-proposal" onClose={() => setPreview(null)}>
+          <div className="proposal-preview-meta">
+            <TypeTag type={preview.type} />
+            {preview.action === "update" && <span className="proposal-tag-update">Изменить существующий документ</span>}
+          </div>
+          <div className="proposal-preview-body">
+            <Markdown>{preview.content}</Markdown>
+          </div>
+          <div className="modal-actions">
+            <button type="button" onClick={() => { approve(preview.id); setPreview(null); }}>
+              {preview.action === "update" ? "Обновить документ" : "Принять"}
+            </button>
+            <button type="button" className="btn-ghost" onClick={() => { reject(preview.id); setPreview(null); }}>Отклонить</button>
+            <button type="button" className="btn-ghost" onClick={() => setPreview(null)}>Закрыть</button>
+          </div>
+        </Modal>
+      )}
     </aside>
   );
 }
