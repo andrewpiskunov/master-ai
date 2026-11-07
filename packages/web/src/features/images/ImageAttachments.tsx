@@ -2,13 +2,12 @@ import { useId, useRef } from "react";
 import { ImagePlus, X } from "lucide-react";
 import type { ImageAttachment } from "@master-ai/shared";
 import type { ImageDraft } from "./useImageDraft.js";
+import { ImagePreview } from "./ImageViewer.js";
 
 export function MessageImages({ images }: { images?: ImageAttachment[] }) {
   if (!images?.length) return null;
-  return <div className="message-images">{images.map((image) => (
-    <a key={image.id} href={`/api/images/${image.id}`} target="_blank" rel="noopener noreferrer" title={`Открыть ${image.name}`}>
-      <img src={`/api/images/${image.id}`} alt={image.name} loading="lazy" />
-    </a>
+  return <div className="message-images">{images.map((image, index) => (
+    <ImagePreview key={image.id} images={images} index={index} />
   ))}</div>;
 }
 

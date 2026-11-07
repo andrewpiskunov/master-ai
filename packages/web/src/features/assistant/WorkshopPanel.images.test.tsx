@@ -39,6 +39,37 @@ beforeEach(() => {
 });
 
 describe("WorkshopPanel image attachments", () => {
+  it("opens confirmed results in the shared viewer and navigates between successful attachments", async () => {
+    vi.mocked(api.getConversation).mockResolvedValue([{
+      id: "results", role: "assistant", content: "Иллюстрации готовы.", createdAt: "x",
+      meta: { imageAttachments: [
+        { documentId: "baron", documentTitle: "Барон", image: portrait },
+        { documentId: "missing", documentTitle: "Не найден", error: "Ошибка прикрепления" },
+        { documentId: "castle", documentTitle: "Замок", image: map },
+      ] },
+    }]);
+    render(<Workshop />);
+    await userEvent.click(await screen.findByRole("button", { name: "Открыть map.png" }));
+    const dialog = screen.getByRole("dialog", { name: "Просмотр изображения" });
+    expect(within(dialog).getByRole("img")).toHaveAttribute("src", "/api/images/img-map");
+    expect(within(dialog).getByText("2 / 2")).toBeInTheDocument();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(within(dialog).getByRole("img")).toHaveAttribute("src", "/api/images/img-portrait");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Открыть map.png" })).toHaveFocus();
+  });
+
+  it("navigates all uploaded images from a workshop message without opening the entity picker", async () => {
+    uploadedMessage();
+    render(<Workshop />);
+    await userEvent.click(await screen.findByRole("button", { name: "Открыть portrait.png" }));
+    const dialog = screen.getByRole("dialog", { name: "Просмотр изображения" });
+    expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(within(dialog).getByRole("img")).toHaveAttribute("src", "/api/images/img-map");
+    expect(api.listCampaignDocuments).not.toHaveBeenCalled();
+  });
+
   it("renders confirmed attachment previews and per-target failures from reloaded message metadata", async () => {
     const history = [{
       id: "result", role: "assistant" as const, content: "Обработал иллюстрации.", createdAt: "x",

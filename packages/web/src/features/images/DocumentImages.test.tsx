@@ -3,6 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "../../api/client.js";
 import { DocumentImages } from "./DocumentImages.js";
+import type { Document } from "@master-ai/shared";
 
 vi.mock("../../api/client.js");
 const image = { id: "img1", name: "portrait.png", mimeType: "image/png" as const };
@@ -25,7 +26,9 @@ describe("DocumentImages", () => {
     await screen.findByRole("button", { name: "Убрать portrait.png" });
     await userEvent.click(screen.getByRole("button", { name: "Прикрепить к сущности" }));
     await waitFor(() => expect(api.attachDocumentImage).toHaveBeenCalledWith("d1", "img1"));
-    expect(await screen.findByRole("link", { name: "Открыть portrait.png" })).toHaveAttribute("href", "/api/images/img1");
+    await userEvent.click(await screen.findByRole("button", { name: "Открыть portrait.png" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     await userEvent.click(screen.getByRole("button", { name: "Открепить portrait.png" }));
     await waitFor(() => expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument());
     expect(api.detachDocumentImage).toHaveBeenCalledWith("d1", "img1");
@@ -53,7 +56,7 @@ describe("DocumentImages", () => {
     await userEvent.type(prompt, "Барон на фоне башни");
     await userEvent.click(screen.getByRole("button", { name: "Создать иллюстрацию" }));
     expect(api.startImageGeneration).toHaveBeenCalledWith("d1", "Барон на фоне башни");
-    expect(await screen.findByRole("link", { name: "Открыть portrait.png" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Открыть portrait.png" })).toBeInTheDocument();
     expect(screen.getByText("Иллюстрация прикреплена")).toBeInTheDocument();
   });
 
@@ -100,7 +103,7 @@ describe("DocumentImages", () => {
     expect(screen.getByRole("button", { name: "Остановить иллюстрацию" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Создать иллюстрацию" })).not.toBeInTheDocument();
     await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
-    expect(screen.getByRole("link", { name: "Открыть portrait.png" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Открыть portrait.png" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByText("Иллюстрация прикреплена")).toBeInTheDocument();
   });
@@ -137,7 +140,7 @@ describe("DocumentImages", () => {
     expect(screen.getByRole("button", { name: "Остановить иллюстрацию" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Создать иллюстрацию" })).not.toBeInTheDocument();
     await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
-    expect(screen.getByRole("link", { name: "Открыть portrait.png" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Открыть portrait.png" })).toBeInTheDocument();
     expect(api.startImageGeneration).toHaveBeenCalledTimes(1);
   });
 
@@ -151,4 +154,48 @@ describe("DocumentImages", () => {
     expect(api.imageGenerationStatus).toHaveBeenCalledTimes(1);
   });
 
+});
+
+const alternateImage = { id: "img2", name: "tower.png", mimeType: "image/png" as const };
+const selectedDocument: Document = {
+  id: "d1", campaignId: "c1", type: "location", title: "Башня", status: null,
+  contentJson: null, fields: { tags: ["сохранено"], avatarImageId: "img2" },
+  avatar: alternateImage, createdAt: "x", updatedAt: "y",
+};
+
+it("selects a gallery avatar, identifies it, and resets to the first image", async () => {
+  vi.mocked(api.documentImages).mockResolvedValue([image, alternateImage]);
+  vi.mocked(api.setDocumentAvatar).mockResolvedValueOnce(selectedDocument)
+    .mockResolvedValueOnce({ ...selectedDocument, avatar: image, fields: { tags: ["сохранено"] } });
+  render(<DocumentImages campaignId="c1" docId="d1" title="Башня" typeLabel="Локация" description="" avatar={image} />);
+  expect(await screen.findByRole("button", { name: "Аватар: portrait.png" })).toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(screen.getByRole("button", { name: "Сделать аватаром tower.png" }));
+  expect(await screen.findByRole("button", { name: "Аватар: tower.png" })).toHaveAttribute("aria-pressed", "true");
+  expect(api.setDocumentAvatar).toHaveBeenCalledWith("d1", "img2");
+  await userEvent.click(screen.getByRole("button", { name: "Использовать первое изображение" }));
+  expect(await screen.findByRole("button", { name: "Аватар: portrait.png" })).toHaveAttribute("aria-pressed", "true");
+  expect(api.setDocumentAvatar).toHaveBeenLastCalledWith("d1", null);
+  expect(api.updateDocument).not.toHaveBeenCalled();
+});
+
+it("keeps the current avatar after a failed selection and reports the error", async () => {
+  vi.mocked(api.documentImages).mockResolvedValue([image, alternateImage]);
+  vi.mocked(api.setDocumentAvatar).mockRejectedValue(new Error("Не удалось выбрать изображение"));
+  render(<DocumentImages campaignId="c1" docId="d1" title="Башня" typeLabel="Локация" description="" avatar={image} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Сделать аватаром tower.png" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось выбрать изображение");
+  expect(screen.getByRole("button", { name: "Аватар: portrait.png" })).toHaveAttribute("aria-pressed", "true");
+});
+
+it("discards a late avatar selection after navigating to another document", async () => {
+  let finish!: (doc: Document) => void;
+  vi.mocked(api.documentImages).mockResolvedValue([image, alternateImage]);
+  vi.mocked(api.setDocumentAvatar).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+  const onDocumentChange = vi.fn();
+  const view = render(<DocumentImages campaignId="c1" docId="d1" title="Башня" typeLabel="Локация" description="" avatar={image} onDocumentChange={onDocumentChange} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Сделать аватаром tower.png" }));
+  view.rerender(<DocumentImages campaignId="c1" docId="d2" title="Замок" typeLabel="Локация" description="" avatar={image} onDocumentChange={onDocumentChange} />);
+  await act(async () => { finish(selectedDocument); });
+  expect(await screen.findByRole("button", { name: "Аватар: portrait.png" })).toHaveAttribute("aria-pressed", "true");
+  expect(onDocumentChange).not.toHaveBeenCalled();
 });

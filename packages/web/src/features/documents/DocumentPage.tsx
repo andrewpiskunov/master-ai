@@ -9,6 +9,7 @@ import { useToast } from "../../ui/toast.js";
 import { Select } from "../../ui/Select.js";
 import { Modal } from "../../ui/Modal.js";
 import { DocumentImages } from "../images/DocumentImages.js";
+import { ImagePreview } from "../images/ImageViewer.js";
 import { DocumentAssistant } from "../assistant/DocumentAssistant.js";
 import { blockKey, type NewEntity, type EditEntity } from "../assistant/assistant-blocks.js";
 import { PlayPanel } from "../play/PlayPanel.js";
@@ -64,6 +65,63 @@ export function DocumentPage() {
   const savedRef = useRef<{ title: string; content: string } | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [fillingHeading, setFillingHeading] = useState<string | null>(null);
+  const currentDocumentId = useRef(documentId);
+  currentDocumentId.current = documentId;
+  const imageRefreshVersion = useRef(0);
+  const documentVisit = useRef(0);
+  useEffect(() => { imageRefreshVersion.current++; documentVisit.current++; }, [documentId]);
+  const pageActive = useRef(true);
+  useEffect(() => {
+    pageActive.current = true;
+    return () => { pageActive.current = false; };
+  }, []);
+
+  // Обновляем только метаданные изображения: серверный ответ не заменяет черновик.
+  function applyImageDocument(updated: Document) {
+    if (!pageActive.current || currentDocumentId.current !== updated.id) return;
+    imageRefreshVersion.current++;
+    function mergeAvatarField(current: Record<string, unknown>) {
+      const next = { ...current };
+      delete next.avatarImageId;
+      if (typeof updated.fields?.avatarImageId === "string") next.avatarImageId = updated.fields.avatarImageId;
+      return next;
+    }
+    fieldsRef.current = mergeAvatarField(fieldsRef.current);
+    setFields((current) => mergeAvatarField(current));
+    setDoc((current) => current?.id === updated.id ? { ...current, avatar: updated.avatar, fields: mergeAvatarField(current.fields ?? {}) } : current);
+    campaignCtx?.reload();
+  }
+
+  async function refreshImageDocument() {
+    const id = documentId;
+    if (!id) return;
+    const version = ++imageRefreshVersion.current;
+    try {
+      const updated = await api.getDocument(id);
+      if (!pageActive.current || currentDocumentId.current !== id || version !== imageRefreshVersion.current) return;
+      applyImageDocument(updated);
+    } catch {
+      if (pageActive.current && currentDocumentId.current === id && version === imageRefreshVersion.current) showToast("Не удалось обновить аватар");
+    }
+  }
+
+  function mutationVersion() { return { image: imageRefreshVersion.current, visit: documentVisit.current }; }
+  // Full-document responses can arrive after an avatar change. Apply their
+  // ordinary fields while retaining the newer avatar already shown in the UI.
+  function applySavedDocument(updated: Document, started: ReturnType<typeof mutationVersion>): boolean {
+    if (!pageActive.current || currentDocumentId.current !== updated.id || started.visit !== documentVisit.current) return false;
+    const retainAvatar = started.image !== imageRefreshVersion.current;
+    const nextFields = { ...updated.fields };
+    if (retainAvatar) {
+      delete nextFields.avatarImageId;
+      if (typeof fieldsRef.current.avatarImageId === "string") nextFields.avatarImageId = fieldsRef.current.avatarImageId;
+    }
+    fieldsRef.current = nextFields;
+    setFields(nextFields);
+    setDoc((current) => current?.id === updated.id ? { ...updated, fields: nextFields, ...(retainAvatar ? { avatar: current.avatar } : {}) } : current);
+    setStatus(updated.status ?? "");
+    return true;
+  }
 
   useEffect(() => { if (documentId) setMarked(isBookmarked(documentId)); }, [documentId]);
 
@@ -77,14 +135,17 @@ export function DocumentPage() {
     // Прячем редактор на время загрузки: TipTap инициализирует контент только
     // при монтировании, поэтому редактор должен монтироваться уже с новым документом.
     setDoc(null);
+    let active = true;
     api.getDocument(documentId).then((d) => {
+      if (!active) return;
       setDoc(d);
       setTitle(d.title);
       setStatus(d.status ?? "");
       setContentJson(d.contentJson);
       setFields(d.fields ?? {});
       savedRef.current = { title: d.title, content: JSON.stringify(d.contentJson) };
-    }).catch(() => showToast("Не удалось загрузить документ"));
+    }).catch(() => { if (active) showToast("Не удалось загрузить документ"); });
+    return () => { active = false; };
   }, [documentId, showToast]);
 
   // Автосохранение заголовка и текста — с задержкой, без кнопки «Сохранить».
@@ -104,11 +165,10 @@ export function DocumentPage() {
   // Мгновенно сохраняет «тег» (статус, отношение, пометку) — как в Arks, без кнопки «Сохранить».
   async function patchDoc(p: { status?: string | null; fields?: Record<string, unknown> }) {
     if (!documentId) return;
+    const started = mutationVersion();
     try {
       const updated = await api.updateDocument(documentId, p);
-      setDoc(updated);
-      setStatus(updated.status ?? "");
-      setFields(updated.fields ?? {});
+      if (!applySavedDocument(updated, started)) return;
       campaignCtx?.reload();
     } catch {
       showToast("Не удалось сохранить");
@@ -134,6 +194,7 @@ export function DocumentPage() {
   // (автосохранение с задержкой 700 мс для этого недостаточно надёжно).
   async function applyDocBlock(text: string) {
     if (!documentId) return;
+    const started = mutationVersion();
     editorRef.current?.applyText(text);
     const prevFields = fieldsRef.current;
     const prev = (prevFields.appliedDocBlocks as string[] | undefined) ?? [];
@@ -144,7 +205,7 @@ export function DocumentPage() {
     showToast("Текст применён");
     try {
       const updated = await api.updateDocument(documentId, { contentJson: markdownToDoc(text), fields: nextFields });
-      setDoc(updated);
+      if (!applySavedDocument(updated, started)) return;
       savedRef.current = { title: updated.title, content: JSON.stringify(updated.contentJson) };
       setSaveState("saved");
       campaignCtx?.reload();
@@ -258,10 +319,10 @@ export function DocumentPage() {
   // Меняет тип документа (как «Change type» в Arks); статус сервер сбросит при несовместимости.
   async function changeType(type: string) {
     if (!documentId) return;
+    const started = mutationVersion();
     try {
       const updated = await api.updateDocument(documentId, { type });
-      setDoc(updated);
-      setStatus(updated.status ?? "");
+      if (!applySavedDocument(updated, started)) return;
       campaignCtx?.reload();
       showToast("Тип изменён");
     } catch {
@@ -290,7 +351,7 @@ export function DocumentPage() {
     }
   }
 
-  if (!doc) return <div className="view"><p className="muted">…</p></div>;
+  if (!doc || doc.id !== documentId) return <div className="view"><p className="muted">…</p></div>;
 
   const t = getDocumentType(doc.type);
   const statuses = t?.statuses ?? [];
@@ -308,6 +369,12 @@ export function DocumentPage() {
             <span className="doc-rail" style={{ color: railColors.fg, background: railColors.bg }}>
               {t?.label ?? doc.type}
             </span>
+            <div className="doc-avatar-block">
+              {doc.avatar
+                ? <ImagePreview key={`${doc.id}:${doc.avatar.id}`} images={[doc.avatar]} className="doc-avatar" label={`Открыть аватар ${title}`} />
+                : <button type="button" className="doc-avatar doc-avatar-placeholder" aria-label="Добавить аватар" onClick={() => setPanel("images")}><ImageIcon size={24} strokeWidth={1.4} /><span>Аватар</span></button>}
+              {doc.avatar && <button type="button" className="doc-avatar-change" onClick={() => setPanel("images")}>Изменить аватар</button>}
+            </div>
             <div className="doc-head-body">
               <div className="doc-head-row">
                 <button type="button" className="doc-back" onClick={goBack} title="Назад">
@@ -479,7 +546,7 @@ export function DocumentPage() {
                 clearConfirmText={doc.type === "session" ? "Удалится и игровой чат с логом событий — точно?" : undefined}
               />
             </div>
-            {panel === "images" && <DocumentImages docId={doc.id} campaignId={doc.campaignId} title={title} typeLabel={t?.label ?? doc.type} description={pmText(contentJson).trim()} />}
+            {panel === "images" && <DocumentImages docId={doc.id} campaignId={doc.campaignId} title={title} typeLabel={t?.label ?? doc.type} description={pmText(contentJson).trim()} avatar={doc.avatar} selectedAvatarId={typeof fields.avatarImageId === "string" ? fields.avatarImageId : null} onDocumentChange={applyImageDocument} onImagesChange={() => { void refreshImageDocument(); }} />}
             {panel === "play" && <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />}
             {panel === "mentions" && <MentionedInPanel campaignId={doc.campaignId} documentId={doc.id} title={title} documents={allDocuments} />}
           </div>

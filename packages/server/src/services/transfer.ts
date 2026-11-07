@@ -130,6 +130,12 @@ export class TransferService {
         const fields = { ...(d.fields as Record<string, unknown> | undefined ?? {}) };
         if ("prevSessionId" in fields) fields.prevSessionId = mapDoc(fields.prevSessionId) ?? undefined;
         if ("nextSessionId" in fields) fields.nextSessionId = mapDoc(fields.nextSessionId) ?? undefined;
+        if ("avatarImageId" in fields) {
+          const image = typeof fields.avatarImageId === "string" ? imageByOldId.get(fields.avatarImageId) : undefined;
+          const attached = image && data.documentImages.some((ref) => ref.documentId === d.id && ref.imageId === image.oldId);
+          if (attached) fields.avatarImageId = image.id;
+          else delete fields.avatarImageId;
+        }
         const row = {
           id: docId.get(d.id)!,
           campaignId,

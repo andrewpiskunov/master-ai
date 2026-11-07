@@ -1,15 +1,31 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Loader, Sparkles, Square, X } from "lucide-react";
-import type { ImageAttachment } from "@master-ai/shared";
+import { Check, Loader, Sparkles, Square, X } from "lucide-react";
+import type { Document, ImageAttachment } from "@master-ai/shared";
 import { api, ApiError } from "../../api/client.js";
 import { ImageAttachments } from "./ImageAttachments.js";
+import { ImagePreview } from "./ImageViewer.js";
 import { imageError, useImageDraft } from "./useImageDraft.js";
+import "./EntityAvatars.css";
 
-interface Props { docId: string; campaignId: string; title: string; typeLabel: string; description: string }
+interface Props {
+  docId: string;
+  campaignId: string;
+  title: string;
+  typeLabel: string;
+  description: string;
+  avatar?: ImageAttachment | null;
+  selectedAvatarId?: string | null;
+  onDocumentChange?: (document: Document) => void;
+  onImagesChange?: () => void;
+}
 // Ключ изолирует галерею, черновик и опрос: ответ старого документа не попадает в новый.
 export function DocumentImages(props: Props) { return <DocumentImagesPanel key={props.docId} {...props} />; }
 
-function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description }: Props) {
+function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description, avatar, selectedAvatarId, onDocumentChange, onImagesChange }: Props) {
+  const [avatarId, setAvatarId] = useState(avatar?.id);
+  const [explicitAvatarId, setExplicitAvatarId] = useState(selectedAvatarId);
+  useEffect(() => { setAvatarId(avatar?.id); }, [avatar?.id]);
+  useEffect(() => { setExplicitAvatarId(selectedAvatarId); }, [selectedAvatarId]);
   const [images, setImages] = useState<ImageAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -48,7 +64,7 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description 
       setRunning(status.running);
       if (status.error) setError(status.error);
       if (status.running) timer.current = setTimeout(() => { void poll(version); }, 1200);
-      else if (status.image) { setNotice("Иллюстрация прикреплена"); await refreshGallery(); }
+      else if (status.image) { setNotice("Иллюстрация прикреплена"); await refreshGallery(); if (active.current) onImagesChange?.(); }
     } catch (e) {
       if (!active.current || pollVersion.current !== version) return;
       // Ошибка связи не означает, что серверная задача закончилась.
@@ -79,6 +95,7 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description 
         if (!active.current) return;
         galleryVersion.current++;
         setImages(result);
+        onImagesChange?.();
         const item = draft.items.find((i) => i.uploaded?.id === image.id || i.name === image.name);
         if (item) draft.remove(item.key);
       }
@@ -93,6 +110,20 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description 
       const result = await api.detachDocumentImage(docId, image.id);
       if (!active.current) return;
       galleryVersion.current++; setImages(result); setNotice("Изображение откреплено");
+      onImagesChange?.();
+    } catch (e) { if (active.current) setError(imageError(e)); }
+    finally { if (active.current) { actionBusy.current = false; setWorking(false); } }
+  }
+  async function chooseAvatar(imageId: string | null) {
+    if (actionBusy.current) return;
+    actionBusy.current = true; setWorking(true); setError(""); setNotice("");
+    try {
+      const updated = await api.setDocumentAvatar(docId, imageId);
+      if (!active.current) return;
+      setAvatarId(updated.avatar?.id);
+      setExplicitAvatarId(typeof updated.fields?.avatarImageId === "string" ? updated.fields.avatarImageId : null);
+      onDocumentChange?.(updated);
+      setNotice(imageId ? "Аватар выбран" : "Аватар — первое изображение галереи");
     } catch (e) { if (active.current) setError(imageError(e)); }
     finally { if (active.current) { actionBusy.current = false; setWorking(false); } }
   }
@@ -128,14 +159,19 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description 
       timer.current = setTimeout(() => { void poll(version); }, 1200);
     }
   }
+  const activeAvatarId = images.some((image) => image.id === avatarId) ? avatarId : images[0]?.id;
   return <section className="document-images" aria-label="Изображения сущности">
     <div className="entity-image-heading"><h3>Изображения</h3><span className="muted">{images.length > 0 ? images.length : ""}</span></div>
     {loading ? <p className="muted">Загрузка изображений…</p> : images.length === 0 ? <p className="muted image-empty">Добавьте портрет, карту или референс.</p> : <ul className="entity-image-gallery">
-      {images.map((image) => <li key={image.id}>
-        <a href={`/api/images/${image.id}`} target="_blank" rel="noopener noreferrer" aria-label={`Открыть ${image.name}`}><img src={`/api/images/${image.id}`} alt={image.name} loading="lazy" /></a>
-        <div><span title={image.name}>{image.name}</span><button type="button" className="btn-ghost" disabled={working} aria-label={`Открепить ${image.name}`} onClick={() => { void detach(image); }} title="Открепить от сущности"><X size={14} /></button></div>
+      {images.map((image, index) => <li key={image.id} className={image.id === activeAvatarId ? "is-avatar" : undefined}>
+        <ImagePreview images={images} index={index} className="entity-image-preview" />
+        <div className="entity-image-caption"><span title={image.name}>{image.name}</span><button type="button" className="btn-ghost" disabled={working} aria-label={`Открепить ${image.name}`} onClick={() => { void detach(image); }} title="Открепить от сущности"><X size={14} /></button></div>
+        <button type="button" className="entity-avatar-choice btn-ghost" disabled={working || image.id === activeAvatarId} aria-label={image.id === activeAvatarId ? `Аватар: ${image.name}` : `Сделать аватаром ${image.name}`} aria-pressed={image.id === activeAvatarId} onClick={() => { void chooseAvatar(image.id); }}>
+          {image.id === activeAvatarId && <Check size={12} />} {image.id === activeAvatarId ? "Аватар" : "Сделать аватаром"}
+        </button>
       </li>)}
     </ul>}
+    {images.length > 0 && explicitAvatarId && <button type="button" className="btn-ghost entity-avatar-reset" disabled={working} onClick={() => { void chooseAvatar(null); }}>Использовать первое изображение</button>}
     <div className="image-paste-target" role="textbox" aria-label="Вставка изображений" aria-multiline="false" tabIndex={0} onPaste={working ? undefined : draft.onPaste}>Нажмите здесь и вставьте изображение ⌘V / Ctrl+V</div>
     <ImageAttachments draft={draft} disabled={working} />
     {draft.items.length > 0 && <button type="button" className="entity-image-attach" disabled={draft.reading || working} onClick={() => { void attach(); }}>{working ? "Прикрепляю…" : "Прикрепить к сущности"}</button>}

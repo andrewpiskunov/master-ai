@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../api/client.js";
@@ -52,13 +52,17 @@ describe.each(["workshop", "document", "game"] as const)("%s image composer", (k
     await waitFor(() => expect(screen.queryByRole("button", { name: "Убрать map.png" })).not.toBeInTheDocument());
   });
 
-  it("renders persisted message images after loading history", async () => {
+  it("opens persisted message images in the app after loading history", async () => {
     const history = [{ id: "stored", role: "user" as const, content: "", meta: { images: [image] }, createdAt: "x" }];
     vi.mocked(api.getConversation).mockResolvedValue(history);
     vi.mocked(api.getDocumentConversation).mockResolvedValue(history);
     render(<Chat kind={kind} />);
     expect(await screen.findByAltText("map.png")).toHaveAttribute("src", "/api/images/img1");
-    expect(screen.getByRole("link", { name: "map.png" })).toHaveAttribute("href", "/api/images/img1");
+    await userEvent.click(screen.getByRole("button", { name: "Открыть map.png" }));
+    const dialog = screen.getByRole("dialog", { name: "Просмотр изображения" });
+    expect(within(dialog).getByRole("img", { name: "map.png" })).toHaveAttribute("src", "/api/images/img1");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Открыть map.png" })).toHaveFocus();
   });
 
   it("preserves a failed upload without starting a request", async () => {

@@ -4,8 +4,8 @@ import { z } from "zod";
 import { MediaError } from "../services/media.js";
 import type { IdParams, RouteDependencies } from "./dependencies.js";
 
-export function registerImageRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "mediaSvc">): void {
-  const { mediaSvc } = deps;
+export function registerImageRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "mediaSvc" | "documentsSvc">): void {
+  const { mediaSvc, documentsSvc } = deps;
   // Такой же формат ошибок используется всеми клиентами, включая чаты с imageIds.
   app.setErrorHandler((error, _req, reply) => {
     if (error instanceof MediaError) return reply.code(error.statusCode).send({ error: error.message });
@@ -25,6 +25,12 @@ export function registerImageRoutes(app: FastifyInstance, deps: Pick<RouteDepend
   });
 
   app.get<IdParams>("/api/documents/:id/images", (req) => mediaSvc.listForDocument(req.params.id));
+  app.put<IdParams>("/api/documents/:id/avatar", (req, reply) => {
+    const parsed = z.object({ imageId: z.string().uuid().nullable() }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
+    mediaSvc.setAvatar(req.params.id, parsed.data.imageId);
+    return documentsSvc.get(req.params.id);
+  });
   app.post<IdParams>("/api/documents/:id/images", (req, reply) => {
     const parsed = z.object({ imageId: z.string().uuid() }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });

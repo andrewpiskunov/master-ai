@@ -4,18 +4,17 @@ import { Check, ImagePlus, TriangleAlert } from "lucide-react";
 import { getDocumentType, type Document, type ImageAttachment, type WorkshopImageAttachmentResult } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { Modal } from "../../ui/Modal.js";
-import { MessageImages } from "../images/ImageAttachments.js";
+import { ImagePreview } from "../images/ImageViewer.js";
 import { imageError } from "../images/useImageDraft.js";
 
 export function WorkshopImageResults({ campaignId, results }: { campaignId: string; results?: WorkshopImageAttachmentResult[] }) {
   if (!results?.length) return null;
+  const images = results.flatMap((result) => result.error || !result.image ? [] : [result.image]);
   return <ul className="workshop-image-results" aria-label="Результаты прикрепления изображений">
     {results.map((result, index) => {
       const image = result.error ? undefined : result.image;
       return <li key={`${result.documentId}-${image?.id ?? index}`} className={image ? "workshop-image-result" : "workshop-image-result workshop-image-result-error"}>
-        {image && <a className="workshop-image-preview" href={`/api/images/${image.id}`} target="_blank" rel="noopener noreferrer" title={`Открыть ${image.name}`}>
-          <img src={`/api/images/${image.id}`} alt={image.name} loading="lazy" />
-        </a>}
+        {image && <ImagePreview className="workshop-image-preview" images={images} index={images.findIndex((item) => item.id === image.id)} />}
         <div className="workshop-image-result-body">
           <span className="workshop-image-status">{image ? <><Check size={13} /> Прикреплено</> : <><TriangleAlert size={13} /> Не прикреплено</>}</span>
           <Link to={`/campaigns/${campaignId}/documents/${result.documentId}`}>{result.documentTitle || result.documentId}</Link>
@@ -39,8 +38,8 @@ function WorkshopMessageImagesContent({ campaignId, images }: MessageImagesProps
   if (!images?.length) return null;
   return <>
     <div className="workshop-message-images">
-      {images.map((image) => <div key={image.id} className="workshop-message-image">
-        <MessageImages images={[image]} />
+      {images.map((image, index) => <div key={image.id} className="workshop-message-image">
+        <div className="message-images"><ImagePreview images={images} index={index} /></div>
         <button type="button" className="btn-ghost" aria-label={`Прикрепить ${image.name} к сущности`} onClick={() => setSelected(image)}>
           <ImagePlus size={13} /> К сущности
         </button>

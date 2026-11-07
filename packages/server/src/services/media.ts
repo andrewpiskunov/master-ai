@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { ImageIdsSchema, ImageUploadSchema, MAX_IMAGE_BYTES, type ImageAttachment, type LlmImage } from "@master-ai/shared";
 import { campaigns, documentImages, documents, images } from "../db/schema.js";
@@ -76,15 +76,28 @@ export class MediaService {
   }
 
   private document(id: string) {
-    const doc = this.db.select({ id: documents.id, campaignId: documents.campaignId }).from(documents).where(eq(documents.id, id)).get();
+    const doc = this.db.select({ id: documents.id, campaignId: documents.campaignId, fields: documents.fields }).from(documents).where(eq(documents.id, id)).get();
     if (!doc) throw new MediaError("документ не найден", 404);
     return doc;
   }
 
   listForDocument(docId: string): ImageAttachment[] {
     const doc = this.document(docId);
-    return this.db.select({ image: images }).from(documentImages).innerJoin(images, eq(images.id, documentImages.imageId))
-      .where(and(eq(documentImages.documentId, docId), eq(images.campaignId, doc.campaignId))).all().map(({ image }) => attachment(image));
+    return this.db.select({ id: images.id, name: images.name, mimeType: images.mimeType }).from(documentImages).innerJoin(images, eq(images.id, documentImages.imageId))
+      .where(and(eq(documentImages.documentId, docId), eq(images.campaignId, doc.campaignId)))
+      .orderBy(asc(images.createdAt), asc(images.id)).all() as ImageAttachment[];
+  }
+
+  setAvatar(docId: string, imageId: string | null): void {
+    const doc = this.document(docId);
+    if (imageId !== null && !this.listForDocument(docId).some((image) => image.id === imageId)) {
+      throw new MediaError("Выберите изображение из галереи этой карточки");
+    }
+    const fields = JSON.parse(doc.fields) as Record<string, unknown>;
+    if (imageId === null) delete fields.avatarImageId;
+    else fields.avatarImageId = imageId;
+    this.db.update(documents).set({ fields: JSON.stringify(fields), updatedAt: new Date().toISOString() })
+      .where(eq(documents.id, docId)).run();
   }
 
   attach(docId: string, imageId: string): ImageAttachment[] {
@@ -97,7 +110,10 @@ export class MediaService {
   detach(docId: string, imageId: string): ImageAttachment[] {
     const doc = this.document(docId);
     this.getForCampaign(doc.campaignId, [imageId]);
-    this.db.delete(documentImages).where(and(eq(documentImages.documentId, docId), eq(documentImages.imageId, imageId))).run();
+    this.db.transaction(() => {
+      this.db.delete(documentImages).where(and(eq(documentImages.documentId, docId), eq(documentImages.imageId, imageId))).run();
+      if ((JSON.parse(doc.fields) as Record<string, unknown>).avatarImageId === imageId) this.setAvatar(docId, null);
+    });
     return this.listForDocument(docId);
   }
 }

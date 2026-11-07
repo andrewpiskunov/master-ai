@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { eq, or } from "drizzle-orm";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import type { Document, NewDocument } from "@master-ai/shared";
-import { documentImages, documents, links } from "../db/schema.js";
+import type { Document, ImageAttachment, NewDocument } from "@master-ai/shared";
+import { documentImages, documents, images, links } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
 
 type DocumentRow = typeof documents.$inferSelect;
@@ -13,11 +13,35 @@ function toDocument(row: DocumentRow): Document {
     ...row,
     contentJson: JSON.parse(row.contentJson),
     fields: JSON.parse(row.fields),
+    avatar: null,
   };
 }
 
 export class DocumentService {
   constructor(private db: BetterSQLite3Database) {}
+
+  // Read only metadata in one query for the whole list. Avatar pointers in freeform
+  // fields are trusted only when the image belongs to this document's gallery/campaign.
+  private withAvatars(rows: DocumentRow[]): Document[] {
+    if (!rows.length) return [];
+    const gallery = this.db.select({ documentId: documentImages.documentId, id: images.id, name: images.name, mimeType: images.mimeType })
+      .from(documentImages).innerJoin(documents, eq(documents.id, documentImages.documentId))
+      .innerJoin(images, and(eq(images.id, documentImages.imageId), eq(images.campaignId, documents.campaignId)))
+      .where(inArray(documentImages.documentId, rows.map((row) => row.id)))
+      .orderBy(asc(images.createdAt), asc(images.id)).all();
+    const byDocument = new Map<string, ImageAttachment[]>();
+    for (const { documentId, ...image } of gallery) {
+      const attached = byDocument.get(documentId) ?? [];
+      attached.push(image as ImageAttachment);
+      byDocument.set(documentId, attached);
+    }
+    return rows.map((row) => {
+      const doc = toDocument(row);
+      const attached = byDocument.get(doc.id) ?? [];
+      doc.avatar = attached.find((image) => image.id === doc.fields.avatarImageId) ?? attached[0] ?? null;
+      return doc;
+    });
+  }
 
   private indexFts(row: { id: string; campaignId: string; type: string; title: string; contentJson: string }): void {
     const body = proseMirrorToText(JSON.parse(row.contentJson));
@@ -51,7 +75,7 @@ export class DocumentService {
       .from(documents)
       .where(eq(documents.campaignId, campaignId))
       .all();
-    return rows.map(toDocument);
+    return this.withAvatars(rows);
   }
 
   get(id: string): Document | undefined {
@@ -60,7 +84,7 @@ export class DocumentService {
       .from(documents)
       .where(eq(documents.id, id))
       .get();
-    return row ? toDocument(row) : undefined;
+    return row ? this.withAvatars([row])[0] : undefined;
   }
 
   update(
@@ -69,6 +93,14 @@ export class DocumentService {
   ): Document | undefined {
     const existing = this.get(id);
     if (!existing) return undefined;
+    // The dedicated avatar endpoint owns this field. Older whole-fields saves
+    // from tags, sessions or AI edits must not erase a newer image selection.
+    let patchedFields = patch.fields;
+    if (patchedFields !== undefined) {
+      patchedFields = { ...patchedFields };
+      delete patchedFields.avatarImageId;
+      if (typeof existing.fields.avatarImageId === "string") patchedFields.avatarImageId = existing.fields.avatarImageId;
+    }
     const updates: Partial<DocumentRow> = { updatedAt: new Date().toISOString() };
     if (patch.type !== undefined) updates.type = patch.type;
     if (patch.title !== undefined) updates.title = patch.title;
@@ -78,10 +110,10 @@ export class DocumentService {
       // Отметка времени изменения именно контента (fields.contentUpdatedAt) — по ней
       // помощник «старит» свои предложения; правки статусов/тегов её не трогают.
       const contentChanged = updates.contentJson !== JSON.stringify(existing.contentJson);
-      const baseFields = patch.fields ?? existing.fields;
+      const baseFields = patchedFields ?? existing.fields;
       updates.fields = JSON.stringify(contentChanged ? { ...baseFields, contentUpdatedAt: updates.updatedAt } : baseFields);
-    } else if (patch.fields !== undefined) {
-      updates.fields = JSON.stringify(patch.fields);
+    } else if (patchedFields !== undefined) {
+      updates.fields = JSON.stringify(patchedFields);
     }
     this.db.update(documents).set(updates).where(eq(documents.id, id)).run();
     const updated = this.get(id);
