@@ -6,12 +6,15 @@ import { fileURLToPath } from "node:url";
 import { MAX_IMAGE_BYTES, type LlmImage, type WorkshopImageAttachmentResult, type WorkshopImageRequest } from "@master-ai/shared";
 import type { DocumentService } from "./documents.js";
 import { MediaError, type MediaService } from "./media.js";
+import type { ImageGenerator } from "../llm/image-generation.js";
+import { proseMirrorToText } from "./prosemirror-text.js";
 
 export class WorkshopImageService {
   constructor(
     private documents: DocumentService,
     private media: MediaService,
     private generatedImagesDir = process.env.MASTER_AI_GENERATED_IMAGES_DIR ?? join(homedir(), ".codex", "generated_images"),
+    private imageGenerator?: ImageGenerator,
   ) {}
 
   private async readGenerated(path: string): Promise<LlmImage> {
@@ -69,10 +72,30 @@ export class WorkshopImageService {
           const image = this.media.getForCampaign(campaignId, [request.imageId])[0];
           result.image = this.media.attach(doc.id, image.id).find((attached) => attached.id === image.id);
         } else {
-          const image = await this.readGenerated(request.path!);
+          let image: LlmImage;
+          if (request.prompt) {
+            if (!this.imageGenerator) throw new MediaError("Генерация изображений недоступна");
+            const referenceImages = this.media.toLlmImages(campaignId, this.media.getForCampaign(campaignId, request.referenceImageIds ?? []));
+            try {
+              image = await this.imageGenerator.generate({
+                document: { title: doc.title, type: doc.type, text: proseMirrorToText(doc.contentJson) },
+                prompt: request.prompt,
+                ...(referenceImages.length ? { images: referenceImages } : {}),
+              }, { signal });
+            } catch (error) {
+              if (signal?.aborted) throw new MediaError("Прикрепление изображения остановлено");
+              throw new MediaError(error instanceof Error ? error.message : "Не удалось создать изображение");
+            }
+          } else image = await this.readGenerated(request.path!);
           if (signal?.aborted) throw new MediaError("Прикрепление изображения остановлено");
           if (this.documents.get(doc.id)?.campaignId !== campaignId) throw new MediaError("Карточка больше не существует в этой кампании");
           result.image = this.media.importForDocument(doc.id, image);
+        }
+        if (request.setAsAvatar && result.image) {
+          if (signal?.aborted) throw new MediaError("Назначение аватара остановлено");
+          if (this.documents.get(doc.id)?.campaignId !== campaignId) throw new MediaError("Карточка больше не существует в этой кампании");
+          this.media.setAvatar(doc.id, result.image.id);
+          result.isAvatar = true;
         }
       } catch (error) {
         result.error = error instanceof MediaError ? error.message : "Не удалось прикрепить изображение";

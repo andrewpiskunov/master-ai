@@ -48,8 +48,16 @@ function parseNewDoc(block: string): NewEntity | null {
 
 // Выделяет из ответа ИИ: правки существующих документов (```edit-doc), правку
 // текущего документа (```doc), предложение новой сущности (```new-doc) и вводный текст.
+export function stripAssistantImageActions(content: string): string {
+  // Image actions execute on the server; their JSON is not conversational prose.
+  let visible = content.replace(/```json\s*([\s\S]*?)```/gi, (block, json: string) => /"imageAttachments"\s*:/.test(json) ? "" : block);
+  // Wait for a complete block before deciding whether it is prose or an action.
+  visible = visible.replace(/```json\s*([^`]*$)/i, "");
+  return visible;
+}
+
 export function parseAssistant(content: string): { intro: string; doc: string | null; newDocs: NewEntity[]; edits: EditEntity[] } {
-  const { edits, rest } = parseEdits(content);
+  const { edits, rest } = parseEdits(stripAssistantImageActions(content));
   // незакрытый блок edit-doc во время стрима — прячем хвост
   let work = rest;
   const openEdit = work.indexOf("```edit-doc");

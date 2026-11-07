@@ -1,9 +1,10 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Image, Monitor, RefreshCw, X } from "lucide-react";
-import { getDocumentType, type Document, type ImageAttachment } from "@master-ai/shared";
+import { type Document, type ImageAttachment } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { ImagePreview } from "../images/ImageViewer.js";
 import { imageError } from "../images/useImageDraft.js";
+import { EntityImagePicker } from "./EntityImagePicker.js";
 import "./PlayImages.css";
 
 export interface PlayerImageScreen {
@@ -18,6 +19,7 @@ interface Props {
   documents: Document[];
   session: Document;
   initialDocumentId?: string;
+  refreshKey?: number;
   playerScreen: PlayerImageScreen;
 }
 interface GalleryState {
@@ -32,31 +34,39 @@ export function PlayImages(props: Props) {
   return <EntityImages key={`${props.campaignId}:${props.session.id}`} {...props} />;
 }
 
-function EntityImages({ campaignId, documents, session, initialDocumentId, playerScreen }: Props) {
-  const selectorId = useId();
+function EntityImages({ campaignId, documents, session, initialDocumentId, playerScreen, refreshKey }: Props) {
   const captionId = useId();
   const entities = useMemo(() => {
     const byId = new Map(documents.filter((doc) => doc.campaignId === campaignId).map((doc) => [doc.id, doc]));
     if (session.campaignId === campaignId) byId.set(session.id, session);
     return [...byId.values()].sort((a, b) => a.title.localeCompare(b.title, "ru"));
   }, [campaignId, documents, session]);
-  const [chosenId, setChosenId] = useState(initialDocumentId ?? session.id);
-  const selectedId = entities.some((entity) => entity.id === chosenId) ? chosenId : session.id;
+  const defaultEntity = (session.avatar && entities.find((entity) => entity.id === session.id)) || entities.find((entity) => entity.avatar) || entities.find((entity) => entity.id === session.id) || entities[0];
+  const [choice, setChoice] = useState(() => ({ id: initialDocumentId ?? defaultEntity?.id, settled: Boolean(initialDocumentId || defaultEntity?.avatar) }));
+  const selected = (!choice.settled && entities.find((entity) => entity.avatar)) || entities.find((entity) => entity.id === choice.id) || defaultEntity;
+  const selectedId = selected?.id ?? "";
+  useEffect(() => {
+    if (!choice.settled && selected?.avatar) setChoice({ id: selected.id, settled: true });
+  }, [choice.settled, selected]);
   const [captionVisible, setCaptionVisible] = useState(playerScreen.captionVisible);
   useEffect(() => { setCaptionVisible(playerScreen.captionVisible); }, [playerScreen.captionVisible]);
   const [reload, setReload] = useState(0);
   const [gallery, setGallery] = useState<GalleryState>({ documentId: selectedId, images: [], loading: true, error: "" });
 
   useEffect(() => {
+    if (!selectedId) return;
     let current = true;
     setGallery({ documentId: selectedId, images: [], loading: true, error: "" });
     api.documentImages(selectedId).then((images) => {
-      if (current) setGallery({ documentId: selectedId, images, loading: false, error: "" });
+      if (current) {
+        setGallery({ documentId: selectedId, images, loading: false, error: "" });
+        if (images.length) setChoice((previous) => previous.settled ? previous : { id: selectedId, settled: true });
+      }
     }).catch((error: unknown) => {
       if (current) setGallery({ documentId: selectedId, images: [], loading: false, error: imageError(error) });
     });
     return () => { current = false; };
-  }, [selectedId, reload]);
+  }, [selectedId, reload, refreshKey]);
 
   const loading = gallery.loading || gallery.documentId !== selectedId;
   const images = gallery.documentId === selectedId ? gallery.images : [];
@@ -75,12 +85,7 @@ function EntityImages({ campaignId, documents, session, initialDocumentId, playe
     </div>}
     {playerScreen.error && <p className="play-images-error" role="alert">{playerScreen.error}</p>}
 
-    <div className="play-images-selector">
-      <label htmlFor={selectorId}>Изображения сущности</label>
-      <select id={selectorId} value={selectedId} onChange={(event) => setChosenId(event.target.value)}>
-        {entities.map((entity) => <option key={entity.id} value={entity.id}>{entity.title} · {getDocumentType(entity.type)?.label ?? entity.type}</option>)}
-      </select>
-    </div>
+    {selected && <EntityImagePicker entities={entities} selected={selected} preview={images[0]} onSelect={(id) => setChoice({ id, settled: true })} />}
     <label className="play-images-caption" htmlFor={captionId}>
       <input id={captionId} type="checkbox" checked={captionVisible} onChange={(event) => {
         const visible = event.target.checked;

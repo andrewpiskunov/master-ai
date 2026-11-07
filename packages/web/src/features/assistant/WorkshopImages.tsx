@@ -10,31 +10,31 @@ import "./WorkshopImages.css";
 
 export function WorkshopImageResults({ campaignId, results }: { campaignId: string; results?: WorkshopImageAttachmentResult[] }) {
   if (!results?.length) return null;
-  const images = results.flatMap((result) => result.error || !result.image ? [] : [result.image]);
+  const images = results.flatMap((result) => result.image ? [result.image] : []);
   return <ul className="workshop-image-results" aria-label="Результаты прикрепления изображений">
     {results.map((result, index) => {
-      const image = result.error ? undefined : result.image;
+      const image = result.image;
       return <li key={`${result.documentId}-${image?.id ?? index}`} className={image ? "workshop-image-result" : "workshop-image-result workshop-image-result-error"}>
         {image && <ImagePreview className="workshop-image-preview" images={images} index={images.findIndex((item) => item.id === image.id)} />}
         <div className="workshop-image-result-body">
-          <span className="workshop-image-status">{image ? <><Check size={13} /> Прикреплено</> : <><TriangleAlert size={13} /> Не прикреплено</>}</span>
+          <span className="workshop-image-status">{image ? <><Check size={13} /> {result.isAvatar ? "Главное изображение" : "Прикреплено"}</> : <><TriangleAlert size={13} /> Не прикреплено</>}</span>
           {image && <span className="workshop-image-caption" title={image.name}>{image.name.replace(/\.(?:png|jpe?g|webp)$/i, "")}</span>}
           <Link to={`/campaigns/${campaignId}/documents/${result.documentId}`}>Карточка: {result.documentTitle || result.documentId}</Link>
-          {!image && <p className="image-error">{result.error || "Сервер не подтвердил прикрепление изображения"}</p>}
+          {(result.error || !image) && <p className="image-error">{result.error || "Сервер не подтвердил прикрепление изображения"}</p>}
         </div>
       </li>;
     })}
   </ul>;
 }
 
-interface MessageImagesProps { campaignId: string; images?: ImageAttachment[] }
+interface MessageImagesProps { campaignId: string; images?: ImageAttachment[]; defaultDocumentId?: string; onImagesChange?: () => void }
 
 // При смене кампании сбрасываем открытый выбор и локальные подтверждения.
 export function WorkshopMessageImages(props: MessageImagesProps) {
-  return <WorkshopMessageImagesContent key={props.campaignId} {...props} />;
+  return <WorkshopMessageImagesContent key={`${props.campaignId}:${props.defaultDocumentId ?? ""}`} {...props} />;
 }
 
-function WorkshopMessageImagesContent({ campaignId, images }: MessageImagesProps) {
+function WorkshopMessageImagesContent({ campaignId, images, defaultDocumentId, onImagesChange }: MessageImagesProps) {
   const [selected, setSelected] = useState<ImageAttachment | null>(null);
   const [attached, setAttached] = useState<WorkshopImageAttachmentResult[]>([]);
   if (!images?.length) return null;
@@ -48,21 +48,24 @@ function WorkshopMessageImagesContent({ campaignId, images }: MessageImagesProps
       </div>)}
     </div>
     <WorkshopImageResults campaignId={campaignId} results={attached} />
-    {selected && <ImageTargetPicker key={selected.id} campaignId={campaignId} image={selected} onClose={() => setSelected(null)} onAttached={(result) => {
+    {selected && <ImageTargetPicker key={selected.id} campaignId={campaignId} image={selected} defaultDocumentId={defaultDocumentId} onClose={() => setSelected(null)} onAttached={(result) => {
       setAttached((previous) => [...previous.filter((item) => item.documentId !== result.documentId || item.image?.id !== result.image?.id), result]);
       setSelected(null);
+      onImagesChange?.();
     }} />}
   </>;
 }
 
-function ImageTargetPicker({ campaignId, image, onClose, onAttached }: {
+function ImageTargetPicker({ campaignId, image, defaultDocumentId, onClose, onAttached }: {
   campaignId: string;
   image: ImageAttachment;
+  defaultDocumentId?: string;
   onClose: () => void;
   onAttached: (result: WorkshopImageAttachmentResult) => void;
 }) {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [documentId, setDocumentId] = useState("");
+  const [documentId, setDocumentId] = useState(defaultDocumentId ?? "");
+  const [setAsAvatar, setAvatarChoice] = useState(false);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
@@ -91,7 +94,17 @@ function ImageTargetPicker({ campaignId, image, onClose, onAttached }: {
       if (!active.current) return;
       const confirmed = stored.find((item) => item.id === image.id);
       if (!confirmed) throw new Error("Сервер не подтвердил прикрепление изображения");
-      onAttached({ documentId: target.id, documentTitle: target.title, image: confirmed });
+      if (setAsAvatar) {
+        try {
+          const updated = await api.setDocumentAvatar(target.id, image.id);
+          if (!active.current) return;
+          if (updated.avatar?.id !== image.id) throw new Error("Сервер не подтвердил выбор главного изображения");
+        } catch (reason) {
+          if (active.current) onAttached({ documentId: target.id, documentTitle: target.title, image: confirmed, error: `Изображение прикреплено. ${imageError(reason)}` });
+          return;
+        }
+      }
+      onAttached({ documentId: target.id, documentTitle: target.title, image: confirmed, ...(setAsAvatar ? { isAvatar: true } : {}) });
     } catch (reason) {
       if (active.current) setError(imageError(reason));
     } finally {
@@ -112,6 +125,7 @@ function ImageTargetPicker({ campaignId, image, onClose, onAttached }: {
           {document.title} · {getDocumentType(document.type)?.label ?? document.type}
         </option>)}
       </select>
+      <label className="image-target-avatar"><input type="checkbox" checked={setAsAvatar} disabled={working} onChange={(event) => setAvatarChoice(event.target.checked)} /> Сделать главным изображением</label>
       {loading && <p className="muted" role="status">Загрузка сущностей…</p>}
       {!loading && !error && !documents.length && <p className="muted">В кампании пока нет сущностей. Сначала создайте карточку.</p>}
       {error && <p className="image-error" role="alert">{error}</p>}

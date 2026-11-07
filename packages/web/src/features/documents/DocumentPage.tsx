@@ -68,6 +68,7 @@ export function DocumentPage() {
   const currentDocumentId = useRef(documentId);
   currentDocumentId.current = documentId;
   const imageRefreshVersion = useRef(0);
+  const [imagesRevision, setImagesRevision] = useState(0);
   const documentVisit = useRef(0);
   useEffect(() => { imageRefreshVersion.current++; documentVisit.current++; }, [documentId]);
   const pageActive = useRef(true);
@@ -92,7 +93,7 @@ export function DocumentPage() {
     campaignCtx?.reload();
   }
 
-  async function refreshImageDocument() {
+  async function refreshImageDocument(refreshGallery = false) {
     const id = documentId;
     if (!id) return;
     const version = ++imageRefreshVersion.current;
@@ -100,6 +101,7 @@ export function DocumentPage() {
       const updated = await api.getDocument(id);
       if (!pageActive.current || currentDocumentId.current !== id || version !== imageRefreshVersion.current) return;
       applyImageDocument(updated);
+      if (refreshGallery) setImagesRevision((value) => value + 1);
     } catch {
       if (pageActive.current && currentDocumentId.current === id && version === imageRefreshVersion.current) showToast("Не удалось обновить аватар");
     }
@@ -542,11 +544,12 @@ export function DocumentPage() {
                 onApply={applyDocBlock}
                 onCreateEntity={createEntity}
                 onEditEntity={editEntity}
+                onImagesChange={() => { void refreshImageDocument(true); }}
                 // У сессий беседа общая с режимом игры, в мета-полях — лог событий: предупреждаем.
                 clearConfirmText={doc.type === "session" ? "Удалится и игровой чат с логом событий — точно?" : undefined}
               />
             </div>
-            {panel === "images" && <DocumentImages docId={doc.id} campaignId={doc.campaignId} title={title} typeLabel={t?.label ?? doc.type} description={pmText(contentJson).trim()} avatar={doc.avatar} selectedAvatarId={typeof fields.avatarImageId === "string" ? fields.avatarImageId : null} onDocumentChange={applyImageDocument} onImagesChange={() => { void refreshImageDocument(); }} />}
+            {panel === "images" && <DocumentImages docId={doc.id} campaignId={doc.campaignId} title={title} typeLabel={t?.label ?? doc.type} description={pmText(contentJson).trim()} avatar={doc.avatar} selectedAvatarId={typeof fields.avatarImageId === "string" ? fields.avatarImageId : null} refreshKey={imagesRevision} onDocumentChange={applyImageDocument} onImagesChange={() => { void refreshImageDocument(); }} />}
             {panel === "play" && <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />}
             {panel === "mentions" && <MentionedInPanel campaignId={doc.campaignId} documentId={doc.id} title={title} documents={allDocuments} />}
           </div>

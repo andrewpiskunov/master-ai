@@ -41,6 +41,7 @@ describe("PlaySession (smoke)", () => {
     expect(await screen.findByText("Сценарий")).toBeInTheDocument();
     expect(screen.getByText("Документы")).toBeInTheDocument();
     expect(screen.getByText("Бой")).toBeInTheDocument();
+    expect(Array.from(document.querySelectorAll(".play-session-tabs button"), (button) => button.textContent)).toEqual(["Сценарий", "Документы", "Изображения", "Бой"]);
     expect(screen.getByRole("button", { name: /Следующая сессия/ })).toBeInTheDocument();
   });
 });
@@ -79,7 +80,7 @@ describe("PlaySession images", () => {
     await userEvent.click(await screen.findByText("Проводник", { selector: "a.play-link" }));
     await userEvent.click(screen.getByRole("button", { name: "Изображения: Проводник" }));
     expect(await screen.findByRole("button", { name: "Открыть Портрет" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Изображения сущности")).toHaveValue("npc");
+    expect(screen.getByRole("button", { name: "Выбрать сущность: Проводник" })).toBeInTheDocument();
     expect(api.documentImages).toHaveBeenCalledWith("npc");
   });
   it("передаёт выбранное изображение экрану игроков с выключенной подписью", async () => {
@@ -89,6 +90,33 @@ describe("PlaySession images", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Изображения" }));
     await userEvent.click(await screen.findByRole("button", { name: "Показать игрокам Карта" }));
     expect(playerScreen.show).toHaveBeenCalledWith(image, false);
+  });
+
+  it("обновляет открытую галерею после действия с изображением в игровом чате", async () => {
+    const image = { id: "map", name: "Карта", mimeType: "image/png" as const };
+    vi.mocked(api.documentImages).mockResolvedValueOnce([]).mockResolvedValue([image]);
+    vi.mocked(api.startAssistant).mockResolvedValue({ started: true });
+    vi.mocked(api.getDocumentConversation).mockResolvedValueOnce([]).mockResolvedValue([
+      { id: "answer", role: "assistant", content: "Иллюстрация создана.", createdAt: "x", meta: { imageAttachments: [{ documentId: "d1", documentTitle: "Сессия 1", image }] } },
+    ]);
+    renderSession();
+    await userEvent.click(await screen.findByRole("button", { name: "Изображения" }));
+    expect(await screen.findByText("У этой сущности пока нет изображений")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Сообщение ИИ-мастеру" }), "Создай карту");
+    await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
+    await waitFor(() => expect(api.documentImages).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("button", { name: "Показать игрокам Карта" })).toBeInTheDocument();
+    expect(api.updateDocument).not.toHaveBeenCalled();
+  });
+
+  it("сразу выбирает сущность с изображением, если у сессии нет своей картинки", async () => {
+    const image = { id: "portrait", name: "Портрет", mimeType: "image/png" as const };
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([{ ...sessionDoc, id: "npc", type: "npc", title: "Проводник", avatar: image }]);
+    vi.mocked(api.documentImages).mockResolvedValue([image]);
+    renderSession();
+    await userEvent.click(await screen.findByRole("button", { name: "Изображения" }));
+    expect(await screen.findByRole("button", { name: "Выбрать сущность: Проводник" })).toBeInTheDocument();
+    expect(api.documentImages).toHaveBeenLastCalledWith("npc");
   });
 
   it("игнорирует запоздалую загрузку предыдущей сессии после смены маршрута", async () => {

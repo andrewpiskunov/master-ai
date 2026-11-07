@@ -45,7 +45,7 @@ export class AssistantJobService {
   // Запускает генерацию в фоне; onFinish получает накопленный текст (в том числе
   // частичный при остановке). Одна задача на документ; повторный старт — false.
   // abort — контроллер, чей signal передан провайдеру: stop() обрывает генерацию через него.
-  start(docId: string, stream: AsyncIterable<string>, onFinish: (text: string) => void, abort?: AbortController): boolean {
+  start(docId: string, stream: AsyncIterable<string>, onFinish: (text: string) => void | Promise<void>, abort?: AbortController): boolean {
     if (this.jobs.get(docId)?.running) return false;
     const job: Job = { running: true, partial: "", error: null, stopped: false, abort };
     this.jobs.set(docId, job);

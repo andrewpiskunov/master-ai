@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Crown, Lock, Plus, Send, Shield, Square, Star, User } from "lucide-react";
 import { dedupeGameTail, extractLogBlock, parseGameSections, stripChoicePrompts, type MessageMeta, type ImageAttachment } from "@master-ai/shared";
-import { ImageAttachments, MessageImages } from "../images/ImageAttachments.js";
+import { ImageAttachments } from "../images/ImageAttachments.js";
+import { AssistantMessageMedia } from "../assistant/AssistantMessageMedia.js";
 import { useImageDraft, imageError } from "../images/useImageDraft.js";
 import { api } from "../../api/client.js";
 import { Markdown } from "../../ui/Markdown.js";
 import { MentionTextarea } from "../../ui/MentionTextarea.js";
 import { useToast } from "../../ui/toast.js";
 import { AssistantAnswer } from "../assistant/AssistantAnswer.js";
-import type { EditEntity, NewEntity } from "../assistant/assistant-blocks.js";
+import { stripAssistantImageActions, type EditEntity, type NewEntity } from "../assistant/assistant-blocks.js";
 import type { MentionItem } from "../../lib/mentions.js";
 
 export interface Actor { kind: "pc" | "npc" | "master"; id: string | null; name: string }
@@ -18,7 +19,7 @@ const MASTER: Actor = { kind: "master", id: null, name: "Мастер" };
 
 // Состояние игрового чата: живёт в PlaySession, чтобы лог-панель в правой
 // колонке строилась из тех же сообщений (один источник правды).
-export function useGameChat(docId: string, onAssistantMessage?: (content: string) => void) {
+export function useGameChat(docId: string, onAssistantMessage?: (content: string) => void, onImagesChange?: () => void) {
   const { showToast } = useToast();
   const [messages, setMessages] = useState<GameMsg[]>([]);
   const [busy, setBusy] = useState(false);
@@ -56,7 +57,10 @@ export function useGameChat(docId: string, onAssistantMessage?: (content: string
         if (msgs) {
           setMessages(msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, meta: m.meta })));
           const last = msgs[msgs.length - 1];
-          if (notify && last?.role === "assistant") onAssistantMessage?.(last.content);
+          if (notify && last?.role === "assistant") {
+            if (last.meta?.imageAttachments?.some((result) => result.image)) onImagesChange?.();
+            onAssistantMessage?.(last.content);
+          }
         } else {
           // Сервер недоступен: убираем пустую заглушку ответа, чтобы не висел вечный «печатает».
           setMessages((prev) => (prev[prev.length - 1]?.role === "assistant" && !prev[prev.length - 1].content ? prev.slice(0, -1) : prev));
@@ -138,7 +142,7 @@ export type GameChatState = ReturnType<typeof useGameChat>;
 export function GameChat({
   docId, campaignId, chat, pcs, npcs, documents, buildSystem, playerView,
   currentText, appliedBlocks, docUpdatedAt, onApply, onCreateEntity, onEditEntity,
-  mentions, onMentionClick,
+  mentions, onMentionClick, onImagesChange,
 }: {
   docId: string;
   campaignId?: string;
@@ -158,6 +162,7 @@ export function GameChat({
   mentions?: MentionItem[];
   // Клик по пилюле — открыть документ (например, во вкладке «Документы»).
   onMentionClick?: (docId: string) => void;
+  onImagesChange?: () => void;
 }) {
   const [input, setInput] = useState("");
   const images = useImageDraft(docId);
@@ -237,17 +242,17 @@ export function GameChat({
           <div key={m.id ?? `i${i}`} className="msg gmsg-user" data-msg-id={m.id}>
             <div className="msg-role">{m.meta?.actorName ?? "Мастер"}</div>
             <Markdown mentions={feedMentions}>{m.content}</Markdown>
-            <MessageImages images={m.meta?.images} />
+            <AssistantMessageMedia campaignId={playerView ? undefined : campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
           </div>
         ) : (
           <div key={m.id ?? `i${i}`} className="msg gmsg-ai" data-msg-id={m.id}>
             <div className="msg-role">ИИ-мастер</div>
-            <MessageImages images={m.meta?.images} />
+            <AssistantMessageMedia campaignId={playerView ? undefined : campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
             {m.content ? (() => {
               // По контракту log-блок завершает ответ; если модель дописала сцену после него,
               // показываем хвост обычным текстом — он не «скрытое» и не должен краситься жёлтым.
               // Абзацы хвоста, дословно повторяющие уже показанный текст, отбрасываем.
-              const parts = extractLogBlock(m.content);
+              const parts = extractLogBlock(stripAssistantImageActions(m.content));
               const rest = parts.rest;
               const after = dedupeGameTail(stripChoicePrompts(parts.after), parts.rest);
               return (
@@ -291,9 +296,9 @@ export function GameChat({
               {after && <Markdown mentions={feedMentions}>{after}</Markdown>}
               </>
               );
-            })() : (
+            })() : chat.busy && i === chat.messages.length - 1 ? (
               <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
-            )}
+            ) : null}
           </div>
         ))}
       </div>

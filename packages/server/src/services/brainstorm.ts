@@ -3,6 +3,7 @@ import type { LLMProvider } from "../llm/provider.js";
 import { parseProposals } from "../llm/parse-proposals.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
 import { buildWorkshopContext } from "./workshop-context.js";
+import { buildImageActionsContext, IMAGE_ACTIONS_PROMPT } from "./image-actions-context.js";
 
 // Разбор JSON-ответа с противоречиями (терпим к обрамлению текстом/фенсами).
 function parseIssues(text: string): ConsistencyIssue[] {
@@ -48,11 +49,7 @@ const SYSTEM_PROMPT = [
   "",
   "Важно: ты НЕ можешь открывать сайты и ссылки. Если мастер ссылается на внешний источник — попроси прислать выдержки текстом, и работай по ним.",
   "",
-  "Изображения можно ПРИКРЕПЛЯТЬ прямо к сохранённым карточкам через приложение. Не управляй браузером и не переписывай content карточки ради ссылки на картинку.",
-  "Если мастер просит создать портреты/иллюстрации и твой клиент поддерживает встроенный imagegen — создай реальные файлы, затем передай их приложению. Если инструмент недоступен — честно объясни это; не выдавай придуманные пути за изображения.",
-  'В итоговый JSON-блок рядом с proposals добавь imageAttachments: [{"documentId":"точный id документа из контекста","path":"абсолютный путь к реальному файлу в каталоге генерации Codex"}]. Для уже загруженной картинки используй {"documentId":"id карточки","imageId":"id изображения из контекста"}; ровно один источник на запись. Допустимо до 50 прикреплений за ответ.',
-  "Сопоставляй каждую картинку с её карточкой по id. PNG, JPEG и WebP до 10 МиБ. Приложение проверяет файлы, сохраняет их в своей базе и добавляет в галереи карточек без изменения текста.",
-  "Для прикрепления уже созданных изображений используй их существующие пути или imageId; не генерируй заново без запроса мастера. Не сообщай, что прикрепление уже выполнено: передай запрос приложению, фактический результат оно покажет отдельно.",
+  IMAGE_ACTIONS_PROMPT,
   "",
   "Документы кампании ты предлагаешь, а не создаёшь напрямую: мастер их принимает или отклоняет.",
   "ГЛАВНОЕ ПРАВИЛО: каждая значимая названная сущность из твоего ответа должна стать отдельным предложением В ЭТОМ ЖЕ сообщении. Если ты назвал персонажа по имени, описал место, фракцию, тайну или сцену — заведи на это документ сразу, не откладывай «на потом» и не предлагай мастеру «сказать, что оформить карточками».",
@@ -101,10 +98,6 @@ export class BrainstormService {
     const storedHistory = conversations.listMessages(conv.id);
     const history: LlmMessage[] = storedHistory
       .map((m) => ({ role: m.role, content: m.content, ...(m.meta?.images?.length ? { images: this.deps.media!.toLlmImages(campaignId, m.meta.images) } : {}) }));
-    const knownImages = [...new Map(storedHistory.flatMap((message) => [
-      ...(message.meta?.images ?? []),
-      ...(message.meta?.imageAttachments ?? []).flatMap((result) => result.image ? [result.image] : []),
-    ]).map((image) => [image.id, image])).values()];
 
     // Настройки кампании — постоянный бриф (описание) и тон (реализм) идут в промт.
     const campaign = campaigns.get(campaignId);
@@ -119,7 +112,7 @@ export class BrainstormService {
     const pending = this.deps.proposals.listByCampaign(campaignId, "pending");
     const documentImages = this.deps.media ? Object.fromEntries(existing.map((doc) => [doc.id, this.deps.media!.listForDocument(doc.id)])) : {};
     const context = buildWorkshopContext(existing, pending, userMessage, documentImages);
-    const imageContext = knownImages.length ? `\n\nИзображения мастерской (доступны для прикрепления через imageId): ${JSON.stringify(knownImages)}` : "";
+    const imageContext = this.deps.media ? `\n\n${buildImageActionsContext(existing, this.deps.media, storedHistory)}` : "";
     const system = `${SYSTEM_PROMPT}${brief}${tone}${imageContext}\n\n${context}`;
 
     return { conversationId: conv.id, stream: llm.complete({ system, messages: history }, { ...this.track(campaignId, "workshop"), signal }) };

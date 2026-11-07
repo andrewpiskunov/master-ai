@@ -15,13 +15,14 @@ interface Props {
   description: string;
   avatar?: ImageAttachment | null;
   selectedAvatarId?: string | null;
+  refreshKey?: number;
   onDocumentChange?: (document: Document) => void;
   onImagesChange?: () => void;
 }
 // Ключ изолирует галерею, черновик и опрос: ответ старого документа не попадает в новый.
 export function DocumentImages(props: Props) { return <DocumentImagesPanel key={props.docId} {...props} />; }
 
-function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description, avatar, selectedAvatarId, onDocumentChange, onImagesChange }: Props) {
+function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description, avatar, selectedAvatarId, refreshKey, onDocumentChange, onImagesChange }: Props) {
   const [avatarId, setAvatarId] = useState(avatar?.id);
   const [explicitAvatarId, setExplicitAvatarId] = useState(selectedAvatarId);
   useEffect(() => { setAvatarId(avatar?.id); }, [avatar?.id]);
@@ -76,12 +77,12 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description,
   }
   useEffect(() => {
     active.current = true;
-    void refreshGallery();
     void poll(++pollVersion.current);
     return () => { active.current = false; pollVersion.current++; if (timer.current) clearTimeout(timer.current); };
   // Каждая сущность монтируется с новым ключом.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => { void refreshGallery(); }, [refreshKey]);
 
   async function attach() {
     if (actionBusy.current || draft.reading || !draft.items.length) return;

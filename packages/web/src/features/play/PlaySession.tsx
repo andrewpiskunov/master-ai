@@ -105,6 +105,15 @@ export function PlaySession() {
   const [campaignName, setCampaignName] = useState("");
   const [tab, setTab] = useState<"scenario" | "docs" | "combat" | "images">("scenario");
   const [imageTargetId, setImageTargetId] = useState<string | undefined>();
+  const [imagesRevision, setImagesRevision] = useState(0);
+  const imageRefreshVersion = useRef(0);
+  const imageScopeRef = useRef({ documentId, campaignId, active: true });
+  if (imageScopeRef.current.documentId !== documentId || imageScopeRef.current.campaignId !== campaignId) {
+    imageScopeRef.current.active = false;
+    imageScopeRef.current = { documentId, campaignId, active: true };
+  }
+  const imageScope = imageScopeRef.current;
+  useEffect(() => { imageScope.active = true; return () => { imageScope.active = false; }; }, [imageScope]);
   const playerScreen = usePlayerScreen(documentId ?? "");
   const contentRef = useRef<HTMLDivElement>(null);
   // История просмотрщика связанных документов.
@@ -155,11 +164,36 @@ export function PlaySession() {
     }
   }, [documentId, showToast]);
 
+  async function refreshImages() {
+    if (!imageScope.active || imageScopeRef.current !== imageScope) return;
+    const version = ++imageRefreshVersion.current;
+    const sessionId = documentId;
+    if (!campaignId || !sessionId) return;
+    setImagesRevision((value) => value + 1);
+    try {
+      const updated = await api.listCampaignDocuments(campaignId);
+      if (!imageScope.active || imageScopeRef.current !== imageScope || version !== imageRefreshVersion.current || docRef.current?.id !== sessionId || docRef.current.campaignId !== campaignId) return;
+      setDocs(updated);
+      const session = updated.find((item) => item.id === sessionId);
+      if (session) {
+        setDoc((current) => {
+          if (current?.id !== sessionId) return current;
+          const fields = { ...current.fields };
+          delete fields.avatarImageId;
+          if (typeof session.fields?.avatarImageId === "string") fields.avatarImageId = session.fields.avatarImageId;
+          const next = { ...current, fields, avatar: session.avatar };
+          docRef.current = next;
+          return next;
+        });
+      }
+    } catch { if (imageScope.active && imageScopeRef.current === imageScope) showToast("Не удалось обновить изображения сущностей"); }
+  }
+
   // Игровой чат с ИИ-мастером: состояние здесь, чтобы лог-панель строилась из тех же сообщений.
   const chat = useGameChat(documentId!, (content) => {
     openMentionedDocs(content);
     parseAssistant(content).newDocs.forEach((nd) => showProposedDoc(nd));
-  });
+  }, () => { void refreshImages(); });
 
   // Текстовое представление лога событий — для промпта ИИ-мастера и сбора боя.
   const gameLogText = (msgs: GameMsg[]) =>
@@ -331,7 +365,7 @@ export function PlaySession() {
   const viewerDoc = (viewerId && docs.find((d) => d.id === viewerId)) || null;
   const viewerProposed = viewerId && !viewerDoc ? proposed[viewerId] ?? null : null;
 
-  function openImages(id = viewerDoc?.id ?? documentId) {
+  function openImages(id = viewerDoc?.id) {
     setImageTargetId(id);
     setTab("images");
   }
@@ -402,6 +436,7 @@ export function PlaySession() {
             onApply={applyToSession}
             onCreateEntity={createGameEntity}
             onEditEntity={() => { showToast("Изменяйте документы вне режима игры"); return false; }}
+            onImagesChange={() => { void refreshImages(); }}
             mentions={prepared}
             onMentionClick={(id) => { setTab("docs"); openDoc(id); }}
           />
@@ -416,8 +451,8 @@ export function PlaySession() {
             <div className="play-tabs2 play-session-tabs">
               <button type="button" className={tab === "scenario" ? "active" : ""} onClick={() => setTab("scenario")}>Сценарий</button>
               <button type="button" className={tab === "docs" ? "active" : ""} onClick={() => setTab("docs")}>Документы</button>
-              <button type="button" className={tab === "combat" ? "active" : ""} onClick={() => setTab("combat")}>Бой</button>
               <button type="button" className={tab === "images" ? "active" : ""} onClick={() => { if (tab !== "images") openImages(); }}>Изображения</button>
+              <button type="button" className={tab === "combat" ? "active" : ""} onClick={() => setTab("combat")}>Бой</button>
             </div>
             {/* Сценарий, документы и бой сохраняют состояние; галерея загружается при открытии. */}
             <div
@@ -504,7 +539,7 @@ export function PlaySession() {
               </div>
             </div>
 
-            {tab === "images" && <PlayImages campaignId={campaignId!} documents={docs} session={doc} initialDocumentId={imageTargetId} playerScreen={playerScreen} />}
+            {tab === "images" && <PlayImages campaignId={campaignId!} documents={docs} session={doc} initialDocumentId={imageTargetId} playerScreen={playerScreen} refreshKey={imagesRevision} />}
 
             <div className="play-combat-wrap" style={{ display: tab === "combat" ? undefined : "none" }}>
               <CombatTracker

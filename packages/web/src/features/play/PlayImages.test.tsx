@@ -19,6 +19,13 @@ const npc = document({ id: "npc", title: "Проводник", type: "npc" });
 const location = document({ id: "location", title: "Гавань", type: "location" });
 const show = vi.fn();
 const clear = vi.fn();
+const pickerButton = (title: string) => screen.getByRole("button", { name: `Выбрать сущность: ${title}` });
+async function chooseEntity(title: string, currentTitle: string, showAll = true) {
+  await userEvent.click(pickerButton(currentTitle));
+  const picker = screen.getByRole("dialog", { name: "Изображения сущностей" });
+  if (showAll) await userEvent.click(within(picker).getByRole("button", { name: /Все сущности/ }));
+  await userEvent.click(within(picker).getByRole("button", { name: `Открыть галерею ${title}` }));
+}
 function controller(overrides: Partial<PlayerImageScreen> = {}): PlayerImageScreen {
   return { image: null, captionVisible: false, error: "", show, clear, ...overrides };
 }
@@ -34,9 +41,127 @@ beforeEach(() => {
 });
 
 describe("PlayImages", () => {
+  it("сразу открывает первую сущность с изображениями и показывает только полезные галереи", async () => {
+    render(<PlayImages campaignId="c1" documents={[npc, { ...location, avatar: map }]} session={session} playerScreen={controller()} />);
+    expect(pickerButton("Гавань")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Открыть Карта гавани" })).toBeInTheDocument();
+    await userEvent.click(pickerButton("Гавань"));
+    const picker = screen.getByRole("dialog", { name: "Изображения сущностей" });
+    expect(within(picker).getByRole("button", { name: /С изображениями/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(picker).getAllByRole("button", { name: /^Открыть галерею/ })).toHaveLength(1);
+    expect(within(picker).getByRole("button", { name: "Открыть галерею Гавань" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(picker).getByAltText("Гавань")).toHaveAttribute("src", "/api/images/map");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("сохраняет явно открытый документ без картинок вместо автоматического выбора", async () => {
+    vi.mocked(api.documentImages).mockImplementation(async (id) => id === "npc" ? [] : [map]);
+    render(<PlayImages campaignId="c1" documents={[npc, { ...location, avatar: map }]} session={session} initialDocumentId="npc" playerScreen={controller()} />);
+    expect(pickerButton("Проводник")).toBeInTheDocument();
+    expect(await screen.findByText("У этой сущности пока нет изображений")).toBeInTheDocument();
+  });
+
+  it("выбирает полезную галерею после поздней загрузки списка сущностей", async () => {
+    vi.mocked(api.documentImages).mockImplementation(async (id) => id === "session" ? [] : [portrait]);
+    const view = render(<PlayImages campaignId="c1" documents={[]} session={session} playerScreen={controller()} />);
+    await screen.findByText("У этой сущности пока нет изображений");
+    view.rerender(<PlayImages campaignId="c1" documents={[{ ...npc, avatar: portrait }]} session={session} playerScreen={controller()} />);
+    expect(await screen.findByRole("button", { name: "Открыть Проводник" })).toBeInTheDocument();
+    expect(pickerButton("Проводник")).toBeInTheDocument();
+  });
+
+  it("сохраняет явный выбор пустой сессии после появления новых галерей", async () => {
+    vi.mocked(api.documentImages).mockImplementation(async (id) => id === "session" ? [] : [portrait]);
+    const view = render(<PlayImages campaignId="c1" documents={[{ ...npc, avatar: portrait }]} session={session} playerScreen={controller()} />);
+    await screen.findByRole("button", { name: "Открыть Проводник" });
+    await chooseEntity("Сессия в гавани", "Проводник");
+    await screen.findByText("У этой сущности пока нет изображений");
+    view.rerender(<PlayImages campaignId="c1" documents={[{ ...npc, avatar: portrait }, { ...location, avatar: map }]} session={session} playerScreen={controller()} refreshKey={1} />);
+    expect(await screen.findByText("У этой сущности пока нет изображений")).toBeInTheDocument();
+    expect(pickerButton("Сессия в гавани")).toBeInTheDocument();
+  });
+
+  it("ищет по названию и типу без учёта регистра и крайних пробелов, затем фильтрует по типу", async () => {
+    const docs = [
+      { ...npc, avatar: portrait }, { ...location, avatar: map },
+      document({ id: "npc2", type: "npc", title: "Капитан гавани", avatar: portrait }),
+      ...Array.from({ length: 35 }, (_, index) => document({ id: `item${index}`, type: "item", title: `Предмет ${index}`, avatar: map })),
+    ];
+    render(<PlayImages campaignId="c1" documents={docs} session={session} playerScreen={controller()} />);
+    await userEvent.click(pickerButton("Гавань"));
+    const picker = screen.getByRole("dialog", { name: "Изображения сущностей" });
+    const search = within(picker).getByRole("searchbox", { name: "Поиск сущности" });
+    expect(search).toHaveFocus();
+    await userEvent.type(search, "  ГАВАН  ");
+    expect(within(picker).getAllByRole("button", { name: /^Открыть галерею/ })).toHaveLength(2);
+    await userEvent.click(within(picker).getByRole("button", { name: "Локация" }));
+    expect(within(picker).getAllByRole("button", { name: /^Открыть галерею/ })).toHaveLength(1);
+    await userEvent.click(within(picker).getByRole("button", { name: "Все типы" }));
+    await userEvent.clear(search);
+    await userEvent.type(search, " npc ");
+    expect(within(picker).getAllByRole("button", { name: /^Открыть галерею/ })).toHaveLength(2);
+    await userEvent.click(within(picker).getByRole("button", { name: "Открыть галерею Проводник" }));
+    expect(pickerButton("Проводник")).toHaveFocus();
+    expect(await screen.findByRole("button", { name: "Открыть Проводник" })).toBeInTheDocument();
+  });
+
+  it("объясняет отсутствие изображений и позволяет явно открыть все сущности", async () => {
+    vi.mocked(api.documentImages).mockResolvedValue([]);
+    render(<PlayImages campaignId="c1" documents={[npc]} session={session} playerScreen={controller()} />);
+    await userEvent.click(pickerButton("Сессия в гавани"));
+    const picker = screen.getByRole("dialog", { name: "Изображения сущностей" });
+    expect(within(picker).getByText("Пока нет сущностей с изображениями")).toBeInTheDocument();
+    await userEvent.click(within(picker).getByRole("button", { name: /Все сущности/ }));
+    expect(within(picker).getByRole("button", { name: "Открыть галерею Проводник" })).toBeInTheDocument();
+  });
+
+  it("сбрасывает поиск и фильтры из пустой выдачи", async () => {
+    render(<PlayImages campaignId="c1" documents={[{ ...npc, avatar: portrait }]} session={session} playerScreen={controller()} />);
+    await userEvent.click(pickerButton("Проводник"));
+    const picker = screen.getByRole("dialog", { name: "Изображения сущностей" });
+    await userEvent.type(within(picker).getByRole("searchbox"), "Неизвестный");
+    expect(within(picker).getByText("Ничего не найдено")).toBeInTheDocument();
+    await userEvent.click(within(picker).getByRole("button", { name: "Сбросить поиск и фильтры" }));
+    expect(within(picker).getByRole("searchbox")).toHaveValue("");
+    expect(within(picker).getByRole("button", { name: "Открыть галерею Проводник" })).toBeInTheDocument();
+  });
+
+  it("удерживает фокус в выборе, закрывается по Esc и возвращает фокус на карточку", async () => {
+    render(<PlayImages campaignId="c1" documents={[{ ...npc, avatar: portrait }]} session={session} playerScreen={controller()} />);
+    const trigger = pickerButton("Проводник");
+    await userEvent.click(trigger);
+    const picker = screen.getByRole("dialog", { name: "Изображения сущностей" });
+    const controls = within(picker).getAllByRole("button");
+    controls.at(-1)!.focus();
+    await userEvent.tab();
+    expect(picker.contains(window.document.activeElement)).toBe(true);
+    await userEvent.tab({ shift: true });
+    expect(controls.at(-1)).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("обновляет выбранную галерею по refreshKey и отбрасывает ответ старой загрузки", async () => {
+    const old = deferred<ImageAttachment[]>();
+    vi.mocked(api.documentImages).mockResolvedValueOnce([map]).mockReturnValueOnce(old.promise).mockResolvedValueOnce([portrait]);
+    const playerScreen = controller({ image: map, captionVisible: true });
+    const view = render(<PlayImages campaignId="c1" documents={[location]} session={session} playerScreen={playerScreen} />);
+    await screen.findByRole("button", { name: "Открыть Карта гавани" });
+    await chooseEntity("Гавань", "Сессия в гавани");
+    view.rerender(<PlayImages campaignId="c1" documents={[location]} session={session} playerScreen={playerScreen} refreshKey={1} />);
+    expect(await screen.findByRole("button", { name: "Открыть Проводник" })).toBeInTheDocument();
+    await act(async () => old.resolve([map]));
+    expect(screen.queryByRole("button", { name: "Открыть Карта гавани" })).not.toBeInTheDocument();
+    expect(pickerButton("Гавань")).toBeInTheDocument();
+    expect(screen.getByText("На экране игроков")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).toBeChecked();
+    expect(clear).not.toHaveBeenCalled();
+  });
+
   it("открывает изображения текущей сессии, даже когда список сущностей ещё пуст", async () => {
     render(<PlayImages campaignId="c1" documents={[]} session={session} playerScreen={controller()} />);
-    expect(screen.getByLabelText("Изображения сущности")).toHaveValue("session");
+    expect(pickerButton("Сессия в гавани")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Открыть Карта гавани" })).toBeInTheDocument();
     expect(api.documentImages).toHaveBeenCalledWith("session");
     expect(screen.queryByText("Скрытая заметка мастера")).not.toBeInTheDocument();
@@ -46,20 +171,22 @@ describe("PlayImages", () => {
     const docs = [npc, location, document({ id: "secret", type: "secret", title: "Тайна" }), document({ id: "other", campaignId: "c2", title: "Другая кампания" })];
     render(<PlayImages campaignId="c1" documents={docs} session={session} initialDocumentId="npc" playerScreen={controller()} />);
     expect(await screen.findByRole("button", { name: "Открыть Проводник" })).toBeInTheDocument();
-    const selector = screen.getByLabelText("Изображения сущности");
-    expect(selector).toHaveValue("npc");
-    expect(within(selector).getAllByRole("option")).toHaveLength(4);
-    expect(within(selector).queryByRole("option", { name: /другая кампания/i })).not.toBeInTheDocument();
-    await userEvent.selectOptions(selector, "secret");
+    await userEvent.click(pickerButton("Проводник"));
+    const picker = screen.getByRole("dialog", { name: "Изображения сущностей" });
+    await userEvent.click(within(picker).getByRole("button", { name: /Все сущности/ }));
+    expect(within(picker).getAllByRole("button", { name: /^Открыть галерею/ })).toHaveLength(4);
+    expect(within(picker).queryByRole("button", { name: /другая кампания/i })).not.toBeInTheDocument();
+    await userEvent.click(within(picker).getByRole("button", { name: "Открыть галерею Тайна" }));
     expect(api.documentImages).toHaveBeenLastCalledWith("secret");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("сохраняет ручной выбор при позднем обновлении списка сущностей", async () => {
     const view = render(<PlayImages campaignId="c1" documents={[npc]} session={session} playerScreen={controller()} />);
     await screen.findByRole("button", { name: "Открыть Карта гавани" });
-    await userEvent.selectOptions(screen.getByLabelText("Изображения сущности"), "npc");
+    await chooseEntity("Проводник", "Сессия в гавани");
     view.rerender(<PlayImages campaignId="c1" documents={[npc, location]} session={session} initialDocumentId="location" playerScreen={controller()} />);
-    expect(screen.getByLabelText("Изображения сущности")).toHaveValue("npc");
+    expect(pickerButton("Проводник")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Открыть Проводник" })).toBeInTheDocument();
   });
 
@@ -67,7 +194,7 @@ describe("PlayImages", () => {
     const old = deferred<ImageAttachment[]>();
     vi.mocked(api.documentImages).mockImplementation((id) => id === "session" ? old.promise : Promise.resolve([portrait]));
     render(<PlayImages campaignId="c1" documents={[npc]} session={session} playerScreen={controller()} />);
-    await userEvent.selectOptions(screen.getByLabelText("Изображения сущности"), "npc");
+    await chooseEntity("Проводник", "Сессия в гавани");
     expect(await screen.findByRole("button", { name: "Открыть Проводник" })).toBeInTheDocument();
     await act(async () => old.resolve([map]));
     expect(screen.queryByRole("button", { name: "Открыть Карта гавани" })).not.toBeInTheDocument();
@@ -133,7 +260,7 @@ describe("PlayImages", () => {
     expect(await screen.findByRole("button", { name: "Открыть Проводник" })).toBeInTheDocument();
     await act(async () => old.resolve([map]));
     expect(screen.queryByRole("button", { name: "Открыть Карта гавани" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Изображения сущности")).toHaveValue("session2");
+    expect(pickerButton("Сессия в гавани")).toBeInTheDocument();
   });
   it("не обещает успешный показ, если окно игроков не открылось", async () => {
     render(<PlayImages campaignId="c1" documents={[]} session={session} playerScreen={controller({ image: map, error: "Окно заблокировано" })} />);

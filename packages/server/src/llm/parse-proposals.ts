@@ -21,16 +21,45 @@ function repairJsonStrings(s: string): string {
   return out;
 }
 
-function parseBlock(raw: string): { proposals?: unknown; imageAttachments?: unknown } | null {
+function parseBlock(raw: string): Record<string, unknown> | null {
+  const object = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
   try {
-    return JSON.parse(raw) as { proposals?: unknown[] };
+    return object(JSON.parse(raw));
   } catch {
     try {
-      return JSON.parse(repairJsonStrings(raw)) as { proposals?: unknown[] };
+      return object(JSON.parse(repairJsonStrings(raw)));
     } catch {
       return null;
     }
   }
+}
+
+const INVALID_IMAGES_MESSAGE = "Не удалось обработать прикрепление изображений: ИИ вернул неверный формат или больше 50 изображений. Повторите запрос меньшей группой.";
+
+// Assistants also return ordinary JSON and doc/edit-doc/log fences. Remove only
+// image controls, retaining any unrelated fields from a mixed JSON block.
+export function parseImageActions(text: string): { reply: string; imageAttachments: WorkshopImageRequest[] } {
+  let imageAttachments: WorkshopImageRequest[] = [];
+  let invalidImages = false;
+  let reply = text.replace(JSON_BLOCK, (block: string, raw: string) => {
+    const parsed = parseBlock(raw);
+    if (!parsed) {
+      if (!raw.includes('"imageAttachments"')) return block;
+      invalidImages = true;
+      return "";
+    }
+    if (!("imageAttachments" in parsed)) return block;
+    const batch = WorkshopImageRequestsSchema.safeParse(parsed.imageAttachments);
+    if (!batch.success || imageAttachments.length + batch.data.length > 50) invalidImages = true;
+    else imageAttachments.push(...batch.data);
+    const { imageAttachments: _actions, ...rest } = parsed;
+    return Object.keys(rest).length ? `\`\`\`json\n${JSON.stringify(rest, null, 2)}\n\`\`\`` : "";
+  }).trim();
+  if (invalidImages) {
+    imageAttachments = [];
+    reply += `\n\n${INVALID_IMAGES_MESSAGE}`;
+  }
+  return { reply: reply.trim(), imageAttachments };
 }
 
 export function parseProposals(text: string): { reply: string; proposals: DraftProposal[]; imageAttachments: WorkshopImageRequest[] } {
@@ -61,7 +90,7 @@ export function parseProposals(text: string): { reply: string; proposals: DraftP
   let reply = text.replace(JSON_BLOCK, "").trim();
   if (invalidImages) {
     imageAttachments = [];
-    reply += "\n\nНе удалось обработать прикрепление изображений: ИИ вернул неверный формат или больше 50 изображений. Повторите запрос меньшей группой.";
+    reply += `\n\n${INVALID_IMAGES_MESSAGE}`;
   }
   return { reply: reply.trim(), proposals, imageAttachments };
 }

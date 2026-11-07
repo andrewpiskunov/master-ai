@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MessageMeta } from "@master-ai/shared";
-import { ImageAttachments, MessageImages } from "../images/ImageAttachments.js";
+import { ImageAttachments } from "../images/ImageAttachments.js";
+import { AssistantMessageMedia } from "./AssistantMessageMedia.js";
 import { useImageDraft, imageError } from "../images/useImageDraft.js";
 import { Send, Sparkles, Square, Trash2 } from "lucide-react";
 import { api } from "../../api/client.js";
@@ -29,6 +30,7 @@ export function DocumentAssistant({
   onMessage,
   onProposeDoc,
   clearConfirmText,
+  onImagesChange,
 }: {
   docId: string;
   campaignId?: string;
@@ -55,6 +57,7 @@ export function DocumentAssistant({
   // Текст второго шага подтверждения очистки беседы. У документов типа «session»
   // передаётся особый текст: беседа общая с режимом игры, в мета-полях — лог событий.
   clearConfirmText?: string;
+  onImagesChange?: () => void;
 }) {
   const { showToast } = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -104,6 +107,7 @@ export function DocumentAssistant({
           setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt, meta: m.meta })));
           const last = msgs[msgs.length - 1];
           if (notify && last?.role === "assistant") {
+            if (last.meta?.imageAttachments?.some((result) => result.image)) onImagesChange?.();
             onMessage?.(last.content);
             if (onProposeDoc) parseAssistant(last.content).newDocs.forEach((nd) => onProposeDoc(nd));
           }
@@ -235,14 +239,14 @@ export function DocumentAssistant({
               <div key={i} className="msg msg-user">
                 <div className="msg-role">Вы</div>
                 <Markdown>{m.content}</Markdown>
-                <MessageImages images={m.meta?.images} />
+                <AssistantMessageMedia campaignId={campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
               </div>
             );
           }
           return (
             <div key={i} className="msg msg-assistant">
               <div className="msg-role">ИИ</div>
-              <MessageImages images={m.meta?.images} />
+              <AssistantMessageMedia campaignId={campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
               {m.content ? (
                 <AssistantAnswer
                   content={m.content}
@@ -254,9 +258,9 @@ export function DocumentAssistant({
                   onCreateEntity={onCreateEntity}
                   onEditEntity={onEditEntity}
                 />
-              ) : (
+              ) : busy && i === messages.length - 1 ? (
                 <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
-              )}
+              ) : null}
             </div>
           );
         })}

@@ -42,6 +42,32 @@ describe("Codex image generation", () => {
     expect((await readdir(f.root)).filter((name) => name.startsWith("master-ai-image-"))).toEqual([]);
   });
 
+  it("edits the supplied image using private reference files inside the job workspace", async () => {
+    const f = await fixture(`const args=process.argv.slice(2);const refs=args.flatMap((arg,i)=>arg==='--image'?[args[i+1]]:[]).map(file=>({path:file,bytes:fs.readFileSync(file).toString('base64'),mode:fs.statSync(file).mode&0o777}));fs.writeFileSync(path.join(path.dirname(process.cwd()),'references.json'),JSON.stringify(refs));fs.writeFileSync('generated.png',Buffer.from('${PNG}','base64'));`, ["exec", "--sandbox", "read-only"]);
+    const image = await f.generator.generate({ ...input, prompt: "Remove only the title", images: [{ name: "generated.png", dataUrl: `data:image/png;base64,${PNG}` }] });
+    expect(image.dataUrl).toBe(`data:image/png;base64,${PNG}`);
+    const request = JSON.parse(await readFile(f.record, "utf8"));
+    const references = JSON.parse(await readFile(join(f.root, "references.json"), "utf8"));
+    expect(references).toEqual([{ path: join(request.cwd, "reference-1.png"), bytes: PNG, mode: 0o600 }]);
+    expect(request.args).toContain("workspace-write");
+    expect(request.args).not.toContain("read-only");
+    expect(request.prompt).toMatch(/edit the attached image/i);
+    expect(request.prompt).toMatch(/preserve/i);
+    expect(request.prompt).toContain("Remove only the title");
+    expect(request.prompt).not.toContain("data:image");
+    expect((await readdir(f.root)).filter((name) => name.startsWith("master-ai-image-"))).toEqual([]);
+  });
+
+  it.each([
+    [{ name: "bad.png", dataUrl: "data:image/png;base64,bm90IGFuIGltYWdl" }],
+    Array.from({ length: 5 }, () => ({ name: "portrait.png", dataUrl: `data:image/png;base64,${PNG}` })),
+  ])("rejects malformed or excessive reference images before starting Codex: %j", async (...images) => {
+    const f = await fixture(`fs.writeFileSync('generated.png',Buffer.from('${PNG}','base64'));`);
+    await expect(f.generator.generate({ ...input, images })).rejects.toThrow(/изображени/i);
+    await expect(readFile(f.record, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    expect((await readdir(f.root)).filter((name) => name.startsWith("master-ai-image-"))).toEqual([]);
+  });
+
   it.each([
     ["missing file", "process.stdout.write('Successfully generated an image');"],
     ["non-image file", "fs.writeFileSync('generated.png','not an image');"],
@@ -63,6 +89,35 @@ describe("Codex image generation", () => {
     expect((await readdir(f.root)).filter((name) => name.startsWith("master-ai-image-"))).toEqual([]);
   });
 
+  it.each([
+    ["tool unavailable", "The built-in image_gen tool is unavailable in this session.", 0, /встроенная генерация изображений недоступна/i],
+    ["usage limit", "Image generation usage limit reached. Please try again later.", 0, /лимит/i],
+    ["authentication", "Codex authentication failed. Please log in.", 1, /не авторизован/i],
+    ["missing source image", "Please attach the source image before I can remove the title.", 0, /исходное изображение/i],
+  ])("reports a safe %s diagnosis from the final message instead of a missing-file error", async (_label, status, code, expected) => {
+    const f = await fixture(`const args=process.argv.slice(2);const output=args[args.indexOf('--output-last-message')+1];if(output)fs.writeFileSync(output,'PRIVATE PROMPT AND REASONING '+${JSON.stringify(status)});process.stdout.write('PRIVATE TRANSCRIPT');process.exit(${code});`);
+    let message = "";
+    try { await f.generator.generate(input); } catch (error) { message = (error as Error).message; }
+    expect(message).toMatch(expected);
+    expect(message).not.toMatch(/PRIVATE|TRANSCRIPT|REASONING|generated\.png/);
+    expect((await readdir(f.root)).filter((name) => name.startsWith("master-ai-image-"))).toEqual([]);
+  });
+
+  it("overrides an existing final-message destination without writing outside its workspace", async () => {
+    const f = await fixture("process.stdout.write('No artifact');", ["exec", "--output-last-message", "/unrelated/status.txt", "-o=/unrelated/other.txt"]);
+    await expect(f.generator.generate(input)).rejects.toThrow(/изображени/i);
+    const request = JSON.parse(await readFile(f.record, "utf8"));
+    expect(request.args.filter((arg: string) => arg === "--output-last-message")).toHaveLength(1);
+    const output = request.args[request.args.indexOf("--output-last-message") + 1];
+    expect(output).toBe(join(request.cwd, "final-message.txt"));
+    expect(request.args.join(" ")).not.toContain("/unrelated/");
+  });
+
+  it("diagnoses the final status instead of keywords from a prompt echoed to stderr", async () => {
+    const f = await fixture("const args=process.argv.slice(2);fs.writeFileSync(args[args.indexOf('--output-last-message')+1],'The image_gen tool is unavailable.');process.stderr.write(prompt);");
+    await expect(f.generator.generate(input)).rejects.toThrow(/встроенная генерация изображений недоступна/i);
+  });
+
   it("times out a hung subprocess and removes its workspace", async () => {
     const f = await fixture("setInterval(()=>{},1000);");
     const generator = new CodexImageGenerator(f.config, { tempRoot: f.root, timeoutMs: 2_000 });
@@ -74,7 +129,7 @@ describe("Codex image generation", () => {
   it("aborts the subprocess before accepting its file and removes its workspace", async () => {
     const f = await fixture(`fs.writeFileSync('generated.png',Buffer.from('${PNG}','base64'));setInterval(()=>{},1000);`);
     const abort = new AbortController();
-    const result = f.generator.generate(input, { signal: abort.signal });
+    const result = f.generator.generate({ ...input, images: [{ name: "portrait.png", dataUrl: `data:image/png;base64,${PNG}` }] }, { signal: abort.signal });
     await expect.poll(() => readFile(f.record, "utf8").then(() => true, () => false)).toBe(true);
     abort.abort();
     await expect(result).rejects.toThrow(/останов/i);

@@ -44,7 +44,8 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   const proposalsSvc = new ProposalService(deps.db);
   const usageSvc = new UsageService(deps.db);
   const mediaSvc = new MediaService(deps.db);
-  const workshopImagesSvc = new WorkshopImageService(documentsSvc, mediaSvc, deps.generatedImagesDir);
+  const imageGenerator = deps.imageGenerator ?? loadImageGenerator();
+  const workshopImagesSvc = new WorkshopImageService(documentsSvc, mediaSvc, deps.generatedImagesDir, imageGenerator);
   // Колбэк учёта токенов; кампании без id (нет контекста) не учитываем.
   const trackUsage: RouteDependencies["trackUsage"] = (campaignId, feature) => ({
     onUsage: (u) => { if (campaignId) usageSvc.record(campaignId, feature, u); },
@@ -78,7 +79,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   registerLlmRoutes(app, routes);
   registerTransferRoutes(app, routes);
   registerImageRoutes(app, routes);
-  registerImageGenerationRoutes(app, { documentsSvc, mediaSvc, imageGenerator: deps.imageGenerator ?? loadImageGenerator() });
+  registerImageGenerationRoutes(app, { documentsSvc, mediaSvc, imageGenerator });
 
   return app;
 }

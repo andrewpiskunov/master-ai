@@ -74,6 +74,28 @@ const locationDoc: Document = {
   fields: { tags: ["сохранено"] }, avatar: null, createdAt: "x", updatedAt: "x",
 };
 
+it("refreshes an already open gallery after an assistant action without replacing its draft", async () => {
+  vi.mocked(api.getDocument).mockResolvedValueOnce(locationDoc).mockResolvedValue({ ...locationDoc, avatar: tower });
+  vi.mocked(api.documentImages).mockResolvedValueOnce([]).mockResolvedValue([tower]);
+  vi.mocked(api.assistantStatus).mockResolvedValue({ running: false, partial: "", error: null });
+  vi.mocked(api.startAssistant).mockResolvedValue({ started: true });
+  vi.mocked(api.imageGenerationStatus).mockResolvedValue({ running: false, error: null });
+  let finish!: (messages: Awaited<ReturnType<typeof api.getDocumentConversation>>) => void;
+  vi.mocked(api.getDocumentConversation).mockResolvedValueOnce([]).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  renderAt("d1");
+  await userEvent.type(await screen.findByRole("textbox", { name: "Сообщение помощнику" }), "Создай башню");
+  await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
+  await waitFor(() => expect(finish).toBeTypeOf("function"));
+  await userEvent.click(screen.getByRole("button", { name: "Изображения" }));
+  expect(await screen.findByText("Добавьте портрет, карту или референс.")).toBeInTheDocument();
+  const prompt = screen.getByRole("textbox", { name: "Описание иллюстрации" });
+  await userEvent.clear(prompt);
+  await userEvent.type(prompt, "Мой следующий эскиз");
+  await act(async () => finish([{ id: "reply", role: "assistant", content: "Готово.", createdAt: "x", meta: { imageAttachments: [{ documentId: "d1", documentTitle: "Башня", image: tower }] } }]));
+  expect(await within(screen.getByRole("region", { name: "Изображения сущности" })).findByRole("button", { name: "Открыть tower.png" })).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Описание иллюстрации" })).toHaveValue("Мой следующий эскиз");
+});
+
 it("gives non-character entities an avatar placeholder that opens their image panel", async () => {
   vi.mocked(api.getDocument).mockResolvedValue(locationDoc);
   vi.mocked(api.documentImages).mockResolvedValue([]);

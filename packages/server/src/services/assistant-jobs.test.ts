@@ -141,7 +141,7 @@ describe("AssistantJobService", () => {
         streamsCleaned++;
       }
     })();
-    aborts.forEach((abort, index) => svc.start(`d${index}`, stream(index), (text) => saved.push(text), abort));
+    aborts.forEach((abort, index) => svc.start(`d${index}`, stream(index), (text) => { saved.push(text); }, abort));
     await tick();
     expect(streamsWaiting).toBe(2);
     let stopped = false;
