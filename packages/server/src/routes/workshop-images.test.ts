@@ -47,7 +47,7 @@ describe("workshop image attachments", () => {
     const response = await attach(f, request);
     expect(response.statusCode).toBe(200);
     const result = response.json().results[0];
-    expect(result).toMatchObject({ documentId: f.doc.id, documentTitle: f.doc.title, image: { name: "portrait.png", mimeType: "image/png" } });
+    expect(result).toMatchObject({ documentId: f.doc.id, documentTitle: f.doc.title, image: { name: "Смотритель маяка — портрет.png", mimeType: "image/png" } });
     const gallery = (await f.app.inject(`/api/documents/${f.doc.id}/images`)).json();
     expect(gallery).toEqual([result.image]);
     expect((await f.app.inject(`/api/images/${result.image.id}`)).rawPayload).toEqual(png);

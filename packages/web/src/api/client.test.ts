@@ -55,3 +55,17 @@ describe("image API payloads", () => {
     await expect(api.stopImageGeneration("d1")).rejects.toThrow("Codex недоступен");
   });
 });
+
+describe("campaign cover API", () => {
+  it("loads campaign-owned image metadata", async () => {
+    stubFetch(200, [{ id: "img1", name: "map.png", mimeType: "image/png" }]);
+    expect(await api.campaignImages("c1")).toEqual([{ id: "img1", name: "map.png", mimeType: "image/png" }]);
+    expect(fetch).toHaveBeenCalledWith("/api/campaigns/c1/images", expect.any(Object));
+  });
+  it.each(["img1", null])("persists explicit cover selection %s", async (imageId) => {
+    stubFetch(200, { id: "c1", cover: imageId ? { id: imageId, name: "map.png", mimeType: "image/png" } : null });
+    const result = await api.setCampaignCover("c1", imageId);
+    expect(result.cover?.id ?? null).toBe(imageId);
+    expect(fetch).toHaveBeenCalledWith("/api/campaigns/c1/cover", expect.objectContaining({ method: "PUT", body: JSON.stringify({ imageId }) }));
+  });
+});

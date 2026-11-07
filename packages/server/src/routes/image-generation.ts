@@ -12,8 +12,7 @@ const StartSchema = z.object({ prompt: z.string().trim().min(1).max(10_000) });
 export interface ImageGenerationRouteDependencies {
   documentsSvc: Pick<DocumentService, "get">;
   mediaSvc: {
-    create(campaignId: string, image: LlmImage): ImageAttachment;
-    attach(documentId: string, imageId: string): ImageAttachment[];
+    importForDocument(documentId: string, image: LlmImage): ImageAttachment;
   };
   imageGenerator: ImageGenerator;
   imageJobs?: ImageGenerationJobService;
@@ -39,9 +38,7 @@ export function registerImageGenerationRoutes(app: FastifyInstance, deps: ImageG
         // Navigation does not cancel a job; deleting its entity must prevent any
         // orphan media from being created when the generator eventually returns.
         if (documentsSvc.get(document.id)?.campaignId !== document.campaignId) return undefined;
-        const stored = mediaSvc.create(document.campaignId, image);
-        mediaSvc.attach(document.id, stored.id);
-        return stored;
+        return mediaSvc.importForDocument(document.id, image);
       },
     );
     if (!started) return reply.code(409).send({ error: "Генерация изображения по этому документу уже идёт" });

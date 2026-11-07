@@ -1,0 +1,13 @@
+.workshop-image-caption {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin-bottom: 4px;
+  color: var(--text-strong);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.workshop-image-result .workshop-image-result-body > a { font-size: 0.73rem; }

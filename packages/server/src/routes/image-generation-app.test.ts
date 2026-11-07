@@ -17,7 +17,7 @@ it("registers entity image generation in the actual application", async () => {
     await expect.poll(async()=> (await app.inject({method:"GET",url:`/api/documents/${d.id}/image-generation`})).json().running).toBe(false);
     const images=(await app.inject({method:"GET",url:`/api/documents/${d.id}/images`})).json();
     expect(images).toHaveLength(1);
-    expect(images[0].name).toBe("npc.png");
+    expect(images[0].name).toBe("Смотритель — портрет.png");
     expect((await app.inject({method:"GET",url:`/api/images/${images[0].id}`})).rawPayload).toEqual(Buffer.from(dataUrl.split(",")[1],"base64"));
   } finally {await app.close();sqlite.close();}
 });

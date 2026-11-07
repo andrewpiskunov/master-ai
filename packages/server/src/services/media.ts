@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { ImageIdsSchema, ImageUploadSchema, MAX_IMAGE_BYTES, type ImageAttachment, type LlmImage } from "@master-ai/shared";
 import { campaigns, documentImages, documents, images } from "../db/schema.js";
+import { generatedImageName, repairImageNames } from "../db/image-names.js";
 
 export class MediaError extends Error {
   constructor(message: string, readonly statusCode = 400) { super(message); }
@@ -48,14 +49,35 @@ export class MediaService {
     return this.db.transaction(() => {
       const existing = this.db.select().from(images)
         .where(and(eq(images.campaignId, doc.campaignId), eq(images.dataUrl, value.dataUrl))).get();
-      const image = existing ? attachment(existing) : this.create(doc.campaignId, input);
-      this.attach(documentId, image.id);
-      return image;
+      const image = existing ? attachment(existing) : this.create(doc.campaignId, {
+        ...input, name: generatedImageName(doc.title, doc.type, value.mimeType),
+      });
+      return this.attach(documentId, image.id).find((attached) => attached.id === image.id)!;
     });
   }
 
   get(id: string): ImageRow | undefined {
     return this.db.select().from(images).where(eq(images.id, id)).get();
+  }
+
+  listForCampaign(campaignId: string): ImageAttachment[] {
+    if (!this.db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.id, campaignId)).get()) {
+      throw new MediaError("кампания не найдена", 404);
+    }
+    return this.db.select({ id: images.id, name: images.name, mimeType: images.mimeType }).from(images)
+      .where(eq(images.campaignId, campaignId)).orderBy(asc(images.createdAt), asc(images.id)).all() as ImageAttachment[];
+  }
+
+  setCampaignCover(campaignId: string, imageId: string | null): void {
+    if (!this.db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.id, campaignId)).get()) {
+      throw new MediaError("кампания не найдена", 404);
+    }
+    if (imageId !== null && !this.db.select({ id: images.id }).from(images)
+      .where(and(eq(images.id, imageId), eq(images.campaignId, campaignId))).get()) {
+      throw new MediaError("Изображение не найдено в этой кампании");
+    }
+    this.db.update(campaigns).set({ coverImageId: imageId, updatedAt: new Date().toISOString() })
+      .where(eq(campaigns.id, campaignId)).run();
   }
 
   getForCampaign(campaignId: string, ids: string[]): ImageAttachment[] {
@@ -76,7 +98,7 @@ export class MediaService {
   }
 
   private document(id: string) {
-    const doc = this.db.select({ id: documents.id, campaignId: documents.campaignId, fields: documents.fields }).from(documents).where(eq(documents.id, id)).get();
+    const doc = this.db.select({ id: documents.id, campaignId: documents.campaignId, title: documents.title, type: documents.type, fields: documents.fields }).from(documents).where(eq(documents.id, id)).get();
     if (!doc) throw new MediaError("документ не найден", 404);
     return doc;
   }
@@ -104,6 +126,7 @@ export class MediaService {
     const doc = this.document(docId);
     this.getForCampaign(doc.campaignId, [imageId]);
     this.db.insert(documentImages).values({ documentId: docId, imageId }).onConflictDoNothing().run();
+    repairImageNames(this.db, doc.campaignId, imageId);
     return this.listForDocument(docId);
   }
 

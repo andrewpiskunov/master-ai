@@ -69,6 +69,9 @@ export const api = {
     request<Document>("/api/documents", { method: "POST", body: JSON.stringify(input) }),
   uploadImage: (campaignId: string, image: { name: string; dataUrl: string }) =>
     request<ImageAttachment>(`/api/campaigns/${campaignId}/images`, { method: "POST", body: JSON.stringify(image) }),
+  campaignImages: (campaignId: string) => request<ImageAttachment[]>(`/api/campaigns/${campaignId}/images`),
+  setCampaignCover: (campaignId: string, imageId: string | null) =>
+    request<Campaign>(`/api/campaigns/${campaignId}/cover`, { method: "PUT", body: JSON.stringify({ imageId }) }),
   setDocumentAvatar: (docId: string, imageId: string | null) =>
     request<Document>(`/api/documents/${docId}/avatar`, { method: "PUT", body: JSON.stringify({ imageId }) }),
   documentImages: (docId: string) => request<ImageAttachment[]>(`/api/documents/${docId}/images`),

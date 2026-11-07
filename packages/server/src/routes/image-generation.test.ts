@@ -44,6 +44,7 @@ describe("document image generation routes", () => {
     const final = await finish(app, document.id);
     expect(final.error).toBeNull();
     expect(final.image.mimeType).toBe("image/png");
+    expect(final.image.name).toBe("Глеб — портрет.png");
     expect(mediaSvc.listForDocument(document.id)).toEqual([final.image]);
     expect(seen).toEqual([{ document: { title: "Глеб", type: "npc", text: "Смотритель маяка" }, prompt: "Акварельный портрет" }]);
   });

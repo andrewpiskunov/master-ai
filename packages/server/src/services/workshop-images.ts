@@ -67,8 +67,7 @@ export class WorkshopImageService {
         result.documentTitle = doc.title;
         if (request.imageId) {
           const image = this.media.getForCampaign(campaignId, [request.imageId])[0];
-          this.media.attach(doc.id, image.id);
-          result.image = image;
+          result.image = this.media.attach(doc.id, image.id).find((attached) => attached.id === image.id);
         } else {
           const image = await this.readGenerated(request.path!);
           if (signal?.aborted) throw new MediaError("Прикрепление изображения остановлено");

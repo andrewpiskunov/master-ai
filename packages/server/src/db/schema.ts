@@ -10,6 +10,8 @@ export const campaigns = sqliteTable("campaigns", {
   llmProvider: text("llm_provider").notNull().default("cli"),
   llmSettings: text("llm_settings").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull().default(""),
+  coverImageId: text("cover_image_id"),
 });
 
 export const documents = sqliteTable("documents", {

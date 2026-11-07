@@ -6,6 +6,7 @@ import { api } from "../../api/client.js";
 import { Modal } from "../../ui/Modal.js";
 import { ImagePreview } from "../images/ImageViewer.js";
 import { imageError } from "../images/useImageDraft.js";
+import "./WorkshopImages.css";
 
 export function WorkshopImageResults({ campaignId, results }: { campaignId: string; results?: WorkshopImageAttachmentResult[] }) {
   if (!results?.length) return null;
@@ -17,7 +18,8 @@ export function WorkshopImageResults({ campaignId, results }: { campaignId: stri
         {image && <ImagePreview className="workshop-image-preview" images={images} index={images.findIndex((item) => item.id === image.id)} />}
         <div className="workshop-image-result-body">
           <span className="workshop-image-status">{image ? <><Check size={13} /> Прикреплено</> : <><TriangleAlert size={13} /> Не прикреплено</>}</span>
-          <Link to={`/campaigns/${campaignId}/documents/${result.documentId}`}>{result.documentTitle || result.documentId}</Link>
+          {image && <span className="workshop-image-caption" title={image.name}>{image.name.replace(/\.(?:png|jpe?g|webp)$/i, "")}</span>}
+          <Link to={`/campaigns/${campaignId}/documents/${result.documentId}`}>Карточка: {result.documentTitle || result.documentId}</Link>
           {!image && <p className="image-error">{result.error || "Сервер не подтвердил прикрепление изображения"}</p>}
         </div>
       </li>;

@@ -39,6 +39,18 @@ beforeEach(() => {
 });
 
 describe("WorkshopPanel image attachments", () => {
+  it("distinguishes the image caption from the unchanged entity name", async () => {
+    vi.mocked(api.getConversation).mockResolvedValue([{
+      id: "named", role: "assistant", content: "Портрет готов.", createdAt: "x",
+      meta: { imageAttachments: [{ documentId: "baron", documentTitle: "Барон", image: { ...portrait, name: "Барон — портрет.png" } }] },
+    }]);
+    render(<Workshop />);
+    const results = await screen.findByRole("list", { name: "Результаты прикрепления изображений" });
+    expect(within(results).getByText("Барон — портрет")).toBeInTheDocument();
+    expect(within(results).getByRole("link", { name: "Карточка: Барон" })).toHaveAttribute("href", "/campaigns/c1/documents/baron");
+    expect(api.updateDocument).not.toHaveBeenCalled();
+  });
+
   it("opens confirmed results in the shared viewer and navigates between successful attachments", async () => {
     vi.mocked(api.getConversation).mockResolvedValue([{
       id: "results", role: "assistant", content: "Иллюстрации готовы.", createdAt: "x",
@@ -84,9 +96,9 @@ describe("WorkshopPanel image attachments", () => {
     const results = await screen.findByRole("list", { name: "Результаты прикрепления изображений" });
     const rows = within(results).getAllByRole("listitem");
     expect(within(rows[0]).getByAltText("portrait.png")).toHaveAttribute("src", "/api/images/img-portrait");
-    expect(within(rows[0]).getByRole("link", { name: "Барон" })).toHaveAttribute("href", "/campaigns/c1/documents/baron");
+    expect(within(rows[0]).getByRole("link", { name: "Карточка: Барон" })).toHaveAttribute("href", "/campaigns/c1/documents/baron");
     expect(within(rows[0]).getByText("Прикреплено")).toBeInTheDocument();
-    expect(within(rows[1]).getByRole("link", { name: "Замок" })).toHaveAttribute("href", "/campaigns/c1/documents/castle");
+    expect(within(rows[1]).getByRole("link", { name: "Карточка: Замок" })).toHaveAttribute("href", "/campaigns/c1/documents/castle");
     expect(within(rows[1]).getByText("Файл изображения не найден")).toBeInTheDocument();
     expect(within(rows[1]).queryByRole("img")).not.toBeInTheDocument();
 
@@ -133,7 +145,7 @@ describe("WorkshopPanel image attachments", () => {
     await waitFor(() => expect(api.attachDocumentImage).toHaveBeenCalledWith("castle", "img-map"));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.getByText("Прикреплено")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Замок" })).toHaveAttribute("href", "/campaigns/c1/documents/castle");
+    expect(screen.getByRole("link", { name: "Карточка: Замок" })).toHaveAttribute("href", "/campaigns/c1/documents/castle");
     expect(api.updateDocument).not.toHaveBeenCalled();
   });
 

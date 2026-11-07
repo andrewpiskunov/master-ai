@@ -51,9 +51,23 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
     const max = 200;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, max)}px`;
-    el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
+    syncDraftOverflow();
+  }
+  function syncDraftOverflow() {
+    const el = textareaRef.current;
+    if (el) el.style.overflowY = el.scrollHeight > el.clientHeight + 1 ? "auto" : "hidden";
   }
   useEffect(autoGrow, [draft]);
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncDraftOverflow);
+    observer?.observe(el);
+    let timer: ReturnType<typeof setTimeout>;
+    const onResize = () => { clearTimeout(timer); timer = setTimeout(autoGrow, 0); };
+    window.addEventListener("resize", onResize);
+    return () => { observer?.disconnect(); clearTimeout(timer); window.removeEventListener("resize", onResize); };
+  }, []);
 
   // Держим чат прокрученным вниз — в т.ч. при возврате в раздел и при ответе ИИ.
   useEffect(() => {

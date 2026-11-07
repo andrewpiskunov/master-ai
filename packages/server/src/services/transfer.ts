@@ -6,6 +6,8 @@ import { ImageAttachmentSchema, ImageUploadSchema, WorkshopImageAttachmentResult
 import { campaigns, conversations, documentImages, documents, images, links, llmUsage, messages, proposals } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
 import { validateImage } from "./media.js";
+import { CampaignService } from "./campaigns.js";
+import { repairImageNames } from "../db/image-names.js";
 
 // Полный перенос кампании: экспорт всего содержимого в один JSON и импорт из него.
 // Формат единый и самодостаточный: кампания, документы, беседы, сообщения,
@@ -28,6 +30,8 @@ const TransferSchema = z.object({
     llmProvider: z.string().optional(),
     llmSettings: z.record(z.unknown()).optional(),
     createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+    cover: ImageAttachmentSchema.nullable().optional(),
   }).passthrough(),
   documents: z.array(Row).default([]),
   conversations: z.array(Row).default([]),
@@ -65,6 +69,7 @@ export class TransferService {
     const docMedia = docs.length
       ? this.db.select().from(documentImages).where(inArray(documentImages.documentId, docs.map((d) => d.id))).all()
       : [];
+    const cover = media.find((image) => image.id === campaign.coverImageId);
 
     const { apiKey: _secret, ...llmSettings } = JSON.parse(campaign.llmSettings) as Record<string, unknown>;
     return {
@@ -79,6 +84,8 @@ export class TransferService {
         llmProvider: campaign.llmProvider,
         llmSettings,
         createdAt: campaign.createdAt,
+        updatedAt: campaign.updatedAt,
+        cover: cover ? { id: cover.id, name: cover.name, mimeType: cover.mimeType as "image/png" | "image/jpeg" | "image/webp" } : null,
       },
       documents: docs.map((d) => ({ ...d, contentJson: JSON.parse(d.contentJson), fields: JSON.parse(d.fields) })),
       conversations: convs,
@@ -108,6 +115,8 @@ export class TransferService {
     }));
     const imageByOldId = new Map(imageRows.map((image) => [image.oldId, image]));
     if (imageByOldId.size !== imageRows.length) throw new Error("Повторяются id изображений");
+    const cover = data.campaign.cover ? imageByOldId.get(data.campaign.cover.id) : undefined;
+    if (data.campaign.cover && !cover) throw new Error("Не найдено изображение обложки кампании");
     const mapDoc = (v: unknown): string | null => (typeof v === "string" ? docId.get(v) ?? null : null);
 
     const campaignRow = {
@@ -119,6 +128,8 @@ export class TransferService {
       llmProvider: data.campaign.llmProvider ?? "cli",
       llmSettings: jsonStr(data.campaign.llmSettings, "{}"),
       createdAt: str(data.campaign.createdAt, now),
+      updatedAt: data.campaign.updatedAt ?? data.campaign.createdAt ?? now,
+      coverImageId: cover?.id ?? null,
     };
 
     this.db.transaction((tx) => {
@@ -239,12 +250,7 @@ export class TransferService {
       }
     });
 
-    return {
-      ...campaignRow,
-      system: campaignRow.system,
-      llmProvider: campaignRow.llmProvider as Campaign["llmProvider"],
-      realism: campaignRow.realism as Campaign["realism"],
-      llmSettings: JSON.parse(campaignRow.llmSettings) as Campaign["llmSettings"],
-    };
+    repairImageNames(this.db, campaignId);
+    return new CampaignService(this.db).get(campaignId)!;
   }
 }
