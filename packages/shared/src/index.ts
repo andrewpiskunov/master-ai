@@ -9,3 +9,4 @@ export * from "./schemas/links.js";
 export * from "./schemas/search.js";
 export * from "./schemas/consistency.js";
 export * from "./lib/game.js";
+export * from "./lib/prosemirror-markdown.js";

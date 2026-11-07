@@ -2,6 +2,7 @@ import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type Consiste
 import type { LLMProvider } from "../llm/provider.js";
 import { parseProposals } from "../llm/parse-proposals.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
+import { buildWorkshopContext } from "./workshop-context.js";
 
 // Разбор JSON-ответа с противоречиями (терпим к обрамлению текстом/фенсами).
 function parseIssues(text: string): ConsistencyIssue[] {
@@ -101,12 +102,12 @@ export class BrainstormService {
       : "";
     const tone = `\n\n${realismHint(campaign?.realism ?? "balanced")}`;
 
-    // Список существующих документов — чтобы ИИ менял их (action: update), а не плодил дубликаты.
+    // Свежие тексты документов и непринятых предложений нужны для точных правок:
+    // JSON предложений отделён от ответа и больше не содержится в истории беседы.
     const existing = documents.listByCampaign(campaignId);
-    const docList = existing.length
-      ? existing.slice(0, 120).map((d) => `«${d.title}» (${d.type})`).join(", ")
-      : "(пока нет)";
-    const system = `${SYSTEM_PROMPT}${brief}${tone}\n\nУже существующие документы кампании (для action: update используй их точные названия): ${docList}.`;
+    const pending = this.deps.proposals.listByCampaign(campaignId, "pending");
+    const context = buildWorkshopContext(existing, pending, userMessage);
+    const system = `${SYSTEM_PROMPT}${brief}${tone}\n\n${context}`;
 
     return { conversationId: conv.id, stream: llm.complete({ system, messages: history }, { ...this.track(campaignId, "workshop"), signal }) };
   }
