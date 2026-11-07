@@ -3,6 +3,7 @@ import { HomePage } from "../features/campaigns/HomePage.js";
 import { DocumentPage } from "../features/documents/DocumentPage.js";
 import { PrintReader } from "../features/documents/PrintReader.js";
 import { PlaySession } from "../features/play/PlaySession.js";
+import { PlayerScreen } from "../features/play/PlayerScreen.js";
 import { CampaignExport } from "../features/campaigns/CampaignExport.js";
 import { CampaignWorkspace } from "../features/campaigns/CampaignWorkspace.js";
 import { CampaignHome } from "../features/campaigns/CampaignHome.js";
@@ -33,6 +34,7 @@ export function App() {
           </Route>
           <Route path="/campaigns/:campaignId/documents/:documentId/print" element={<PrintReader />} />
           <Route path="/campaigns/:campaignId/sessions/:documentId/play" element={<PlaySession />} />
+          <Route path="/player-screen/:channelId" element={<PlayerScreen />} />
           <Route path="/campaigns/:campaignId/export" element={<CampaignExport />} />
         </Routes>
       </BrowserRouter>

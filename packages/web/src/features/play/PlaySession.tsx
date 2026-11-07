@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff, Monitor, Image } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { streamComplete } from "../../api/stream.js";
@@ -14,6 +14,8 @@ import { CombatTracker, type CombatState } from "./CombatTracker.js";
 import { TypeTag, TypeBadge } from "../campaigns/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../../lib/mentions.js";
 import { GameChat, GameLogPanel, useGameChat, type GameMsg } from "./GameChat.js";
+import { PlayImages } from "./PlayImages.js";
+import { usePlayerScreen } from "./usePlayerScreen.js";
 
 // Делает названия упоминаемых документов кликабельными прямо в тексте сессии.
 function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
@@ -101,7 +103,9 @@ export function PlaySession() {
   docRef.current = doc;
   const [docs, setDocs] = useState<Document[]>([]);
   const [campaignName, setCampaignName] = useState("");
-  const [tab, setTab] = useState<"scenario" | "docs" | "combat">("scenario");
+  const [tab, setTab] = useState<"scenario" | "docs" | "combat" | "images">("scenario");
+  const [imageTargetId, setImageTargetId] = useState<string | undefined>();
+  const playerScreen = usePlayerScreen(documentId ?? "");
   const contentRef = useRef<HTMLDivElement>(null);
   // История просмотрщика связанных документов.
   const [view, setView] = useState<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
@@ -114,15 +118,26 @@ export function PlaySession() {
 
   useEffect(() => {
     if (!documentId) return;
+    let current = true;
+    setDoc(null);
+    setView({ stack: [], idx: -1 });
+    setProposed({});
+    setTab("scenario");
+    setImageTargetId(undefined);
     api.getDocument(documentId).then((d) => {
-      setDoc(d);
-    }).catch(() => showToast("Не удалось загрузить сессию"));
+      if (current) setDoc(d);
+    }).catch(() => { if (current) showToast("Не удалось загрузить сессию"); });
+    return () => { current = false; };
   }, [documentId, showToast]);
 
   useEffect(() => {
     if (!campaignId) return;
-    api.getCampaign(campaignId).then((c) => setCampaignName(c.name)).catch(() => {});
-    api.listCampaignDocuments(campaignId).then(setDocs).catch(() => {});
+    let current = true;
+    setDocs([]);
+    setCampaignName("");
+    api.getCampaign(campaignId).then((c) => { if (current) setCampaignName(c.name); }).catch(() => {});
+    api.listCampaignDocuments(campaignId).then((result) => { if (current) setDocs(result); }).catch(() => {});
+    return () => { current = false; };
   }, [campaignId]);
 
   // Единый писатель полей: мерджит с актуальным doc.fields и сохраняет целиком.
@@ -316,6 +331,11 @@ export function PlaySession() {
   const viewerDoc = (viewerId && docs.find((d) => d.id === viewerId)) || null;
   const viewerProposed = viewerId && !viewerDoc ? proposed[viewerId] ?? null : null;
 
+  function openImages(id = viewerDoc?.id ?? documentId) {
+    setImageTargetId(id);
+    setTab("images");
+  }
+
   function exit() {
     navigate(`/campaigns/${campaignId}`, { replace: true });
   }
@@ -341,7 +361,7 @@ export function PlaySession() {
     .map((d) => ({ id: d.id, title: d.title }));
   const npcs = docs.filter((d) => d.type === "npc").map((d) => ({ id: d.id, title: d.title }));
 
-  if (!doc) return <div className="play-mode"><p className="muted" style={{ padding: 24 }}>…</p></div>;
+  if (!doc || doc.id !== documentId || doc.campaignId !== campaignId) return <div className="play-mode"><p className="muted" style={{ padding: 24 }}>…</p></div>;
 
   return (
     <div className="play-mode">
@@ -352,6 +372,7 @@ export function PlaySession() {
         </div>
         <div className="play-head-right">
           <span className="play-badge">● PLAY MODE</span>
+          <button type="button" className={`btn-ghost play-player-screen${playerScreen.image && !playerScreen.error ? " has-image" : ""}`} onClick={playerScreen.open} title="Открыть отдельное окно для экрана игроков"><Monitor size={15} /> Экран игроков</button>
           <button type="button" className={`btn-ghost play-playerview${playerView ? " active" : ""}`} onClick={() => setPlayerView((v) => !v)} title="Показ игрокам: скрыть секции «только мастер»">
             {playerView ? <Eye size={15} /> : <EyeOff size={15} />} {playerView ? "Показ игрокам" : "Всё видно"}
           </button>
@@ -361,6 +382,8 @@ export function PlaySession() {
           <button type="button" className="btn-ghost play-exit" onClick={exit}><X size={16} /> Выйти</button>
         </div>
       </header>
+
+      {playerScreen.error && tab !== "images" && <p className="play-player-error" role="alert">{playerScreen.error}</p>}
 
       <div className="play-body">
         <div className="play-center">
@@ -390,12 +413,13 @@ export function PlaySession() {
           )}
 
           <div className="play-panel">
-            <div className="play-tabs2">
+            <div className="play-tabs2 play-session-tabs">
               <button type="button" className={tab === "scenario" ? "active" : ""} onClick={() => setTab("scenario")}>Сценарий</button>
               <button type="button" className={tab === "docs" ? "active" : ""} onClick={() => setTab("docs")}>Документы</button>
               <button type="button" className={tab === "combat" ? "active" : ""} onClick={() => setTab("combat")}>Бой</button>
+              <button type="button" className={tab === "images" ? "active" : ""} onClick={() => { if (tab !== "images") openImages(); }}>Изображения</button>
             </div>
-            {/* Все вкладки смонтированы всегда — переключение прячет, а не размонтирует. */}
+            {/* Сценарий, документы и бой сохраняют состояние; галерея загружается при открытии. */}
             <div
               className="play-content play-scenario"
               style={{ display: tab === "scenario" ? undefined : "none" }}
@@ -441,6 +465,7 @@ export function PlaySession() {
                 <button type="button" title="Вперёд" aria-label="Вперёд" disabled={view.idx >= view.stack.length - 1} onClick={() => setView((v) => ({ ...v, idx: v.idx + 1 }))}><ArrowRight size={15} /></button>
                 {viewerDoc && <span className="play-viewer-title">{viewerDoc.title}</span>}
                 {viewerProposed && <span className="play-viewer-title">{viewerProposed.title} <span className="play-proposed-tag">предлагается создать</span></span>}
+                {viewerDoc && <button type="button" className="play-viewer-images" aria-label={`Изображения: ${viewerDoc.title}`} title="Открыть изображения сущности" onClick={() => openImages(viewerDoc.id)}><Image size={14} /></button>}
                 {viewerDoc && (
                   <button
                     type="button"
@@ -478,6 +503,8 @@ export function PlaySession() {
                 )}
               </div>
             </div>
+
+            {tab === "images" && <PlayImages campaignId={campaignId!} documents={docs} session={doc} initialDocumentId={imageTargetId} playerScreen={playerScreen} />}
 
             <div className="play-combat-wrap" style={{ display: tab === "combat" ? undefined : "none" }}>
               <CombatTracker

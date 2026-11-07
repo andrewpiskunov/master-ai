@@ -10,4 +10,4 @@
 
 - [x] Add campaign cover storage, safe metadata resolution, activity dates and transfer support.
 - [x] Build catalog, controls and cover picker with tests.
-- [ ] Verify browser behavior, checks and review, then commit and push.
+- [x] Verify browser behavior, checks and review, then commit and push.

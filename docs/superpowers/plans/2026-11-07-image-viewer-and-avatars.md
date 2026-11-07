@@ -50,4 +50,4 @@
 
 - [x] Run full checks, independent review and browser verification with the existing portraits.
 - [x] Verify automatic avatars for existing entities without rewriting their text.
-- [ ] Commit and push the implementation to the existing PR.
+- [x] Commit and push the implementation to the existing PR.
