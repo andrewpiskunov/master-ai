@@ -14,6 +14,7 @@ import { blockKey, entityBlocksPrompt, parseAssistant, type NewEntity } from "..
 import { CombatTracker, type CombatState } from "./CombatTracker.js";
 import { TypeTag, TypeBadge } from "../campaigns/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../../lib/mentions.js";
+import { documentHref, documentIdFromHref, isPlainLinkClick } from "../../lib/document-links.js";
 import { GameChat, GameLogPanel, useGameChat, type GameMsg } from "./GameChat.js";
 import { PlayImages } from "./PlayImages.js";
 import { usePlayerScreen } from "./usePlayerScreen.js";
@@ -35,10 +36,11 @@ function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
       if (s.start > last) frag.appendChild(document.createTextNode(text.slice(last, s.start)));
       const a = document.createElement("a");
       a.className = `mention mention-${s.type} play-link`;
-      a.dataset.docId = s.href ?? "";
+      if (s.href) a.href = s.href;
+      a.dataset.docId = documentIdFromHref(s.href) ?? "";
       // Несколько документов с одним названием: клик переключает их по кругу.
       if (s.hrefs && s.hrefs.length > 1) {
-        a.dataset.docIds = s.hrefs.join(",");
+        a.dataset.docIds = s.hrefs.map(documentIdFromHref).filter(Boolean).join(",");
         a.classList.add("mention-ambiguous");
         a.title = `Документов с этим названием: ${s.hrefs.length} — клик переключает`;
       }
@@ -250,7 +252,7 @@ export function PlaySession() {
     void patchFields({ sectionVisibility: next });
   }
   const prepared = useMemo(
-    () => prepareMentions(docs.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type, href: d.id }))),
+    () => prepareMentions(docs.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type, href: documentHref(d.campaignId, d.id) }))),
     [docs, documentId],
   );
 
@@ -272,7 +274,8 @@ export function PlaySession() {
   // Открывает в просмотрщике документы кампании, упомянутые в реплике чата с ИИ-мастером.
   function openMentionedDocs(text: string) {
     for (const span of matchMentions(text, prepared)) {
-      if (span.href) openDoc(span.href);
+      const id = documentIdFromHref(span.href);
+      if (id) openDoc(id);
     }
   }
 
@@ -462,6 +465,7 @@ export function PlaySession() {
               style={{ display: tab === "scenario" ? undefined : "none" }}
               ref={contentRef}
               onClick={(e) => {
+                if (!isPlainLinkClick(e)) return;
                 const a = (e.target as HTMLElement).closest("a.play-link") as HTMLElement | null;
                 if (!a?.dataset.docId) return;
                 e.preventDefault();

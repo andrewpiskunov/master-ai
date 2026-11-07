@@ -11,6 +11,7 @@ import { useToast } from "../../ui/toast.js";
 import { AssistantAnswer } from "../assistant/AssistantAnswer.js";
 import { stripAssistantImageActions, type EditEntity, type NewEntity } from "../assistant/assistant-blocks.js";
 import type { MentionItem } from "../../lib/mentions.js";
+import { documentIdFromHref, isPlainLinkClick } from "../../lib/document-links.js";
 
 export interface Actor { kind: "pc" | "npc" | "master"; id: string | null; name: string }
 export interface GameMsg { id?: string; role: "user" | "assistant"; content: string; createdAt?: string; meta?: MessageMeta }
@@ -158,7 +159,7 @@ export function GameChat({
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => boolean | Promise<boolean>;
   onEditEntity: (edit: EditEntity) => boolean | Promise<boolean>;
-  // Сущности кампании для подсветки в ленте (пилюли, как в Мастерской); href = id документа.
+  // Сущности кампании для подсветки в ленте; href — полный путь к карточке.
   mentions?: MentionItem[];
   // Клик по пилюле — открыть документ (например, во вкладке «Документы»).
   onMentionClick?: (docId: string) => void;
@@ -226,13 +227,15 @@ export function GameChat({
       <div
         className="chat game-feed"
         ref={feedRef}
-        onClick={(e) => {
-          // Пилюля — <a href="<id документа>">: не даём браузеру перейти по «ссылке», открываем в просмотрщике.
+        onClickCapture={(e) => {
+          if (!isPlainLinkClick(e) || !onMentionClick) return;
           const a = (e.target as HTMLElement).closest("a.mention") as HTMLAnchorElement | null;
           if (!a) return;
+          const id = documentIdFromHref(a.getAttribute("href"));
+          if (!id) return;
+          // Перехватываем до React Router; остальные жесты остаются нативными.
           e.preventDefault();
-          const id = a.getAttribute("href");
-          if (id && onMentionClick) onMentionClick(id);
+          onMentionClick(id);
         }}
       >
         {chat.messages.length === 0 && !chat.busy && (

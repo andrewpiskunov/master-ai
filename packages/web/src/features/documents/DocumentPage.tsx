@@ -38,7 +38,7 @@ export function DocumentPage() {
   const campaignCtx = useCampaign();
   const allDocuments = campaignCtx?.documents ?? [];
   const mentions = useMemo(
-    () => allDocuments.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type })),
+    () => allDocuments.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type, href: `/campaigns/${d.campaignId}/documents/${d.id}` })),
     [allDocuments, documentId],
   );
   const [doc, setDoc] = useState<Document | null>(null);

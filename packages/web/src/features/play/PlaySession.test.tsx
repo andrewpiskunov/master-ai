@@ -1,5 +1,5 @@
 import { userEvent } from "@testing-library/user-event";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PlaySession } from "./PlaySession.js";
@@ -51,6 +51,64 @@ function renderSession() {
     <Routes><Route path="/campaigns/:campaignId/sessions/:documentId/play" element={<PlaySession />} /></Routes>
   </MemoryRouter></ToastProvider>);
 }
+
+describe("native entity links in play mode", () => {
+  const npc = { ...sessionDoc, id: "npc", type: "npc", title: "Проводник" };
+  function prepare(chat = false) {
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([npc]);
+    if (chat) vi.mocked(api.getDocumentConversation).mockResolvedValue([{ id: "m1", role: "assistant", content: "Здесь ждёт Проводник.", createdAt: "x" }]);
+    else vi.mocked(api.getDocument).mockResolvedValue({ ...sessionDoc, contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Здесь ждёт Проводник." }] }] } });
+    renderSession();
+  }
+
+  it.each([false, true])("gives %s chat/scenario mentions a canonical URL and keeps plain clicks in the document viewer", async (chat) => {
+    prepare(chat);
+    const link = await screen.findByText("Проводник", { selector: "a.mention" });
+    expect(link).toHaveAttribute("href", "/campaigns/c1/documents/npc");
+    await userEvent.click(link);
+    expect(document.querySelector(".play-viewer-title")).toHaveTextContent("Проводник");
+    expect(document.querySelector(".play-viewer")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Выйти" })).toBeInTheDocument();
+  });
+
+  it.each([false, true])("leaves context menus, middle-click and modifier clicks to the browser (chat=%s)", async (chat) => {
+    prepare(chat);
+    const link = await screen.findByText("Проводник", { selector: "a.mention" });
+    expect(link).toHaveAttribute("href", "/campaigns/c1/documents/npc");
+    for (const [type, options] of [
+      ["contextmenu", { button: 2 }], ["auxclick", { button: 1 }],
+      ["click", { button: 0, metaKey: true }], ["click", { button: 0, ctrlKey: true }],
+      ["click", { button: 0, shiftKey: true }], ["click", { button: 0, altKey: true }],
+    ] as const) {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...options });
+      let preventedByApp: boolean | undefined;
+      // Проверяем обработчики приложения, затем останавливаем отсутствующую
+      // в JSDOM нативную навигацию на самом последнем уровне всплытия.
+      document.addEventListener(type, (nativeEvent) => {
+        preventedByApp = nativeEvent.defaultPrevented;
+        nativeEvent.preventDefault();
+      }, { once: true });
+      fireEvent(link, event);
+      expect(preventedByApp).toBe(false);
+      expect(document.querySelector(".play-viewer-title")).toBeNull();
+    }
+  });
+
+  it("keeps cycling same-named scenario entities while the native URL points at the first match", async () => {
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([npc, { ...npc, id: "npc2" }]);
+    vi.mocked(api.getDocument).mockResolvedValue({ ...sessionDoc, contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Проводник." }] }] } });
+    renderSession();
+    const link = await screen.findByText("Проводник", { selector: "a.play-link" });
+    expect(link).toHaveAttribute("href", "/campaigns/c1/documents/npc");
+    expect(link).toHaveAttribute("data-doc-ids", "npc,npc2");
+    await userEvent.click(link);
+    expect(screen.getByRole("button", { name: "Изображения: Проводник" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Сценарий" }));
+    await userEvent.click(link);
+    await userEvent.click(screen.getByRole("button", { name: "Закрепить" }));
+    expect(api.updateDocument).toHaveBeenCalledWith("d1", { fields: expect.objectContaining({ pins: ["npc2"] }) });
+  });
+});
 
 describe("PlaySession images", () => {
   it("предлагает отдельный экран игроков и не загружает галерею до выбора вкладки", async () => {
