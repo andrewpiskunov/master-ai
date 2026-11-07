@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { getDocumentType } from "@master-ai/shared";
-import { TypeBadge } from "../pages/campaign/shared.js";
+import { TypeBadge } from "../features/campaigns/shared.js";
 
 export interface MentionOption { title: string; type: string }
 

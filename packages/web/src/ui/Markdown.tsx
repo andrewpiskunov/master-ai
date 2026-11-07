@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { rehypeMentions } from "./rehype-mentions.js";
-import type { MentionItem } from "../mentions.js";
+import type { MentionItem } from "../lib/mentions.js";
 
 // Внутренние ссылки (упоминания сущностей) — SPA-переход; внешние — обычная ссылка.
 function MdLink({ href, className, children }: ComponentProps<"a">) {

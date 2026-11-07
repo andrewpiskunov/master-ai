@@ -1,4 +1,4 @@
-import { matchMentions, prepareMentions, type MentionItem } from "../mentions.js";
+import { matchMentions, prepareMentions, type MentionItem } from "../lib/mentions.js";
 
 // Узел дерева hast (после markdown → HTML). Описываем только нужные поля.
 interface HastNode {

@@ -77,7 +77,7 @@ describe("ProposalService", () => {
   });
 
   // Паритет с веб-конвертером markdownToDoc: тот же образец markdown должен давать
-  // тот же нормализованный текст. Зеркальный тест — packages/web/src/convparity.test.ts;
+  // тот же нормализованный текст. Зеркальный тест — packages/web/src/features/documents/editor/convparity.test.ts;
   // при изменении образца или ожидания правьте оба.
   it("паритет с markdownToDoc (веб): одинаковый извлечённый текст", async () => {
     const { proseMirrorToText } = await import("./prosemirror-text.js");

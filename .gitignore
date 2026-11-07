@@ -1,8 +1,16 @@
 node_modules/
 dist/
+.vite/
+coverage/
+*.tsbuildinfo
 *.sqlite
 *.sqlite-journal
 .DS_Store
+.env
+.env.*
+!.env.example
+*.log
+.worktrees/
 
 # Process scratch (subagent-driven-development)
 .superpowers/

@@ -5,7 +5,12 @@
   "scripts": {
     "dev": "concurrently -n server,web \"pnpm --filter @master-ai/server dev\" \"pnpm --filter @master-ai/web dev\"",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm --filter @master-ai/web build",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm docs:check",
+    "docs:check": "node scripts/check-docs.mjs && pnpm demo:check",
+    "demo:check": "pnpm --filter @master-ai/server exec tsx ../../scripts/check-demo.ts",
+    "demo:import": "node scripts/import-demo.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
@@ -13,6 +18,20 @@
     "vitest": "^2.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
+  "packageManager": "pnpm@9.15.9",
+  "description": "Локальная мастерская для подготовки и ведения настольных ролевых игр с ИИ.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrewpiskunov/master-ai.git"
+  },
+  "engines": {
+    "node": ">=22.9.0 <23",
+    "pnpm": ">=9.15.9 <10"
   }
 }

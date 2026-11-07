@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">master-ai</title>
+  <desc id="desc">Локальная мастерская для подготовки кампаний и игры за столом. Документы, мастерская и игровые сессии связаны в одном мире.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1280" y2="360" gradientUnits="userSpaceOnUse"><stop stop-color="#151625"/><stop offset="1" stop-color="#20223c"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#818cf8" stop-opacity=".17"/><stop offset="1" stop-color="#818cf8" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#c7d2fe" fill-opacity=".1"/></pattern>
+  </defs>
+  <rect width="1280" height="360" rx="20" fill="url(#background)"/>
+  <rect width="1280" height="360" rx="20" fill="url(#grid)"/>
+  <circle cx="1040" cy="180" r="260" fill="url(#glow)"/>
+  <path d="M64 54h32" stroke="#a5b4fc" stroke-width="3"/>
+  <text x="108" y="59" font-family="Arial,Helvetica,sans-serif" font-size="12" letter-spacing="2.5" fill="#a5b4fc">ЛОКАЛЬНАЯ МАСТЕРСКАЯ НРИ</text>
+  <text x="60" y="154" font-family="Arial,Helvetica,sans-serif" font-size="76" font-weight="700" letter-spacing="-3" fill="#f5f3ff">master-ai</text>
+  <text x="64" y="209" font-family="Arial,Helvetica,sans-serif" font-size="25" fill="#e2e1ef">От первой идеи до игры за столом.</text>
+  <text x="64" y="250" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#aaaec9">Кампании · Связанный мир · ИИ-соавтор</text>
+  <rect x="64" y="291" width="6" height="6" rx="3" fill="#a5b4fc"/>
+  <text x="82" y="300" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#9499b7">Твои истории. Данные на твоём компьютере.</text>
+  <g stroke="#686d9e" stroke-width="1.5">
+    <path d="m977 180-123-78M1005 174l130-75M999 218l74 71"/>
+    <circle cx="998" cy="182" r="107" stroke-dasharray="3 9" stroke-opacity=".45"/>
+  </g>
+  <g transform="translate(939 121) scale(1.2)">
+    <polygon points="50,5 11.03,27.5 11.03,72.5 50,95 88.97,72.5 88.97,27.5" fill="#4f46e5"/>
+    <polygon points="50,5 11.03,72.5 88.97,72.5" fill="#6366f1"/>
+    <g stroke="#c7d2fe" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+      <polygon points="50,5 11.03,27.5 11.03,72.5 50,95 88.97,72.5 88.97,27.5"/>
+      <polygon points="50,5 11.03,72.5 88.97,72.5"/>
+      <path d="m30.5 38.75-19.47-11.25m58.47 11.25 19.47-11.25M50 72.5V95"/>
+    </g>
+    <text x="50" y="59" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="24" font-weight="700" fill="white">20</text>
+  </g>
+  <g font-family="Arial,Helvetica,sans-serif">
+    <rect x="750" y="56" width="175" height="74" rx="12" fill="#24273e" stroke="#45496c"/>
+    <text x="768" y="82" font-size="10" letter-spacing="1.5" fill="#a5b4fc">ДОКУМЕНТЫ</text>
+    <text x="768" y="108" font-size="16" fill="#ececf7">Всё связано</text>
+    <rect x="1070" y="54" width="165" height="74" rx="12" fill="#24273e" stroke="#45496c"/>
+    <text x="1088" y="80" font-size="10" letter-spacing="1.5" fill="#d8b4fe">МАСТЕРСКАЯ</text>
+    <text x="1088" y="106" font-size="16" fill="#ececf7">Идеи в диалоге</text>
+    <rect x="1010" y="271" width="199" height="65" rx="12" fill="#24273e" stroke="#45496c"/>
+    <text x="1028" y="296" font-size="10" letter-spacing="1.5" fill="#a7f3d0">ИГРА ЗА СТОЛОМ</text>
+    <text x="1028" y="320" font-size="16" fill="#ececf7">История продолжается</text>
+  </g>
+  <circle cx="925" cy="102" r="3" fill="#a5b4fc"/>
+  <circle cx="1070" cy="99" r="3" fill="#d8b4fe"/>
+  <circle cx="1073" cy="271" r="3" fill="#a7f3d0"/>
+</svg>

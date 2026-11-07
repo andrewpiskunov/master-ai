@@ -1,0 +1,55 @@
+name: Ошибка
+description: Сообщить о воспроизводимой проблеме в master-ai
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Опишите проблему на вымышленных данных. Не прикладывайте API-ключи, рабочую базу или личную кампанию.
+        Об уязвимостях сообщайте по инструкции SECURITY.md, ссылка есть на странице выбора обращения.
+  - type: input
+    id: revision
+    attributes:
+      label: Версия кода
+      description: Commit или ветка, на которых воспроизводится ошибка.
+      placeholder: Вывод git rev-parse --short HEAD
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Окружение
+      description: ОС, браузер, версии Node.js и pnpm. Для ошибки ИИ укажите способ подключения без ключа.
+      placeholder: "macOS / Firefox / Node.js 22.x / pnpm 9.15.9 / CLI или API"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      description: Опишите действия по порядку. По возможности используйте демонстрационную кампанию.
+      placeholder: |
+        1. Открыть кампанию…
+        2. Перейти…
+        3. Нажать…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемый результат
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактический результат
+      description: Можно приложить скриншот с вымышленными данными.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Ошибки и логи
+      description: Удалите секреты и личные сведения перед отправкой.
+      render: text
