@@ -96,7 +96,7 @@ describe("workshop campaign context", () => {
   it("retains unapproved proposal contents separately from current documents after JSON is stripped from chat", async () => {
     const f = setup();
     const conv = f.conversations.getOrCreateForCampaign("c1");
-    f.service.finishRespond("c1", conv.id, 'Предлагаю сцену.\n```json\n{"proposals":[{"type":"scene","title":"Старый мост","content":"DRAFT_BRIDGE_TEXT: сложность 4.","action":"create"}]}\n```');
+    await f.service.finishRespond("c1", conv.id, 'Предлагаю сцену.\n```json\n{"proposals":[{"type":"scene","title":"Старый мост","content":"DRAFT_BRIDGE_TEXT: сложность 4.","action":"create"}]}\n```');
     expect(f.conversations.listMessages(conv.id)[0].content).not.toContain("DRAFT_BRIDGE_TEXT");
     f.proposals.create({ campaignId: "c2", conversationId: "elsewhere", draft: { type: "note", title: "Чужой черновик", content: "FOREIGN_DRAFT_SECRET" } });
 

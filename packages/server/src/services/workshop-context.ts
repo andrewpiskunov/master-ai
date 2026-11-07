@@ -1,4 +1,4 @@
-import { docToMarkdown, type Document, type Proposal } from "@master-ai/shared";
+import { docToMarkdown, type Document, type ImageAttachment, type Proposal } from "@master-ai/shared";
 
 // Бюджет текстов материалов, отдельно от брифа, шаблонов и истории беседы.
 const MAX_CONTENT_CHARS = 180_000;
@@ -11,9 +11,10 @@ function withFields(text: string, fields: Record<string, unknown>): string {
 
 // Каждый запрос получает свежий снимок БД. Непринятые предложения не становятся
 // фактами кампании, а старые approved/rejected не подменяют отредактированные карточки.
-export function buildWorkshopContext(documents: Document[], proposals: Proposal[], request: string): string {
+export function buildWorkshopContext(documents: Document[], proposals: Proposal[], request: string, documentImages: Record<string, ImageAttachment[]> = {}): string {
   const current = documents.map((d) => ({
     id: d.id, title: d.title, type: d.type, status: d.status, updatedAt: d.updatedAt,
+    images: documentImages[d.id] ?? [],
     content: withFields(docToMarkdown(d.contentJson), d.fields), contentTruncated: false,
   }));
   const pending = proposals.map((p) => ({

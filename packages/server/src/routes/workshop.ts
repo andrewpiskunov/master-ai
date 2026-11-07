@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { ImageIdsSchema } from "@master-ai/shared";
+import { ImageIdsSchema, WorkshopImageRequestsSchema } from "@master-ai/shared";
 import { AssistantJobService } from "../services/assistant-jobs.js";
 import { textToDoc } from "../services/proposals.js";
 import type { RouteDependencies, IdParams } from "./dependencies.js";
@@ -8,8 +8,8 @@ import type { RouteDependencies, IdParams } from "./dependencies.js";
 const BrainstormBodySchema = z.object({ message: z.string(), imageIds: ImageIdsSchema.optional() })
   .refine((body) => body.message.trim().length > 0 || (body.imageIds?.length ?? 0) > 0, { message: "Напишите сообщение или прикрепите изображение" });
 
-export function registerWorkshopRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "campaignsSvc" | "documentsSvc" | "brainstormSvc" | "mediaSvc">): void {
-  const { campaignsSvc, documentsSvc, brainstormSvc, mediaSvc } = deps;
+export function registerWorkshopRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "campaignsSvc" | "documentsSvc" | "brainstormSvc" | "mediaSvc" | "workshopImagesSvc" | "conversationsSvc">): void {
+  const { campaignsSvc, documentsSvc, brainstormSvc, mediaSvc, workshopImagesSvc, conversationsSvc } = deps;
   const workshopJobs = new AssistantJobService(); // фоновые генерации мастерской (ключ — id кампании)
   app.addHook("onClose", () => workshopJobs.stopAll());
 
@@ -33,14 +33,27 @@ export function registerWorkshopRoutes(app: FastifyInstance, deps: Pick<RouteDep
     const images = mediaSvc.getForCampaign(id, parsed.data.imageIds ?? []);
     const abort = new AbortController();
     const { conversationId, stream } = brainstormSvc.prepareRespond(id, parsed.data.message, abort.signal, images);
-    workshopJobs.start(id, stream, (full) => {
+    workshopJobs.start(id, stream, async (full) => {
       // Пока шла генерация, кампанию могли удалить — не создаём «висячие» записи.
-      if (campaignsSvc.get(id)) brainstormSvc.finishRespond(id, conversationId, full);
+      if (campaignsSvc.get(id)) await brainstormSvc.finishRespond(id, conversationId, full, abort.signal);
     }, abort);
     return reply.code(202).send({ started: true });
   });
 
   app.get("/api/campaigns/:id/brainstorm/status", (req) => workshopJobs.status((req.params as { id: string }).id));
+
+  app.post("/api/campaigns/:id/image-attachments", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!campaignsSvc.get(id)) return reply.code(404).send({ error: "Кампания не найдена" });
+    const parsed = z.object({ attachments: WorkshopImageRequestsSchema, messageId: z.string().uuid().optional() }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "Укажите от 1 до 50 изображений и целевые карточки" });
+    const conv = parsed.data.messageId ? conversationsSvc.getOrCreateForCampaign(id) : undefined;
+    const message = conv && conversationsSvc.listMessages(conv.id).find((m) => m.id === parsed.data.messageId && m.role === "assistant");
+    if (parsed.data.messageId && !message) return reply.code(404).send({ error: "Сообщение мастерской не найдено" });
+    const results = await workshopImagesSvc.attach(id, parsed.data.attachments);
+    if (message) conversationsSvc.updateMessageMeta(message.id, { imageAttachments: results });
+    return { results };
+  });
 
   // Остановка генерации мастерской: сигнал обрывает CLI/HTTP, набранный текст сохраняется.
   app.post("/api/campaigns/:id/brainstorm/stop", (req, reply) => {

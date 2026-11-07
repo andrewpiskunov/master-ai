@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { z } from "zod";
-import { ImageAttachmentSchema, ImageUploadSchema, MAX_MESSAGE_IMAGES, type Campaign } from "@master-ai/shared";
+import { ImageAttachmentSchema, ImageUploadSchema, WorkshopImageAttachmentResultSchema, MAX_MESSAGE_IMAGES, type Campaign } from "@master-ai/shared";
 import { campaigns, conversations, documentImages, documents, images, links, llmUsage, messages, proposals } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
 import { validateImage } from "./media.js";
@@ -172,6 +172,15 @@ export class TransferService {
             const image = imageByOldId.get(ref.id);
             if (!image) throw new Error("Не найдено изображение сообщения");
             return { id: image.id, name: image.name, mimeType: image.mimeType };
+          });
+        }
+        if (meta.imageAttachments !== undefined) {
+          meta.imageAttachments = z.array(WorkshopImageAttachmentResultSchema).max(50).parse(meta.imageAttachments).flatMap((result) => {
+            const documentId = mapDoc(result.documentId);
+            if (!documentId) return []; // карточка могла быть удалена после прикрепления
+            const image = result.image ? imageByOldId.get(result.image.id) : undefined;
+            if (result.image && !image) throw new Error("Не найдено прикреплённое изображение мастерской");
+            return [{ ...result, documentId, ...(image ? { image: { id: image.id, name: image.name, mimeType: image.mimeType } } : {}) }];
           });
         }
         tx.insert(messages).values({

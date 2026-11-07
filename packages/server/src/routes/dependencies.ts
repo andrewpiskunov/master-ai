@@ -11,6 +11,7 @@ import type { SearchService } from "../services/search.js";
 import type { TransferService } from "../services/transfer.js";
 import type { UsageService } from "../services/usage.js";
 import type { MediaService } from "../services/media.js";
+import type { WorkshopImageService } from "../services/workshop-images.js";
 
 export type IdParams = { Params: { id: string } };
 
@@ -28,6 +29,7 @@ export interface RouteDependencies {
   transferSvc: TransferService;
   usageSvc: UsageService;
   mediaSvc: MediaService;
+  workshopImagesSvc: WorkshopImageService;
   llmFor: (campaignId?: string | null) => LLMProvider;
   trackUsage: (campaignId: string | null | undefined, feature: string) => {
     onUsage: (usage: LlmUsage) => void;

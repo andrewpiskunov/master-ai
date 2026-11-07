@@ -7,6 +7,7 @@ import { useToast } from "../../ui/toast.js";
 interface WorldState { summary: string; question: string }
 
 interface WorkshopChat {
+  campaignId: string;
   messages: ConversationMessage[];
   proposals: Proposal[];
   busy: boolean;
@@ -227,7 +228,7 @@ function WorkshopChatProviderContent({
     if (!world && !worldBusy && messages.length >= 2) refreshWorld();
   }, [messages.length, world, worldBusy, refreshWorld]);
 
-  return <Ctx.Provider value={{ messages, proposals, busy, awaitingWelcome, draft, setDraft, images, send, stop, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ campaignId, messages, proposals, busy, awaitingWelcome, draft, setDraft, images, send, stop, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
 }
 
 export function useWorkshopChat(): WorkshopChat {

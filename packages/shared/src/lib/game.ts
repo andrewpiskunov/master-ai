@@ -1,5 +1,5 @@
 // Игровой чат режима игры: метаданные сообщений и разбор ответа ИИ-мастера.
-import type { ImageAttachment } from "../schemas/images.js";
+import type { ImageAttachment, WorkshopImageAttachmentResult } from "../schemas/images.js";
 
 export interface GameLogEntry {
   title: string;
@@ -14,6 +14,7 @@ export interface MessageMeta {
   actorKind?: "pc" | "npc" | "master";
   log?: GameLogEntry;
   images?: ImageAttachment[];
+  imageAttachments?: WorkshopImageAttachmentResult[];
 }
 
 // Вырезает служебный блок ```log {"title":…,"important":…}``` из ответа ИИ.

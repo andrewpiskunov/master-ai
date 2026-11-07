@@ -21,6 +21,20 @@ function manualStream() {
 }
 
 describe("AssistantJobService", () => {
+  it("keeps the job running until asynchronous result storage finishes", async () => {
+    const svc = new AssistantJobService();
+    let release!: () => void;
+    const stored = new Promise<void>((resolve) => { release = resolve; });
+    let storing = false;
+    svc.start("d1", (async function* () { yield "Портрет"; })(), async () => { storing = true; await stored; });
+    await expect.poll(() => storing).toBe(true);
+    try {
+      expect(svc.status("d1").running).toBe(true);
+      expect(svc.start("d1", (async function* () { yield "Другой"; })(), () => {})).toBe(false);
+    } finally { release(); await svc.stopAll(); }
+    expect(svc.status("d1").running).toBe(false);
+  });
+
   it("копит partial по мере генерации и сохраняет ответ по завершении", async () => {
     const svc = new AssistantJobService();
     const { stream, push, finish } = manualStream();

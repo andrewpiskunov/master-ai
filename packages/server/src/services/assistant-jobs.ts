@@ -59,10 +59,14 @@ export class AssistantJobService {
         // Обрыв потока после stop — штатная остановка, а не ошибка.
         if (!job.stopped) job.error = e instanceof Error ? e.message : String(e);
       } finally {
-        job.running = false;
         try {
-          if (job.partial.trim()) onFinish(job.partial);
+          // Сохранение может включать асинхронный импорт изображений. Пока оно
+          // не завершено, клиент не должен считать ответ готовым или начать второй.
+          if (job.partial.trim()) await onFinish(job.partial);
+        } catch (error) {
+          if (!job.stopped) job.error = error instanceof Error ? error.message : String(error);
         } finally {
+          job.running = false;
           // держим финальный статус ещё немного, чтобы клиент успел его забрать
           const t = setTimeout(() => { if (!this.jobs.get(docId)?.running) this.jobs.delete(docId); }, CLEANUP_MS);
           t.unref?.();

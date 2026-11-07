@@ -1,4 +1,4 @@
-import { DraftProposalSchema, getDocumentType, type DraftProposal } from "@master-ai/shared";
+import { DraftProposalSchema, WorkshopImageRequestsSchema, getDocumentType, type DraftProposal, type WorkshopImageRequest } from "@master-ai/shared";
 
 const JSON_BLOCK = /```json\s*([\s\S]*?)```/gi;
 
@@ -21,7 +21,7 @@ function repairJsonStrings(s: string): string {
   return out;
 }
 
-function parseBlock(raw: string): { proposals?: unknown[] } | null {
+function parseBlock(raw: string): { proposals?: unknown; imageAttachments?: unknown } | null {
   try {
     return JSON.parse(raw) as { proposals?: unknown[] };
   } catch {
@@ -33,21 +33,35 @@ function parseBlock(raw: string): { proposals?: unknown[] } | null {
   }
 }
 
-export function parseProposals(text: string): { reply: string; proposals: DraftProposal[] } {
+export function parseProposals(text: string): { reply: string; proposals: DraftProposal[]; imageAttachments: WorkshopImageRequest[] } {
   const matches = [...text.matchAll(JSON_BLOCK)];
-  if (matches.length === 0) return { reply: text, proposals: [] };
+  if (matches.length === 0) return { reply: text, proposals: [], imageAttachments: [] };
 
   const proposals: DraftProposal[] = [];
+  let imageAttachments: WorkshopImageRequest[] = [];
+  let invalidImages = false;
   for (const m of matches) {
     const parsed = parseBlock(m[1]);
-    if (!parsed) continue;
-    for (const raw of parsed.proposals ?? []) {
+    if (!parsed) {
+      if (m[1].includes('"imageAttachments"')) invalidImages = true;
+      continue;
+    }
+    for (const raw of Array.isArray(parsed.proposals) ? parsed.proposals : []) {
       const draft = DraftProposalSchema.safeParse(raw);
       if (draft.success && getDocumentType(draft.data.type)) {
         proposals.push(draft.data);
       }
     }
+    if (parsed.imageAttachments !== undefined) {
+      const batch = WorkshopImageRequestsSchema.safeParse(parsed.imageAttachments);
+      if (!batch.success || imageAttachments.length + batch.data.length > 50) invalidImages = true;
+      else imageAttachments.push(...batch.data);
+    }
   }
-  const reply = text.replace(JSON_BLOCK, "").trim();
-  return { reply, proposals };
+  let reply = text.replace(JSON_BLOCK, "").trim();
+  if (invalidImages) {
+    imageAttachments = [];
+    reply += "\n\nНе удалось обработать прикрепление изображений: ИИ вернул неверный формат или больше 50 изображений. Повторите запрос меньшей группой.";
+  }
+  return { reply: reply.trim(), proposals, imageAttachments };
 }

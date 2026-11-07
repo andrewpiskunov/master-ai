@@ -12,6 +12,7 @@ import { SearchService } from "./services/search.js";
 import { UsageService } from "./services/usage.js";
 import { TransferService } from "./services/transfer.js";
 import { MediaService } from "./services/media.js";
+import { WorkshopImageService } from "./services/workshop-images.js";
 import type { LLMProvider } from "./llm/provider.js";
 import { getCliProviderInfo, loadProvider } from "./llm/config.js";
 import { providerForCampaign } from "./llm/resolve.js";
@@ -29,7 +30,7 @@ import { registerImageRoutes } from "./routes/images.js";
 import { registerImageGenerationRoutes } from "./routes/image-generation.js";
 import { loadImageGenerator, type ImageGenerator } from "./llm/image-generation.js";
 
-export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; sqlite?: SqliteDatabase; imageGenerator?: ImageGenerator }): FastifyInstance {
+export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; sqlite?: SqliteDatabase; imageGenerator?: ImageGenerator; generatedImagesDir?: string }): FastifyInstance {
   const app = Fastify();
   app.register(cors, { origin: true });
 
@@ -43,11 +44,12 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   const proposalsSvc = new ProposalService(deps.db);
   const usageSvc = new UsageService(deps.db);
   const mediaSvc = new MediaService(deps.db);
+  const workshopImagesSvc = new WorkshopImageService(documentsSvc, mediaSvc, deps.generatedImagesDir);
   // Колбэк учёта токенов; кампании без id (нет контекста) не учитываем.
   const trackUsage: RouteDependencies["trackUsage"] = (campaignId, feature) => ({
     onUsage: (u) => { if (campaignId) usageSvc.record(campaignId, feature, u); },
   });
-  const brainstormSvc = new BrainstormService({ llmFor, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc, usage: usageSvc, media: mediaSvc });
+  const brainstormSvc = new BrainstormService({ llmFor, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc, usage: usageSvc, media: mediaSvc, imageAttachments: workshopImagesSvc });
   const routes: RouteDependencies = {
     sqlite: deps.sqlite,
     cliProvider: getCliProviderInfo(),
@@ -57,6 +59,7 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
     proposalsSvc,
     usageSvc,
     mediaSvc,
+    workshopImagesSvc,
     brainstormSvc,
     linksSvc: new LinkService(deps.db),
     searchSvc: new SearchService(deps.db),

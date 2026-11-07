@@ -1471,6 +1471,28 @@ a.mention:hover { filter: brightness(1.12); }
 .message-images a { display: block; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .message-images img { display: block; width: 128px; height: 96px; object-fit: cover; transition: filter 150ms; }
 .message-images a:hover img { filter: brightness(1.12); }
+.workshop-message-images { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 8px; }
+.workshop-message-image { width: 128px; min-width: 0; }
+.workshop-message-image .message-images { margin: 0; }
+.workshop-message-image > button { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-top: 4px; padding: 5px 3px; font-size: 0.7rem; }
+.workshop-image-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; list-style: none; margin: 12px 0 0; padding: 0; }
+.workshop-image-result { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.workshop-image-preview { flex: none; display: block; overflow: hidden; border-radius: 5px; }
+.workshop-image-preview img { display: block; width: 60px; height: 64px; object-fit: cover; transition: filter 150ms; }
+.workshop-image-preview:hover img { filter: brightness(1.12); }
+.workshop-image-result-body { min-width: 0; overflow-wrap: anywhere; }
+.workshop-image-result-body > a { font-size: 0.82rem; font-weight: 600; }
+.workshop-image-status { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; color: #86efac; font-size: 0.7rem; }
+.workshop-image-result-error .workshop-image-status { color: #fca5a5; }
+.workshop-image-result .image-error { margin: 4px 0 0; font-size: 0.73rem; }
+.modal-image-target { max-width: 440px; }
+.workshop-image-source { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.workshop-image-source img { width: 72px; height: 72px; object-fit: cover; border: 1px solid var(--border); border-radius: 8px; }
+.workshop-image-source span { min-width: 0; overflow-wrap: anywhere; color: var(--muted); font-size: 0.82rem; }
+.modal-image-target label { display: block; margin-bottom: 7px; font-size: 0.82rem; }
+.modal-image-target select { width: 100%; min-width: 0; font-size: 0.82rem; }
+.modal-image-target .muted { font-size: 0.8rem; }
+.modal-image-target .modal-actions { flex-wrap: wrap; }
 .doc-assistant > .image-attachments { padding-top: 6px; }
 .game-chat > .image-attachments { padding: 6px 14px 0; }
 .document-images { min-height: 0; overflow-y: auto; padding-top: 12px; }
@@ -1499,4 +1521,5 @@ a.mention:hover { filter: brightness(1.12); }
 @media (max-width: 480px) {
   .image-paste-hint { font-size: 0.66rem; }
   .message-images img { width: 105px; height: 80px; }
+  .workshop-message-image { width: 105px; }
 }

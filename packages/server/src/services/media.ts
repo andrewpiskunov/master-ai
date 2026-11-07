@@ -41,6 +41,19 @@ export class MediaService {
     return attachment(row);
   }
 
+  // Импорт и привязка атомарны; повторная обработка ответа ИИ не плодит файлы.
+  importForDocument(documentId: string, input: LlmImage): ImageAttachment {
+    const doc = this.document(documentId);
+    const value = validateImage(input);
+    return this.db.transaction(() => {
+      const existing = this.db.select().from(images)
+        .where(and(eq(images.campaignId, doc.campaignId), eq(images.dataUrl, value.dataUrl))).get();
+      const image = existing ? attachment(existing) : this.create(doc.campaignId, input);
+      this.attach(documentId, image.id);
+      return image;
+    });
+  }
+
   get(id: string): ImageRow | undefined {
     return this.db.select().from(images).where(eq(images.id, id)).get();
   }

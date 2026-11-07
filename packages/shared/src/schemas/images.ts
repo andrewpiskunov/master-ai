@@ -38,3 +38,19 @@ export const ImageUploadSchema = z.object({
   dataUrl: ImageDataUrlSchema,
 });
 export type LlmImage = z.infer<typeof ImageUploadSchema>;
+
+export const WorkshopImageRequestSchema = z.object({
+  documentId: z.string().uuid(),
+  imageId: z.string().uuid().optional(),
+  path: z.string().trim().min(1).max(4096).optional(),
+}).refine((value) => Boolean(value.imageId) !== Boolean(value.path), { message: "Укажите imageId или путь к изображению Codex" });
+export type WorkshopImageRequest = z.infer<typeof WorkshopImageRequestSchema>;
+export const WorkshopImageRequestsSchema = z.array(WorkshopImageRequestSchema).min(1).max(50);
+
+export const WorkshopImageAttachmentResultSchema = z.object({
+  documentId: z.string(),
+  documentTitle: z.string(),
+  image: ImageAttachmentSchema.optional(),
+  error: z.string().optional(),
+});
+export type WorkshopImageAttachmentResult = z.infer<typeof WorkshopImageAttachmentResultSchema>;

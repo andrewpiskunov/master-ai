@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { Proposal } from "@master-ai/shared";
 import { Globe, RefreshCw, MessageCircle, Check, X, Plus, FileUp, Square } from "lucide-react";
-import { ImageAttachments, MessageImages } from "../images/ImageAttachments.js";
+import { ImageAttachments } from "../images/ImageAttachments.js";
 import { Markdown } from "../../ui/Markdown.js";
 import { Modal } from "../../ui/Modal.js";
 import { MentionTextarea } from "../../ui/MentionTextarea.js";
 import type { MentionItem } from "../../lib/mentions.js";
 import { useWorkshopChat } from "./WorkshopChatContext.js";
 import { TypeTag, TypeBadge } from "../campaigns/shared.js";
+import { WorkshopImageResults, WorkshopMessageImages } from "./WorkshopImages.js";
 
 // Короткое описание предложения для карточки: берём первое значимое значение поля
 // или первый абзац, без markdown-разметки.
@@ -29,7 +30,7 @@ function clip(s: string): string {
 }
 
 export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
-  const { messages, busy, awaitingWelcome, send, stop, draft, setDraft, images } = useWorkshopChat();
+  const { campaignId, messages, busy, awaitingWelcome, send, stop, draft, setDraft, images } = useWorkshopChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const [importing, setImporting] = useState(false);
@@ -82,7 +83,8 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
           <div key={m.id} className={`msg msg-${m.role}`}>
             <div className="msg-role">{m.role === "user" ? "Вы" : "ИИ"}</div>
             <Markdown mentions={mentions}>{m.content}</Markdown>
-            <MessageImages images={m.meta?.images} />
+            <WorkshopMessageImages campaignId={campaignId} images={m.meta?.images} />
+            <WorkshopImageResults campaignId={campaignId} results={m.meta?.imageAttachments} />
           </div>
         ))}
         {(busy || awaitingWelcome) && (
