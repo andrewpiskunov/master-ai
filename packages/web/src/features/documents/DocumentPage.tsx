@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Layers, Link2, Plus, Check, Loader } from "lucide-react";
+import { ArrowLeft, Trash2, Bookmark as BookmarkIcon, Printer, EyeOff, MessageCircle, Layers, Link2, Plus, Check, Loader, Image as ImageIcon } from "lucide-react";
 import { getDocumentType, getTemplate, statusLabel, DISPOSITIONS, getDisposition, hasDisposition, type Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { DocumentEditor, markdownToDoc, type DocumentEditorHandle } from "./editor/DocumentEditor.js";
@@ -8,6 +8,7 @@ import { useGoBack } from "../../hooks/useGoBack.js";
 import { useToast } from "../../ui/toast.js";
 import { Select } from "../../ui/Select.js";
 import { Modal } from "../../ui/Modal.js";
+import { DocumentImages } from "../images/DocumentImages.js";
 import { DocumentAssistant } from "../assistant/DocumentAssistant.js";
 import { blockKey, type NewEntity, type EditEntity } from "../assistant/assistant-blocks.js";
 import { PlayPanel } from "../play/PlayPanel.js";
@@ -46,7 +47,7 @@ export function DocumentPage() {
   const [deleting, setDeleting] = useState(false);
   // Предложение ИИ создать сущность, совпавшую по имени и типу с существующей.
   const [dupEntity, setDupEntity] = useState<NewEntity | null>(null);
-  const [panel, setPanel] = useState<"assistant" | "play" | "mentions">("assistant");
+  const [panel, setPanel] = useState<"assistant" | "play" | "mentions" | "images">("assistant");
   // Одноразовая подсказка о назначении вкладок правой панели.
   const [tabsHint, setTabsHint] = useState(() => {
     try { return localStorage.getItem("master-ai:doc-tabs-hint-seen") !== "1"; } catch { return true; }
@@ -442,12 +443,16 @@ export function DocumentPage() {
               <button type="button" className={panel === "mentions" ? "active" : ""} onClick={() => setPanel("mentions")} title="Где ещё упоминается этот документ">
                 <Link2 size={15} strokeWidth={1.8} /> Связи
               </button>
+              <button type="button" className={panel === "images" ? "active" : ""} onClick={() => setPanel("images")} title="Изображения и иллюстрации сущности">
+                <ImageIcon size={15} strokeWidth={1.8} /> Изображения
+              </button>
             </div>
             {tabsHint && (
               <div className="panel-tabs-hint">
                 <span>
                   {panel === "assistant" ? "Помощник ИИ: дописывает, переписывает и создаёт сущности по этому документу."
                     : panel === "play" ? "Материалы: ссылки на сцены, столкновения, секреты и предметы для вставки в текст."
+                    : panel === "images" ? "Изображения: прикрепите референсы или создайте иллюстрацию через Codex."
                     : "Связи: документы кампании, где упоминается этот."}
                 </span>
                 <button type="button" className="panel-tabs-hint-x" aria-label="Скрыть подсказку" onClick={() => { setTabsHint(false); try { localStorage.setItem("master-ai:doc-tabs-hint-seen", "1"); } catch { /* приватный режим */ } }}>×</button>
@@ -458,6 +463,7 @@ export function DocumentPage() {
             <div className="panel-keepalive" style={{ display: panel === "assistant" ? undefined : "none" }}>
               <DocumentAssistant
                 docId={doc.id}
+                campaignId={doc.campaignId}
                 title={title}
                 typeLabel={t?.label ?? doc.type}
                 template={getTemplate(doc.type)}
@@ -473,6 +479,7 @@ export function DocumentPage() {
                 clearConfirmText={doc.type === "session" ? "Удалится и игровой чат с логом событий — точно?" : undefined}
               />
             </div>
+            {panel === "images" && <DocumentImages docId={doc.id} campaignId={doc.campaignId} title={title} typeLabel={t?.label ?? doc.type} description={pmText(contentJson).trim()} />}
             {panel === "play" && <PlayPanel documents={allDocuments} currentId={doc.id} onInsert={insertReference} />}
             {panel === "mentions" && <MentionedInPanel campaignId={doc.campaignId} documentId={doc.id} title={title} documents={allDocuments} />}
           </div>

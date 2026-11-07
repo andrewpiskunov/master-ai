@@ -26,7 +26,13 @@ export class OpenAIProvider implements LLMProvider {
       ...(withUsage ? { stream_options: { include_usage: true } } : {}),
       messages: [
         ...(input.system ? [{ role: "system", content: input.system }] : []),
-        ...input.messages.map((m) => ({ role: m.role, content: m.content })),
+        ...input.messages.map((m) => ({
+          role: m.role,
+          content: m.images?.length ? [
+            ...(m.content ? [{ type: "text", text: m.content }] : []),
+            ...m.images.map((image) => ({ type: "image_url", image_url: { url: image.dataUrl } })),
+          ] : m.content,
+        })),
       ],
     });
     const request = (withUsage: boolean) => fetch(`${base}/chat/completions`, {

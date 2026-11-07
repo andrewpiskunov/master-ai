@@ -25,7 +25,13 @@ export function registerTransferRoutes(app: FastifyInstance, deps: Pick<RouteDep
   });
 
   // Импорт кампании из такого же JSON — создаёт НОВУЮ кампанию, id перевязываются.
-  app.post("/api/campaigns/import-json", { bodyLimit: 64 * 1024 * 1024 }, (req, reply) => {
+  app.post("/api/campaigns/import-json", {
+    bodyLimit: 512 * 1024 * 1024,
+    errorHandler(error, _req, reply) {
+      if (error.code === "FST_ERR_CTP_BODY_TOO_LARGE") return reply.code(413).send({ error: "Файл кампании больше 512 МиБ" });
+      return reply.send(error);
+    },
+  }, (req, reply) => {
     try {
       const created = transferSvc.import(req.body);
       return reply.code(201).send(created);

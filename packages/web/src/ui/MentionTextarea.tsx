@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { forwardRef, useEffect, useRef, useState, type KeyboardEvent, type ClipboardEventHandler } from "react";
 import { getDocumentType } from "@master-ai/shared";
 import { TypeBadge } from "../features/campaigns/shared.js";
 
@@ -13,12 +13,13 @@ interface Props {
   placeholder?: string;
   rows?: number;
   disabled?: boolean;
+  onPaste?: ClipboardEventHandler<HTMLTextAreaElement>;
 }
 
 // Поле ввода с автодополнением сущностей по «@» — как в редакторе документа,
 // но для обычного textarea (чат Мастерской и помощник по документу).
 export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function MentionTextarea(
-  { value, onChange, onEnter, mentions, id, placeholder, rows = 1, disabled },
+  { value, onChange, onEnter, mentions, id, placeholder, rows = 1, disabled, onPaste },
   ref,
 ) {
   const innerRef = useRef<HTMLTextAreaElement | null>(null);
@@ -95,6 +96,7 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
         onClick={(e) => detect(e.currentTarget.value, e.currentTarget.selectionStart, false)}
         onBlur={() => setTimeout(() => setMenu(null), 120)}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
       />
       {menu && (
         <ul className="mention-menu" role="listbox">

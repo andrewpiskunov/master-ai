@@ -35,3 +35,23 @@ describe("api client", () => {
     await expect(api.getCampaign("nope")).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe("image API payloads", () => {
+  const image = { id: "img1", name: "map.png", mimeType: "image/png" as const };
+  it("sends only image IDs with workshop messages", async () => {
+    stubFetch(202, { started: true });
+    await api.startBrainstorm("c1", "", [image]);
+    expect(fetch).toHaveBeenCalledWith("/api/campaigns/c1/brainstorm/start", expect.objectContaining({ body: JSON.stringify({ message: "", imageIds: ["img1"] }) }));
+  });
+  it("preserves game mode and actor metadata alongside image IDs", async () => {
+    stubFetch(202, { started: true });
+    await api.startAssistant("d1", "", "system", { mode: "game", meta: { actorKind: "pc", actorName: "Лис" }, images: [image] });
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(body).toEqual({ message: "", system: "system", mode: "game", meta: { actorKind: "pc", actorName: "Лис" }, imageIds: ["img1"] });
+    expect(body).not.toHaveProperty("images");
+  });
+  it("surfaces server errors when stopping image generation", async () => {
+    stubFetch(503, { error: "Codex недоступен" });
+    await expect(api.stopImageGeneration("d1")).rejects.toThrow("Codex недоступен");
+  });
+});

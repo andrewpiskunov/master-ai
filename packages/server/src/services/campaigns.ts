@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { Campaign, CampaignPatch, NewCampaign } from "@master-ai/shared";
-import { campaigns, documents, links, proposals, conversations, messages } from "../db/schema.js";
+import { campaigns, documents, images, links, proposals, conversations, messages } from "../db/schema.js";
 
 type CampaignRow = typeof campaigns.$inferSelect;
 
@@ -70,6 +70,8 @@ export class CampaignService {
       this.db.delete(conversations).where(eq(conversations.campaignId, id)).run();
       this.db.delete(proposals).where(eq(proposals.campaignId, id)).run();
       this.db.delete(links).where(eq(links.campaignId, id)).run();
+      this.db.run(sql`DELETE FROM document_images WHERE document_id IN (SELECT id FROM documents WHERE campaign_id = ${id}) OR image_id IN (SELECT id FROM images WHERE campaign_id = ${id})`);
+      this.db.delete(images).where(eq(images.campaignId, id)).run();
       this.db.delete(documents).where(eq(documents.campaignId, id)).run();
       this.db.run(sql`DELETE FROM documents_fts WHERE campaign_id = ${id}`);
       this.db.delete(campaigns).where(eq(campaigns.id, id)).run();

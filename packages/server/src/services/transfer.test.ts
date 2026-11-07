@@ -66,4 +66,30 @@ describe("Экспорт/импорт кампании (JSON)", () => {
     expect(bad.json().error).toContain("master-ai-campaign");
     expect((await app.inject({ method: "GET", url: "/api/campaigns/нет/export-json" })).statusCode).toBe(404);
   });
+
+  it("lets image-rich campaign payloads above 100 MiB reach parsing", async () => {
+    const app = makeApp();
+    try {
+      // Exercise the parser's advertised-length gate without a 100+ MiB allocation.
+      // Eight 10 MiB images already need more than 100 MiB after base64 encoding.
+      const res = await app.inject({
+        method: "POST", url: "/api/campaigns/import-json", payload: "{}",
+        headers: { "content-type": "application/json", "content-length": String(128 * 1024 * 1024) },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe("FST_ERR_CTP_INVALID_CONTENT_LENGTH");
+    } finally { await app.close(); }
+  });
+
+  it("rejects imports above 512 MiB with a readable size error", async () => {
+    const app = makeApp();
+    try {
+      const res = await app.inject({
+        method: "POST", url: "/api/campaigns/import-json", payload: "{}",
+        headers: { "content-type": "application/json", "content-length": String(512 * 1024 * 1024 + 1) },
+      });
+      expect(res.statusCode).toBe(413);
+      expect(res.json().error).toContain("512 МиБ");
+    } finally { await app.close(); }
+  });
 });

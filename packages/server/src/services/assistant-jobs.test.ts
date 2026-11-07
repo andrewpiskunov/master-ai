@@ -108,4 +108,39 @@ describe("AssistantJobService", () => {
   it("stop без задачи → false", () => {
     expect(new AssistantJobService().stop("нет")).toBe(false);
   });
+
+  it("stopAll signals every job and waits for stream cleanup without saving empty replies", async () => {
+    const svc = new AssistantJobService();
+    const aborts = [new AbortController(), new AbortController()];
+    let releaseCleanup!: () => void;
+    const cleanup = new Promise<void>((resolve) => { releaseCleanup = resolve; });
+    const saved: string[] = [];
+    let streamsWaiting = 0;
+    let streamsCleaned = 0;
+    const stream = (index: number) => (async function* () {
+      try {
+        if (index === 0) yield "Начало ответа";
+        streamsWaiting++;
+        await new Promise<void>((resolve) => aborts[index].signal.addEventListener("abort", () => resolve(), { once: true }));
+      } finally {
+        await cleanup;
+        streamsCleaned++;
+      }
+    })();
+    aborts.forEach((abort, index) => svc.start(`d${index}`, stream(index), (text) => saved.push(text), abort));
+    await tick();
+    expect(streamsWaiting).toBe(2);
+    let stopped = false;
+    const done = svc.stopAll().then(() => { stopped = true; });
+    expect(aborts.map((abort) => abort.signal.aborted)).toEqual([true, true]);
+    await tick();
+    expect(stopped).toBe(false);
+    expect(streamsCleaned).toBe(0);
+    releaseCleanup();
+    await done;
+    expect(streamsCleaned).toBe(2);
+    expect(saved).toEqual(["Начало ответа"]);
+    expect(svc.status("d0")).toMatchObject({ running: false, error: null });
+    expect(svc.status("d1")).toMatchObject({ running: false, error: null });
+  });
 });

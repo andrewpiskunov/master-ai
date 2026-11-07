@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ConversationMessage, Proposal } from "@master-ai/shared";
 import { api } from "../../api/client.js";
+import { useImageDraft, imageError, type ImageDraft } from "../images/useImageDraft.js";
 import { useToast } from "../../ui/toast.js";
 
 interface WorldState { summary: string; question: string }
@@ -14,7 +15,8 @@ interface WorkshopChat {
   awaitingWelcome: boolean;
   draft: string;
   setDraft: (v: string) => void;
-  send: (text: string) => void;
+  images: ImageDraft;
+  send: (text: string, includeDraftImages?: boolean) => void;
   // Останавливает генерацию мастерской — набранный текст сохранится как ответ.
   stop: () => void;
   approve: (id: string) => void;
@@ -28,7 +30,11 @@ const Ctx = createContext<WorkshopChat | null>(null);
 
 // Состояние чата живёт здесь, на уровне рабочего пространства кампании,
 // чтобы переключение между разделами не прерывало запрос к ИИ и не теряло беседу.
-export function WorkshopChatProvider({
+interface WorkshopChatProviderProps { campaignId: string; onApproved: () => void; children: ReactNode }
+export function WorkshopChatProvider(props: WorkshopChatProviderProps) {
+  return <WorkshopChatProviderContent key={props.campaignId} {...props} />;
+}
+function WorkshopChatProviderContent({
   campaignId,
   onApproved,
   children,
@@ -44,6 +50,17 @@ export function WorkshopChatProvider({
   const [awaitingWelcome, setAwaitingWelcome] = useState(false);
   // Черновик сообщения живёт здесь, чтобы не теряться при переключении вкладок.
   const [draft, setDraft] = useState("");
+  const images = useImageDraft(campaignId);
+  const sendingRef = useRef(false);
+  const sendTokenRef = useRef(0);
+  const campaignScope = useRef({ id: campaignId, alive: true });
+  if (campaignScope.current.id !== campaignId) {
+    campaignScope.current.alive = false;
+    campaignScope.current = { id: campaignId, alive: true };
+    sendingRef.current = false;
+  }
+  const scope = campaignScope.current;
+  useEffect(() => { scope.alive = true; return () => { scope.alive = false; }; }, [scope]);
   const [world, setWorld] = useState<WorldState | null>(null);
   const [worldBusy, setWorldBusy] = useState(false);
   // Как только в беседе появилось хоть одно сообщение (приветствие или реплика
@@ -77,7 +94,7 @@ export function WorkshopChatProvider({
         return body ? [...rest, { id: "streaming", role: "assistant" as const, content: body, createdAt: "" }] : rest;
       });
       if (!st.running) {
-        if (st.error) showToast("Не удалось получить ответ ИИ");
+        if (st.error) showToast(st.error);
         const [msgs, props] = await Promise.all([
           api.getConversation(campaignId).catch(() => null),
           api.listProposals(campaignId, "pending").catch(() => null),
@@ -140,29 +157,50 @@ export function WorkshopChatProvider({
     return () => { cancelled = true; if (timer) clearTimeout(timer); pollTokenRef.current++; };
   }, [campaignId, showToast, pollBrainstorm]);
 
-  const send = useCallback((text: string) => {
+  const send = (text: string, includeDraftImages = true) => {
     const trimmed = text.trim();
-    if (!trimmed || busy) return;
-    hasMessagesRef.current = true; // прекращаем опрос приветствия — дальше беседа не пуста
+    const withImages = includeDraftImages && images.items.length > 0;
+    if ((!trimmed && !withImages) || busy || sendingRef.current || (withImages && images.reading)) return;
+    sendingRef.current = true;
+    const sendToken = ++sendTokenRef.current;
+    hasMessagesRef.current = true;
     setAwaitingWelcome(false);
-    setDraft("");
-    setMessages((prev) => [
-      ...prev,
-      { id: `u-${Date.now()}`, role: "user", content: trimmed, createdAt: new Date().toISOString() },
-    ]);
     setBusy(true);
-    // Генерация выполняется на сервере фоновой задачей — переживает навигацию
-    // и закрытие вкладки; клиент опрашивает статус и дорисовывает частичный ответ.
-    api.startBrainstorm(campaignId, trimmed)
-      .then(() => pollBrainstorm())
-      .catch(() => {
-        showToast("Не удалось запустить генерацию");
-        setMessages((prev) => prev.slice(0, -1)); // откат оптимистичного вопроса
+    const messageId = `u-${crypto.randomUUID()}`;
+    void (async () => {
+      try {
+        const attached = withImages ? await images.upload(campaignId) : [];
+        if (!scope.alive || campaignScope.current !== scope || sendTokenRef.current !== sendToken) return;
+        setMessages((prev) => [...prev, {
+          id: messageId, role: "user", content: trimmed, createdAt: new Date().toISOString(),
+          ...(attached.length ? { meta: { images: attached } } : {}),
+        }]);
+        if (attached.length) await api.startBrainstorm(campaignId, trimmed, attached);
+        else await api.startBrainstorm(campaignId, trimmed);
+        if (!scope.alive || campaignScope.current !== scope || sendTokenRef.current !== sendToken) return;
+        if (includeDraftImages) { setDraft(""); images.clear(); }
+        await pollBrainstorm();
+      } catch (error) {
+        if (!scope.alive || campaignScope.current !== scope || sendTokenRef.current !== sendToken) return;
+        showToast(imageError(error));
+        setMessages((prev) => prev.filter((m) => m.id !== messageId));
         setBusy(false);
-      });
-  }, [busy, campaignId, showToast, pollBrainstorm]);
+      } finally {
+        if (campaignScope.current === scope && sendTokenRef.current === sendToken) sendingRef.current = false;
+      }
+    })();
+  };
 
-  const stop = useCallback(() => { void api.stopBrainstorm(campaignId); }, [campaignId]);
+  const stop = async () => {
+    const token = ++sendTokenRef.current;
+    try { await api.stopBrainstorm(campaignId); }
+    catch (error) { if (scope.alive) showToast(imageError(error)); }
+    finally {
+      if (scope.alive && campaignScope.current === scope && sendTokenRef.current === token) {
+        sendingRef.current = false; setBusy(false);
+      }
+    }
+  };
 
   const approve = useCallback((id: string) => {
     api.approveProposal(id)
@@ -189,7 +227,7 @@ export function WorkshopChatProvider({
     if (!world && !worldBusy && messages.length >= 2) refreshWorld();
   }, [messages.length, world, worldBusy, refreshWorld]);
 
-  return <Ctx.Provider value={{ messages, proposals, busy, awaitingWelcome, draft, setDraft, send, stop, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ messages, proposals, busy, awaitingWelcome, draft, setDraft, images, send, stop, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
 }
 
 export function useWorkshopChat(): WorkshopChat {

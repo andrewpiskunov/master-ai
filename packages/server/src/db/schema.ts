@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const campaigns = sqliteTable("campaigns", {
   id: text("id").primaryKey(),
@@ -24,6 +24,20 @@ export const documents = sqliteTable("documents", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const images = sqliteTable("images", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  name: text("name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  dataUrl: text("data_url").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const documentImages = sqliteTable("document_images", {
+  documentId: text("document_id").notNull(),
+  imageId: text("image_id").notNull(),
+}, (table) => ({ pk: primaryKey({ columns: [table.documentId, table.imageId] }) }));
 
 export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),

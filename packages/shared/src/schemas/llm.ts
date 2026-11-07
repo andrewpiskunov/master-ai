@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { ImageUploadSchema, MAX_MESSAGE_IMAGES } from "./images.js";
 
 export const LlmMessageSchema = z.object({
   role: z.enum(["system", "user", "assistant"]),
   content: z.string(),
+  images: z.array(ImageUploadSchema).max(MAX_MESSAGE_IMAGES).optional(),
 });
 export type LlmMessage = z.infer<typeof LlmMessageSchema>;
 
@@ -13,6 +15,15 @@ export const CompleteInputSchema = z.object({
   campaignId: z.string().optional(),
 });
 export type CompleteInput = z.infer<typeof CompleteInputSchema>;
+
+export interface CliProviderInfo {
+  name: string;
+  command: string;
+}
+
+export interface LlmRuntimeConfig {
+  cli: CliProviderInfo;
+}
 
 // Расход одного запроса к нейросети. estimated — цифры оценочные
 // (провайдер не отдаёт usage, считаем по длине текста).

@@ -3,7 +3,7 @@ import { eq, or } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { Document, NewDocument } from "@master-ai/shared";
-import { documents, links } from "../db/schema.js";
+import { documentImages, documents, links } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
 
 type DocumentRow = typeof documents.$inferSelect;
@@ -105,6 +105,7 @@ export class DocumentService {
       this.db.delete(links).where(or(eq(links.fromDocId, id), eq(links.toDocId, id))).run();
       this.db.run(sql`DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE document_id = ${id})`);
       this.db.run(sql`DELETE FROM conversations WHERE document_id = ${id}`);
+      this.db.delete(documentImages).where(eq(documentImages.documentId, id)).run();
       this.db.delete(documents).where(eq(documents.id, id)).run();
     });
     return true;

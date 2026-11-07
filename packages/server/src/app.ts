@@ -11,8 +11,9 @@ import { LinkService } from "./services/links.js";
 import { SearchService } from "./services/search.js";
 import { UsageService } from "./services/usage.js";
 import { TransferService } from "./services/transfer.js";
+import { MediaService } from "./services/media.js";
 import type { LLMProvider } from "./llm/provider.js";
-import { loadProvider } from "./llm/config.js";
+import { getCliProviderInfo, loadProvider } from "./llm/config.js";
 import { providerForCampaign } from "./llm/resolve.js";
 import type { RouteDependencies } from "./routes/dependencies.js";
 import { registerCampaignRoutes } from "./routes/campaign.js";
@@ -24,8 +25,11 @@ import { registerAssistantRoutes } from "./routes/assistant.js";
 import { registerProposalRoutes } from "./routes/proposal.js";
 import { registerLlmRoutes } from "./routes/llm.js";
 import { registerTransferRoutes } from "./routes/transfer.js";
+import { registerImageRoutes } from "./routes/images.js";
+import { registerImageGenerationRoutes } from "./routes/image-generation.js";
+import { loadImageGenerator, type ImageGenerator } from "./llm/image-generation.js";
 
-export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; sqlite?: SqliteDatabase }): FastifyInstance {
+export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; sqlite?: SqliteDatabase; imageGenerator?: ImageGenerator }): FastifyInstance {
   const app = Fastify();
   app.register(cors, { origin: true });
 
@@ -38,18 +42,21 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   const conversationsSvc = new ConversationService(deps.db);
   const proposalsSvc = new ProposalService(deps.db);
   const usageSvc = new UsageService(deps.db);
+  const mediaSvc = new MediaService(deps.db);
   // Колбэк учёта токенов; кампании без id (нет контекста) не учитываем.
   const trackUsage: RouteDependencies["trackUsage"] = (campaignId, feature) => ({
     onUsage: (u) => { if (campaignId) usageSvc.record(campaignId, feature, u); },
   });
-  const brainstormSvc = new BrainstormService({ llmFor, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc, usage: usageSvc });
+  const brainstormSvc = new BrainstormService({ llmFor, conversations: conversationsSvc, proposals: proposalsSvc, documents: documentsSvc, campaigns: campaignsSvc, usage: usageSvc, media: mediaSvc });
   const routes: RouteDependencies = {
     sqlite: deps.sqlite,
+    cliProvider: getCliProviderInfo(),
     campaignsSvc,
     documentsSvc,
     conversationsSvc,
     proposalsSvc,
     usageSvc,
+    mediaSvc,
     brainstormSvc,
     linksSvc: new LinkService(deps.db),
     searchSvc: new SearchService(deps.db),
@@ -67,6 +74,8 @@ export function buildApp(deps: { db: BetterSQLite3Database; llm?: LLMProvider; s
   registerProposalRoutes(app, routes);
   registerLlmRoutes(app, routes);
   registerTransferRoutes(app, routes);
+  registerImageRoutes(app, routes);
+  registerImageGenerationRoutes(app, { documentsSvc, mediaSvc, imageGenerator: deps.imageGenerator ?? loadImageGenerator() });
 
   return app;
 }

@@ -1,4 +1,4 @@
-import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type ConsistencyIssue, type LlmMessage, type Proposal } from "@master-ai/shared";
+import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type ConsistencyIssue, type ImageAttachment, type LlmMessage, type Proposal } from "@master-ai/shared";
 import type { LLMProvider } from "../llm/provider.js";
 import { parseProposals } from "../llm/parse-proposals.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
@@ -26,6 +26,7 @@ import type { ConversationService } from "./conversations.js";
 import type { DocumentService } from "./documents.js";
 import type { ProposalService } from "./proposals.js";
 import type { UsageService } from "./usage.js";
+import type { MediaService } from "./media.js";
 
 const TEMPLATES_BLOCK = Object.entries(DOCUMENT_TEMPLATES)
   .map(([type, tpl]) => `Шаблон для ${type}:\n${tpl}`)
@@ -73,7 +74,7 @@ export class BrainstormService {
   private consistencyCache = new Map<string, { hash: string; result: { issues: ConsistencyIssue[] } }>();
 
   constructor(
-    private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService; usage?: UsageService },
+    private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService; usage?: UsageService; media?: MediaService },
   ) {}
 
   // Колбэк учёта токенов для запроса от имени кампании.
@@ -83,15 +84,15 @@ export class BrainstormService {
 
   // Готовит генерацию ответа мастерской: сохраняет вопрос и строит промт.
   // Стрим отдаётся вызывающему — фоновой задаче или синхронному respond.
-  prepareRespond(campaignId: string, userMessage: string, signal?: AbortSignal): { conversationId: string; stream: AsyncIterable<string> } {
+  prepareRespond(campaignId: string, userMessage: string, signal?: AbortSignal, images?: ImageAttachment[]): { conversationId: string; stream: AsyncIterable<string> } {
     const { conversations, documents, campaigns } = this.deps;
     const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
-    conversations.addMessage(conv.id, "user", userMessage);
+    conversations.addMessage(conv.id, "user", userMessage, images?.length ? { images } : undefined);
 
     const history: LlmMessage[] = conversations
       .listMessages(conv.id)
-      .map((m) => ({ role: m.role, content: m.content }));
+      .map((m) => ({ role: m.role, content: m.content, ...(m.meta?.images?.length ? { images: this.deps.media!.toLlmImages(campaignId, m.meta.images) } : {}) }));
 
     // Настройки кампании — постоянный бриф (описание) и тон (реализм) идут в промт.
     const campaign = campaigns.get(campaignId);
@@ -121,8 +122,8 @@ export class BrainstormService {
     return { conversationId, reply, proposals: created };
   }
 
-  async respond(campaignId: string, userMessage: string): Promise<BrainstormResponse> {
-    const { conversationId, stream } = this.prepareRespond(campaignId, userMessage);
+  async respond(campaignId: string, userMessage: string, images?: ImageAttachment[]): Promise<BrainstormResponse> {
+    const { conversationId, stream } = this.prepareRespond(campaignId, userMessage, undefined, images);
     let full = "";
     for await (const chunk of stream) {
       full += chunk;

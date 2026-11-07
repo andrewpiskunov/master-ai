@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { extractLogBlock, fallbackLogTitle, stripChoicePrompts, stripLogFence, type MessageMeta } from "@master-ai/shared";
+import { extractLogBlock, fallbackLogTitle, ImageIdsSchema, stripChoicePrompts, stripLogFence, type MessageMeta } from "@master-ai/shared";
 import { z } from "zod";
 import { AssistantJobService } from "../services/assistant-jobs.js";
 import type { RouteDependencies, IdParams } from "./dependencies.js";
@@ -10,16 +10,18 @@ const MessageMetaSchema = z.object({
   actorKind: z.enum(["pc", "npc", "master"]).optional(),
 });
 const AssistantStartSchema = z.object({
-  message: z.string().min(1),
+  message: z.string(),
+  imageIds: ImageIdsSchema.optional(),
   system: z.string().optional(),
   // Игровой чат режима игры: история префиксуется актором, ответ получает мету лога.
   mode: z.literal("game").optional(),
   meta: MessageMetaSchema.optional(),
-});
+}).refine((body) => body.message.trim().length > 0 || (body.imageIds?.length ?? 0) > 0, { message: "Напишите сообщение или прикрепите изображение" });
 
-export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "documentsSvc" | "conversationsSvc" | "llmFor" | "trackUsage">): void {
-  const { documentsSvc, conversationsSvc, llmFor, trackUsage } = deps;
+export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "documentsSvc" | "conversationsSvc" | "llmFor" | "trackUsage" | "mediaSvc">): void {
+  const { documentsSvc, conversationsSvc, llmFor, trackUsage, mediaSvc } = deps;
   const assistantJobs = new AssistantJobService();
+  app.addHook("onClose", () => assistantJobs.stopAll());
 
   // Генерация помощника документа выполняется на сервере фоновой задачей —
   // навигация или закрытие вкладки её не прерывают. Клиент опрашивает статус.
@@ -31,14 +33,16 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDe
     if (!doc) return reply.code(404).send({ error: "документ не найден" });
     if (assistantJobs.status(id).running) return reply.code(409).send({ error: "Генерация по этому документу уже идёт" });
 
+    const images = mediaSvc.getForCampaign(doc.campaignId, parsed.data.imageIds ?? []);
     const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
-    conversationsSvc.addMessage(conv.id, "user", parsed.data.message, parsed.data.meta);
+    conversationsSvc.addMessage(conv.id, "user", parsed.data.message, { ...parsed.data.meta, ...(images.length ? { images } : {}) });
     // В LLM уходит только хвост беседы — полная история упирается в контекст модели.
     // Действия игрового чата префиксуются актором, чтобы ИИ видел, кто действует.
     // Ответы ИИ в игровом режиме уходят в историю без служебных log-блоков —
     // иначе модель имитирует паттерн «текст после log-блока» из своих прошлых ответов.
     const history = conversationsSvc.listMessages(conv.id).slice(-20).map((m) => ({
       role: m.role,
+      ...(m.meta?.images?.length ? { images: mediaSvc.toLlmImages(doc.campaignId, m.meta.images) } : {}),
       content:
         m.role === "user" && m.meta?.actorName && m.meta.actorKind && m.meta.actorKind !== "master"
           ? `Действие (${m.meta.actorName}): ${m.content}`

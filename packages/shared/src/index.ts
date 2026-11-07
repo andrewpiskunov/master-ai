@@ -3,6 +3,7 @@ export * from "./schemas/document.js";
 export * from "./registries/document-types.js";
 export * from "./registries/templates.js";
 export * from "./schemas/llm.js";
+export * from "./schemas/images.js";
 export * from "./schemas/proposal.js";
 export * from "./schemas/links.js";
 export * from "./schemas/search.js";

@@ -10,6 +10,7 @@ export interface AssistantJobStatus {
 interface Job extends AssistantJobStatus {
   stopped: boolean;
   abort?: AbortController;
+  done?: Promise<void>;
 }
 
 const CLEANUP_MS = 60_000;
@@ -34,6 +35,13 @@ export class AssistantJobService {
     return true;
   }
 
+  // Остановка сервера ждёт выхода провайдеров и удаления временных изображений.
+  async stopAll(): Promise<void> {
+    const jobs = [...this.jobs.entries()];
+    for (const [id, job] of jobs) if (job.running) this.stop(id);
+    await Promise.all(jobs.map(([, job]) => job.done));
+  }
+
   // Запускает генерацию в фоне; onFinish получает накопленный текст (в том числе
   // частичный при остановке). Одна задача на документ; повторный старт — false.
   // abort — контроллер, чей signal передан провайдеру: stop() обрывает генерацию через него.
@@ -41,7 +49,7 @@ export class AssistantJobService {
     if (this.jobs.get(docId)?.running) return false;
     const job: Job = { running: true, partial: "", error: null, stopped: false, abort };
     this.jobs.set(docId, job);
-    void (async () => {
+    job.done = (async () => {
       try {
         for await (const chunk of stream) {
           job.partial += chunk;

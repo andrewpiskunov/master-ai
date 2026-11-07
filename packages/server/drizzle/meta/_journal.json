@@ -78,6 +78,13 @@
       "when": 1782759400000,
       "tag": "0010_llm_usage_provider_duration",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1782759500000,
+      "tag": "0011_images",
+      "breakpoints": true
     }
   ]
 }

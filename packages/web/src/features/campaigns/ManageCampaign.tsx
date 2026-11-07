@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Trash2, Check, Loader, Download, Upload } from "lucide-react";
-import type { LlmProviderKind, LlmUsageStats, Realism } from "@master-ai/shared";
+import type { CliProviderInfo, LlmProviderKind, LlmUsageStats, Realism } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { fmtDuration, fmtTokens, plural } from "../../lib/format.js";
 import { useToast } from "../../ui/toast.js";
@@ -37,8 +37,9 @@ export function ManageCampaign() {
   const [system, setSystem] = useState("");
   const [description, setDescription] = useState("");
   const [realism, setRealism] = useState<Realism>("balanced");
-  // Нейросеть кампании: Claude Code (cli) или OpenAI-совместимый API.
+  // Нейросеть кампании: настроенный на сервере CLI или OpenAI-совместимый API.
   const [llmProvider, setLlmProvider] = useState<LlmProviderKind>("cli");
+  const [cliProvider, setCliProvider] = useState<CliProviderInfo | null>(null);
   const [llmKey, setLlmKey] = useState("");
   const [llmModel, setLlmModel] = useState("");
   const [llmBaseUrl, setLlmBaseUrl] = useState("");
@@ -66,6 +67,12 @@ export function ManageCampaign() {
   const initedRef = useRef<string | null>(null);
   const savedRef = useRef<{ name: string; system: string; description: string }>({ name: "", system: "", description: "" });
   const savedLlmRef = useRef<string>("");
+
+  useEffect(() => {
+    let active = true;
+    api.llmConfig().then((config) => { if (active) setCliProvider(config.cli); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -222,14 +229,18 @@ export function ManageCampaign() {
         <p className="muted manage-hint">Какая модель отвечает во всех ИИ-функциях кампании — мастерская, помощник документов, проверки, режим игры.</p>
         <div className="realism-seg" role="group" aria-label="Нейросеть">
           <button type="button" className={`realism-opt${llmProvider === "cli" ? " active" : ""}`} onClick={() => pickLlmProvider("cli")}>
-            Claude Code (CLI)
+            {cliProvider ? `${cliProvider.name} (CLI)` : "Локальный CLI"}
           </button>
           <button type="button" className={`realism-opt${llmProvider === "openai" ? " active" : ""}`} onClick={() => pickLlmProvider("openai")}>
             OpenAI API
           </button>
         </div>
         {llmProvider === "cli" ? (
-          <p className="muted manage-hint">Локальный Claude Code: запускается командой «claude» на этой машине, ключи не нужны.</p>
+          <p className="muted manage-hint">
+            {cliProvider
+              ? `Локальный ${cliProvider.name}: запускается командой «${cliProvider.command}» на этой машине. Авторизация настраивается в CLI.`
+              : "Локальный CLI, настроенный на сервере."}
+          </p>
         ) : (
           <>
             <label htmlFor="mc-llm-key">API-ключ</label>
@@ -257,7 +268,7 @@ export function ManageCampaign() {
             />
             <p className="muted manage-hint">
               Ключ хранится локально в базе этого приложения и никуда, кроме выбранного API, не отправляется.
-              {llmProvider === "openai" && !llmKey.trim() && " Пока ключ не заполнен, используется Claude Code."}
+              {llmProvider === "openai" && !llmKey.trim() && ` Пока ключ не заполнен, используется ${cliProvider?.name ?? "локальный CLI"}.`}
             </p>
           </>
         )}
@@ -302,7 +313,7 @@ export function ManageCampaign() {
                 {usage.byModel.map((m) => (
                   <tr key={`${m.provider}:${m.model}`}>
                     <td>{m.model}</td>
-                    <td>{m.provider === "cli" ? "Claude Code (CLI)" : m.provider === "openai" ? "API" : m.provider}</td>
+                    <td>{m.provider === "cli" ? "CLI" : m.provider === "openai" ? "API" : m.provider}</td>
                     <td>{fmtTokens(m.requests)}</td>
                     <td>{fmtTokens(m.promptTokens + m.completionTokens)}</td>
                     <td>{fmtDuration(m.avgDurationMs)}</td>

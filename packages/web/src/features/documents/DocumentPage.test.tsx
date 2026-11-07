@@ -51,3 +51,16 @@ describe("DocumentPage", () => {
     );
   });
 });
+
+it("opens an entity image panel with a gallery independent of document fields", async () => {
+  vi.mocked(api.getDocument).mockResolvedValue({
+    id: "d1", campaignId: "c1", type: "npc", title: "Барон", status: null,
+    contentJson: null, fields: { tags: ["saved"] }, createdAt: "x", updatedAt: "x",
+  });
+  vi.mocked(api.documentImages).mockResolvedValue([{ id: "img1", name: "portrait.png", mimeType: "image/png" }]);
+  vi.mocked(api.imageGenerationStatus).mockResolvedValue({ running: false, error: null });
+  renderAt("d1");
+  await userEvent.click(await screen.findByRole("button", { name: "Изображения" }));
+  expect(await screen.findByAltText("portrait.png")).toHaveAttribute("src", "/api/images/img1");
+  expect(api.updateDocument).not.toHaveBeenCalled();
+});

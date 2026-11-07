@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { z } from "zod";
-import type { Campaign } from "@master-ai/shared";
-import { campaigns, conversations, documents, links, llmUsage, messages, proposals } from "../db/schema.js";
+import { ImageAttachmentSchema, ImageUploadSchema, MAX_MESSAGE_IMAGES, type Campaign } from "@master-ai/shared";
+import { campaigns, conversations, documentImages, documents, images, links, llmUsage, messages, proposals } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
+import { validateImage } from "./media.js";
 
 // Полный перенос кампании: экспорт всего содержимого в один JSON и импорт из него.
 // Формат единый и самодостаточный: кампания, документы, беседы, сообщения,
@@ -34,6 +35,8 @@ const TransferSchema = z.object({
   proposals: z.array(Row).default([]),
   links: z.array(Row).default([]),
   llmUsage: z.array(Row).default([]),
+  images: z.array(ImageUploadSchema.extend({ id: z.string().min(1), createdAt: z.string().optional() })).default([]),
+  documentImages: z.array(z.object({ documentId: z.string().min(1), imageId: z.string().min(1) })).default([]),
 });
 export type CampaignTransfer = z.infer<typeof TransferSchema>;
 
@@ -58,6 +61,10 @@ export class TransferService {
     const props = this.db.select().from(proposals).where(eq(proposals.campaignId, campaignId)).all();
     const lnks = this.db.select().from(links).where(eq(links.campaignId, campaignId)).all();
     const usage = this.db.select().from(llmUsage).where(eq(llmUsage.campaignId, campaignId)).all();
+    const media = this.db.select().from(images).where(eq(images.campaignId, campaignId)).all();
+    const docMedia = docs.length
+      ? this.db.select().from(documentImages).where(inArray(documentImages.documentId, docs.map((d) => d.id))).all()
+      : [];
 
     const { apiKey: _secret, ...llmSettings } = JSON.parse(campaign.llmSettings) as Record<string, unknown>;
     return {
@@ -79,6 +86,8 @@ export class TransferService {
       proposals: props.map((p) => ({ ...p, fields: JSON.parse(p.fields) })),
       links: lnks,
       llmUsage: usage,
+      images: media,
+      documentImages: docMedia,
     };
   }
 
@@ -94,6 +103,11 @@ export class TransferService {
     for (const d of data.documents) docId.set(d.id, randomUUID());
     const convId = new Map<string, string>();
     for (const c of data.conversations) convId.set(c.id, randomUUID());
+    const imageRows = data.images.map((image) => ({
+      id: randomUUID(), campaignId, ...validateImage(image), createdAt: image.createdAt ?? now, oldId: image.id,
+    }));
+    const imageByOldId = new Map(imageRows.map((image) => [image.oldId, image]));
+    if (imageByOldId.size !== imageRows.length) throw new Error("Повторяются id изображений");
     const mapDoc = (v: unknown): string | null => (typeof v === "string" ? docId.get(v) ?? null : null);
 
     const campaignRow = {
@@ -109,6 +123,7 @@ export class TransferService {
 
     this.db.transaction((tx) => {
       tx.insert(campaigns).values(campaignRow).run();
+      for (const { oldId: _oldId, ...image } of imageRows) tx.insert(images).values(image).run();
 
       for (const d of data.documents) {
         // Ссылки на сессии в fields указывают на документы — перевязываем на новые id.
@@ -140,15 +155,31 @@ export class TransferService {
         }).run();
       }
 
+      for (const item of data.documentImages) {
+        const documentId = mapDoc(item.documentId);
+        const image = imageByOldId.get(item.imageId);
+        if (!documentId || !image) throw new Error("Не найдена привязка изображения");
+        tx.insert(documentImages).values({ documentId, imageId: image.id }).onConflictDoNothing().run();
+      }
+
       for (const m of data.messages) {
         const cid = typeof m.conversationId === "string" ? convId.get(m.conversationId) : undefined;
         if (!cid) continue; // сообщение осиротевшей беседы — пропускаем
+        const meta = m.meta && typeof m.meta === "object" && !Array.isArray(m.meta) ? { ...m.meta as Record<string, unknown> } : {};
+        if (meta.images !== undefined) {
+          const refs = z.array(ImageAttachmentSchema).max(MAX_MESSAGE_IMAGES).parse(meta.images);
+          meta.images = refs.map((ref) => {
+            const image = imageByOldId.get(ref.id);
+            if (!image) throw new Error("Не найдено изображение сообщения");
+            return { id: image.id, name: image.name, mimeType: image.mimeType };
+          });
+        }
         tx.insert(messages).values({
           id: randomUUID(),
           conversationId: cid,
           role: str(m.role, "user"),
           content: str(m.content),
-          meta: jsonStr(m.meta, "{}"),
+          meta: JSON.stringify(meta),
           createdAt: str(m.createdAt, now),
         }).run();
       }

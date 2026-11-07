@@ -366,6 +366,7 @@ export function PlaySession() {
         <div className="play-center">
           <GameChat
             docId={documentId!}
+            campaignId={campaignId}
             chat={chat}
             pcs={pcs}
             npcs={npcs}

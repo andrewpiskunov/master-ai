@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Proposal } from "@master-ai/shared";
 import { Globe, RefreshCw, MessageCircle, Check, X, Plus, FileUp, Square } from "lucide-react";
+import { ImageAttachments, MessageImages } from "../images/ImageAttachments.js";
 import { Markdown } from "../../ui/Markdown.js";
 import { Modal } from "../../ui/Modal.js";
 import { MentionTextarea } from "../../ui/MentionTextarea.js";
@@ -28,7 +29,7 @@ function clip(s: string): string {
 }
 
 export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
-  const { messages, busy, awaitingWelcome, send, stop, draft, setDraft } = useWorkshopChat();
+  const { messages, busy, awaitingWelcome, send, stop, draft, setDraft, images } = useWorkshopChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const [importing, setImporting] = useState(false);
@@ -37,7 +38,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
   function submitImport() {
     const text = source.trim();
     if (!text || busy) return;
-    send(`Вот исходный материал кампании (модуль, заметки, выдержки). Извлеки из него ключевые сущности — NPC, локации, фракции, секреты, сцены, арки — и оформи их документами. Сохраняй имена и факты из текста.\n\n---\n${text}`);
+    send(`Вот исходный материал кампании (модуль, заметки, выдержки). Извлеки из него ключевые сущности — NPC, локации, фракции, секреты, сцены, арки — и оформи их документами. Сохраняй имена и факты из текста.\n\n---\n${text}`, false);
     setSource("");
     setImporting(false);
   }
@@ -62,7 +63,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
     const text = draft.trim();
-    if (!text || busy) return;
+    if ((!text && !images.items.length) || busy || images.reading) return;
     send(text);
   }
 
@@ -81,6 +82,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
           <div key={m.id} className={`msg msg-${m.role}`}>
             <div className="msg-role">{m.role === "user" ? "Вы" : "ИИ"}</div>
             <Markdown mentions={mentions}>{m.content}</Markdown>
+            <MessageImages images={m.meta?.images} />
           </div>
         ))}
         {(busy || awaitingWelcome) && (
@@ -93,6 +95,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
         )}
       </div>
 
+      <ImageAttachments draft={images} disabled={busy} />
       <form className="chat-form" onSubmit={submit}>
         <label htmlFor="brainstorm-input" className="sr-only">Сообщение</label>
         <MentionTextarea
@@ -105,13 +108,14 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
           onEnter={() => submit({ preventDefault() {} })}
           mentions={(mentions ?? []).map((m) => ({ title: m.title, type: m.type }))}
           disabled={busy}
+          onPaste={images.onPaste}
         />
         {busy ? (
           <button type="button" className="chat-send chat-stop" onClick={stop} title="Остановить генерацию — набранный текст останется">
             <Square size={13} strokeWidth={2.2} /> Стоп
           </button>
         ) : (
-          <button type="submit">Отправить</button>
+          <button type="submit" disabled={images.reading}>Отправить</button>
         )}
       </form>
 

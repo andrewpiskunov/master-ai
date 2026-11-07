@@ -56,3 +56,23 @@ describe("OpenAIProvider", () => {
     await expect(collect(p.complete({ messages: [{ role: "user", content: "x" }] }))).rejects.toThrow(LlmError);
   });
 });
+
+describe("OpenAI image inputs", () => {
+  it("sends the image in a vision content part and preserves plain text history", async () => {
+    const dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlS8AAAAASUVORK5CYII=";
+    let payload: { messages: unknown[] } | undefined;
+    vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
+      payload = JSON.parse(init.body as string);
+      return sseResponse([delta("Это карта"), "data: [DONE]"]);
+    });
+    const out = await collect(new OpenAIProvider({ apiKey: "test" }).complete({ messages: [
+      { role: "assistant", content: "Покажите карту" },
+      { role: "user", content: "", images: [{ name: "map.png", dataUrl }] },
+    ] }));
+    expect(out).toBe("Это карта");
+    expect(payload?.messages).toEqual([
+      { role: "assistant", content: "Покажите карту" },
+      { role: "user", content: [{ type: "image_url", image_url: { url: dataUrl } }] },
+    ]);
+  });
+});

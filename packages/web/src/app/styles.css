@@ -1437,3 +1437,51 @@ a.mention:hover { filter: brightness(1.12); }
   .print-doc { max-width: none; margin: 0; padding: 0; }
   .print-section + .print-section { margin-top: 0; }
 }
+
+/* Изображения: небольшие референсы в чате и отдельная галерея сущности. */
+.image-attachments { flex: none; min-width: 0; }
+.image-attach-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; }
+.image-attach-button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; font-size: 0.76rem; }
+.image-paste-hint { color: var(--muted); font-size: 0.7rem; }
+.image-draft, .entity-image-gallery { list-style: none; margin: 0 0 9px; padding: 0; }
+.image-draft { display: flex; flex-wrap: wrap; gap: 7px; max-height: 190px; overflow: auto; }
+.image-draft li { width: 76px; position: relative; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface-2); }
+.image-draft img, .image-reading { display: block; width: 100%; height: 58px; object-fit: cover; }
+.image-reading { display: grid; place-items: center; color: var(--muted); font-size: 0.75rem; }
+.image-draft-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 5px; font-size: 0.67rem; color: var(--muted); }
+.image-remove { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 23px; height: 23px; padding: 0; color: var(--text); background: rgb(11 14 20 / 85%); border: 1px solid var(--border); border-radius: 6px; }
+.image-error { margin: 7px 0; color: #fca5a5; font-size: 0.8rem; overflow-wrap: anywhere; }
+.image-notice { margin: 7px 0; color: #86efac; font-size: 0.8rem; }
+.message-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.message-images a { display: block; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.message-images img { display: block; width: 128px; height: 96px; object-fit: cover; transition: filter 150ms; }
+.message-images a:hover img { filter: brightness(1.12); }
+.doc-assistant > .image-attachments { padding-top: 6px; }
+.game-chat > .image-attachments { padding: 6px 14px 0; }
+.document-images { min-height: 0; overflow-y: auto; padding-top: 12px; }
+.entity-image-heading { display: flex; align-items: baseline; justify-content: space-between; }
+.entity-image-heading h3 { margin: 0; }
+.image-empty { font-size: 0.82rem; }
+.entity-image-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+.entity-image-gallery li { min-width: 0; border: 1px solid var(--border); background: var(--surface-2); border-radius: 9px; overflow: hidden; }
+.entity-image-gallery a { display: block; }
+.entity-image-gallery img { width: 100%; height: 125px; object-fit: cover; display: block; }
+.entity-image-gallery li > div { display: flex; align-items: center; gap: 3px; padding: 3px 5px 3px 8px; }
+.entity-image-gallery li span { flex: 1; min-width: 0; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.entity-image-gallery li button { display: flex; padding: 4px; }
+.image-paste-target { padding: 12px 10px; margin: 12px 0 8px; border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-size: 0.76rem; text-align: center; cursor: text; }
+.image-paste-target:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+.entity-image-attach { width: 100%; margin-top: 8px; font-size: 0.8rem; }
+.image-generation { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
+.image-generation label { font-size: 0.8rem; font-weight: 600; }
+.image-generation textarea { display: block; width: 100%; resize: vertical; min-height: 80px; max-height: 300px; margin-top: 6px; font-size: 0.8rem; }
+.image-generation-hint { margin: 6px 0 10px; font-size: 0.73rem; }
+.image-generation > button, .image-generation-actions button { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+.image-generation-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.image-generation-actions > span { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); }
+.doc-side .panel-tabs { flex-wrap: wrap; }
+.doc-side .panel-tabs button { flex-basis: calc(50% - 4px); }
+@media (max-width: 480px) {
+  .image-paste-hint { font-size: 0.66rem; }
+  .message-images img { width: 105px; height: 80px; }
+}
