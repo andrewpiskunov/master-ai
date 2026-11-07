@@ -5,6 +5,8 @@ import { api, ApiError } from "../../api/client.js";
 import { ImageAttachments } from "./ImageAttachments.js";
 import { ImagePreview } from "./ImageViewer.js";
 import { imageError, useImageDraft } from "./useImageDraft.js";
+import { DeleteImageButton } from "./DeleteImageButton.js";
+import { isImageDeleted, useDeletedImageIds, useImageDeletion } from "./image-deletions.js";
 import "./EntityAvatars.css";
 
 interface Props {
@@ -27,7 +29,9 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description,
   const [explicitAvatarId, setExplicitAvatarId] = useState(selectedAvatarId);
   useEffect(() => { setAvatarId(avatar?.id); }, [avatar?.id]);
   useEffect(() => { setExplicitAvatarId(selectedAvatarId); }, [selectedAvatarId]);
-  const [images, setImages] = useState<ImageAttachment[]>([]);
+  const [allImages, setImages] = useState<ImageAttachment[]>([]);
+  const deleted = useDeletedImageIds();
+  const images = allImages.filter((image) => !deleted.has(image.id));
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [running, setRunning] = useState(false);
@@ -44,6 +48,12 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description,
   const galleryVersion = useRef(0);
   const actionBusy = useRef(false);
   const generationBusy = useRef(false);
+  useImageDeletion((id) => {
+    setImages((current) => current.filter((image) => image.id !== id));
+    setAvatarId((current) => current === id ? undefined : current);
+    setExplicitAvatarId((current) => current === id ? null : current);
+    void refreshGallery();
+  });
 
   async function refreshGallery() {
     const version = ++galleryVersion.current;
@@ -121,6 +131,8 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description,
     try {
       const updated = await api.setDocumentAvatar(docId, imageId);
       if (!active.current) return;
+      if ((updated.avatar && isImageDeleted(updated.avatar.id))
+        || (typeof updated.fields?.avatarImageId === "string" && isImageDeleted(updated.fields.avatarImageId))) return;
       setAvatarId(updated.avatar?.id);
       setExplicitAvatarId(typeof updated.fields?.avatarImageId === "string" ? updated.fields.avatarImageId : null);
       onDocumentChange?.(updated);
@@ -166,7 +178,7 @@ function DocumentImagesPanel({ docId, campaignId, title, typeLabel, description,
     {loading ? <p className="muted">Загрузка изображений…</p> : images.length === 0 ? <p className="muted image-empty">Добавьте портрет, карту или референс.</p> : <ul className="entity-image-gallery">
       {images.map((image, index) => <li key={image.id} className={image.id === activeAvatarId ? "is-avatar" : undefined}>
         <ImagePreview images={images} index={index} className="entity-image-preview" />
-        <div className="entity-image-caption"><span title={image.name}>{image.name}</span><button type="button" className="btn-ghost" disabled={working} aria-label={`Открепить ${image.name}`} onClick={() => { void detach(image); }} title="Открепить от сущности"><X size={14} /></button></div>
+        <div className="entity-image-caption"><span title={image.name}>{image.name}</span><button type="button" className="btn-ghost" disabled={working} aria-label={`Открепить ${image.name}`} onClick={() => { void detach(image); }} title="Открепить от сущности"><X size={14} /></button><DeleteImageButton image={image} disabled={working} /></div>
         <button type="button" className="entity-avatar-choice btn-ghost" disabled={working || image.id === activeAvatarId} aria-label={image.id === activeAvatarId ? `Аватар: ${image.name}` : `Сделать аватаром ${image.name}`} aria-pressed={image.id === activeAvatarId} onClick={() => { void chooseAvatar(image.id); }}>
           {image.id === activeAvatarId && <Check size={12} />} {image.id === activeAvatarId ? "Аватар" : "Сделать аватаром"}
         </button>

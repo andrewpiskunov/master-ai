@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePlayerScreen } from "./usePlayerScreen.js";
 import { playerChannelName } from "./player-screen.js";
+import { notifyImageDeleted } from "../images/image-deletions.js";
 import { picture, secondPicture, secondFixtureChannelId, TestBroadcastChannel, fixtureChannelId } from "./player-screen.test-utils.js";
 
 let popup: { closed: boolean; focus: ReturnType<typeof vi.fn> };
@@ -15,6 +16,16 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("usePlayerScreen", () => {
+  it("clears a deleted displayed image and leaves other deletions alone", () => {
+    const { result } = renderHook(() => usePlayerScreen("deletion"));
+    act(() => result.current.show(picture, true));
+    act(() => notifyImageDeleted("unrelated-file"));
+    expect(result.current.image).toEqual(picture);
+    act(() => notifyImageDeleted(picture.id));
+    expect(result.current.image).toBeNull();
+    expect(result.current.captionVisible).toBe(false);
+    expect(TestBroadcastChannel.instances[0].sent.at(-1)).toMatchObject({ type: "state", image: null, captionVisible: false });
+  });
   it("opens blank, publishes only selected image metadata, and resends the latest image after ready", async () => {
     const { result } = renderHook(() => usePlayerScreen("session-one"));
     expect(result.current.image).toBeNull(); expect(result.current.captionVisible).toBe(false);

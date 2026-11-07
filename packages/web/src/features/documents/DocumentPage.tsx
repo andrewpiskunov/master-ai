@@ -10,6 +10,7 @@ import { Select } from "../../ui/Select.js";
 import { Modal } from "../../ui/Modal.js";
 import { DocumentImages } from "../images/DocumentImages.js";
 import { ImagePreview } from "../images/ImageViewer.js";
+import { useImageDeletion } from "../images/image-deletions.js";
 import { DocumentAssistant } from "../assistant/DocumentAssistant.js";
 import { blockKey, type NewEntity, type EditEntity } from "../assistant/assistant-blocks.js";
 import { PlayPanel } from "../play/PlayPanel.js";
@@ -106,6 +107,8 @@ export function DocumentPage() {
       if (pageActive.current && currentDocumentId.current === id && version === imageRefreshVersion.current) showToast("Не удалось обновить аватар");
     }
   }
+
+  useImageDeletion(() => { void refreshImageDocument(true); });
 
   function mutationVersion() { return { image: imageRefreshVersion.current, visit: documentVisit.current }; }
   // Full-document responses can arrive after an avatar change. Apply their

@@ -43,7 +43,7 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDe
     // Ответы ИИ в игровом режиме уходят в историю без служебных log-блоков —
     // иначе модель имитирует паттерн «текст после log-блока» из своих прошлых ответов.
     const storedHistory = conversationsSvc.listMessages(conv.id);
-    const history = storedHistory.slice(-20).map((m) => ({
+    const history = storedHistory.filter((m) => m.content.trim() || m.meta?.images?.length).slice(-20).map((m) => ({
       role: m.role,
       ...(m.meta?.images?.length ? { images: mediaSvc.toLlmImages(doc.campaignId, m.meta.images) } : {}),
       content:
@@ -52,7 +52,7 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDe
           : m.role === "assistant" && parsed.data.mode === "game"
             ? stripChoicePrompts(stripLogFence(m.content))
             : m.content,
-    }));
+    })).filter((message) => message.content.trim() || message.images?.length);
     // Контроллер остановки: stop() обрывает генерацию у провайдера (CLI/HTTP) сразу.
     const abort = new AbortController();
     const system = [

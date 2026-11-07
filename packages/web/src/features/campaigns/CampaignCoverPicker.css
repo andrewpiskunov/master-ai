@@ -13,6 +13,9 @@
 .cover-picker-preview.image-preview img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .cover-picker-choice { display: flex; justify-content: space-between; align-items: center; gap: 6px; width: 100%; padding: 9px 9px; border: 0; border-radius: 0; color: var(--text); background: transparent; font-size: .69rem; text-align: left; }
 .cover-picker-choice:hover { background: var(--surface-2); filter: none; }
+.cover-picker-controls { display: flex; align-items: center; min-width: 0; }
+.cover-picker-controls .cover-picker-choice { flex: 1; min-width: 0; }
+.cover-picker-controls .image-delete-button { flex: none; display: grid; place-items: center; width: 30px; height: 32px; margin-right: 4px; padding: 0; border: 0; }
 .cover-picker-choice > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cover-picker-check { display: grid; place-items: center; flex: none; width: 17px; height: 17px; border: 1px solid var(--border); border-radius: 50%; color: white; }
 .is-selected .cover-picker-check { border-color: var(--accent); background: var(--accent); }

@@ -97,7 +97,8 @@ export class BrainstormService {
 
     const storedHistory = conversations.listMessages(conv.id);
     const history: LlmMessage[] = storedHistory
-      .map((m) => ({ role: m.role, content: m.content, ...(m.meta?.images?.length ? { images: this.deps.media!.toLlmImages(campaignId, m.meta.images) } : {}) }));
+      .map((m) => ({ role: m.role, content: m.content, ...(m.meta?.images?.length ? { images: this.deps.media!.toLlmImages(campaignId, m.meta.images) } : {}) }))
+      .filter((message) => message.content.trim() || message.images?.length);
 
     // Настройки кампании — постоянный бриф (описание) и тон (реализм) идут в промт.
     const campaign = campaigns.get(campaignId);

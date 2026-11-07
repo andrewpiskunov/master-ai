@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useImageDeletion } from "../images/image-deletions.js";
 import { useNavigate, useParams } from "react-router-dom";
 import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff, Monitor, Image } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
@@ -115,6 +116,7 @@ export function PlaySession() {
   const imageScope = imageScopeRef.current;
   useEffect(() => { imageScope.active = true; return () => { imageScope.active = false; }; }, [imageScope]);
   const playerScreen = usePlayerScreen(documentId ?? "");
+  useImageDeletion(() => { void refreshImages(); });
   const contentRef = useRef<HTMLDivElement>(null);
   // История просмотрщика связанных документов.
   const [view, setView] = useState<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });

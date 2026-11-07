@@ -50,6 +50,10 @@ export function registerImageRoutes(app: FastifyInstance, deps: Pick<RouteDepend
     if (matchesEtag(req.headers["if-none-match"], etag)) return reply.code(304).send();
     return reply.send(data);
   });
+  app.delete<IdParams>("/api/images/:id", (req, reply) => {
+    if (!mediaSvc.delete(req.params.id)) return reply.code(404).send({ error: "изображение не найдено" });
+    return { deleted: true };
+  });
 
   app.get<IdParams>("/api/documents/:id/images", (req) => mediaSvc.listForDocument(req.params.id));
   app.put<IdParams>("/api/documents/:id/avatar", (req, reply) => {

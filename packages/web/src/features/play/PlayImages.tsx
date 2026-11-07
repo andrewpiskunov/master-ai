@@ -6,6 +6,7 @@ import { ImagePreview } from "../images/ImageViewer.js";
 import { imageError } from "../images/useImageDraft.js";
 import { EntityImagePicker } from "./EntityImagePicker.js";
 import { ThumbnailImage } from "../images/ThumbnailImage.js";
+import { useDeletedImageIds } from "../images/image-deletions.js";
 import "./PlayImages.css";
 
 export interface PlayerImageScreen {
@@ -36,6 +37,7 @@ export function PlayImages(props: Props) {
 }
 
 function EntityImages({ campaignId, documents, session, initialDocumentId, playerScreen, refreshKey }: Props) {
+  const deleted = useDeletedImageIds();
   const captionId = useId();
   const entities = useMemo(() => {
     const byId = new Map(documents.filter((doc) => doc.campaignId === campaignId).map((doc) => [doc.id, doc]));
@@ -70,7 +72,7 @@ function EntityImages({ campaignId, documents, session, initialDocumentId, playe
   }, [selectedId, reload, refreshKey]);
 
   const loading = gallery.loading || gallery.documentId !== selectedId;
-  const images = gallery.documentId === selectedId ? gallery.images : [];
+  const images = gallery.documentId === selectedId ? gallery.images.filter((image) => !deleted.has(image.id)) : [];
   const error = gallery.documentId === selectedId ? gallery.error : "";
 
   return <section className="play-images" aria-label="Изображения для игры">

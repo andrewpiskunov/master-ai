@@ -13,6 +13,7 @@ export interface ImageGenerationRouteDependencies {
   documentsSvc: Pick<DocumentService, "get">;
   mediaSvc: {
     importForDocument(documentId: string, image: LlmImage): ImageAttachment;
+    listForDocument(documentId: string): ImageAttachment[];
   };
   imageGenerator: ImageGenerator;
   imageJobs?: ImageGenerationJobService;
@@ -47,7 +48,12 @@ export function registerImageGenerationRoutes(app: FastifyInstance, deps: ImageG
 
   app.get<IdParams>("/api/documents/:id/image-generation", (request, reply) => {
     if (!documentsSvc.get(request.params.id)) return reply.code(404).send({ error: "Документ не найден" });
-    return jobs.status(request.params.id);
+    const status = jobs.status(request.params.id);
+    if (status.image && !mediaSvc.listForDocument(request.params.id).some((image) => image.id === status.image!.id)) {
+      const { image: _deleted, ...current } = status;
+      return current;
+    }
+    return status;
   });
 
   app.post<IdParams>("/api/documents/:id/image-generation/stop", (request, reply) => {

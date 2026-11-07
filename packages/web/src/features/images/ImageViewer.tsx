@@ -3,6 +3,9 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Download, Expand, ImageOff, Scan, X } from "lucide-react";
 import type { ImageAttachment } from "@master-ai/shared";
 import { ThumbnailImage, type ThumbnailSize } from "./ThumbnailImage.js";
+import { DeleteImageButton } from "./DeleteImageButton.js";
+import { useDeletedImageIds } from "./image-deletions.js";
+import { lockImageScroll } from "./scroll-lock.js";
 import "./ImageViewer.css";
 
 interface ImageViewerProps {
@@ -36,11 +39,11 @@ function ImageViewerContent({ images, initialIndex = 0, onClose }: ImageViewerPr
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockImageScroll();
     closeButton.current?.focus({ preventScroll: true });
 
     function onKeyDown(event: KeyboardEvent) {
+      if (document.querySelector("[data-image-delete-dialog]")) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -68,7 +71,7 @@ function ImageViewerContent({ images, initialIndex = 0, onClose }: ImageViewerPr
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
-      document.body.style.overflow = previousOverflow;
+      unlock();
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, [navigate]);
@@ -102,6 +105,7 @@ function ImageViewerContent({ images, initialIndex = 0, onClose }: ImageViewerPr
       <footer className="image-viewer-footer">
         <span className="image-viewer-shortcuts"><kbd>Esc</kbd> закрыть{images.length > 1 && <><span>·</span><kbd>←</kbd><kbd>→</kbd> листать</>}</span>
         <div className="image-viewer-tools">
+          <DeleteImageButton image={image} compact={false} />
           <button type="button" aria-label="Масштаб 100%" aria-pressed={zoomed} disabled={failedImage === image.id} onClick={() => setZoomed((value) => !value)} title={zoomed ? "Вписать в окно" : "Показать в исходном размере"}>
             {zoomed ? <Scan size={16} /> : <Expand size={16} />}<span>{zoomed ? "Вписать" : "100%"}</span>
           </button>
@@ -120,15 +124,17 @@ export function ImagePreview({ images, index = 0, className, label, thumbnailSiz
   thumbnailSize?: ThumbnailSize;
 }) {
   const [openedCollection, setOpenedCollection] = useState<string | null>(null);
-  const collection = images.map((image) => image.id).join("|");
+  const deleted = useDeletedImageIds();
+  const available = images.filter((image) => !deleted.has(image.id));
+  const collection = available.map((image) => image.id).join("|");
   useEffect(() => { setOpenedCollection(null); }, [collection]);
   const image = images[index];
-  if (!image) return null;
+  if (!image || deleted.has(image.id)) return null;
   const title = label ?? `Открыть ${image.name}`;
   return <>
     <button type="button" className={`image-preview${className ? ` ${className}` : ""}`} aria-label={title} aria-haspopup="dialog" title={title} onClick={() => setOpenedCollection(collection)}>
       <ThumbnailImage imageId={image.id} size={thumbnailSize} alt={image.name} />
     </button>
-    {openedCollection === collection && <ImageViewer images={images} initialIndex={index} onClose={() => setOpenedCollection(null)} />}
+    {openedCollection === collection && <ImageViewer images={available} initialIndex={available.findIndex((item) => item.id === image.id)} onClose={() => setOpenedCollection(null)} />}
   </>;
 }

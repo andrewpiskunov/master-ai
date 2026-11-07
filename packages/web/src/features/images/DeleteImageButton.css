@@ -1,0 +1,16 @@
+.image-delete-button.btn-ghost { color: var(--muted); }
+.image-delete-button.btn-ghost:hover { color: #fda4af; background: #fb718518; border-color: #fb718555; }
+.image-delete-backdrop { position: fixed; inset: 0; z-index: 2200; display: grid; place-items: center; padding: 20px; color: var(--text); background: #03060cbb; backdrop-filter: blur(8px); }
+.image-delete-dialog { width: min(440px, 100%); max-height: calc(100dvh - 40px); padding: 24px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 24px 80px #0008; }
+.image-delete-heading { display: flex; align-items: center; gap: 11px; color: #fda4af; }
+.image-delete-heading h2 { margin: 0; color: var(--text-strong); font-size: 1.1rem; font-weight: 600; }
+.image-delete-file { display: flex; align-items: center; gap: 13px; margin: 20px 0 16px; min-width: 0; }
+.image-delete-file img { flex: none; width: 64px; height: 64px; object-fit: cover; border: 1px solid var(--border); border-radius: 7px; }
+.image-delete-file strong { overflow-wrap: anywhere; color: var(--text-strong); font-size: .85rem; font-weight: 500; }
+.image-delete-dialog > p { margin: 0 0 18px; color: var(--muted); font-size: .8rem; line-height: 1.65; }
+.image-delete-dialog > .image-error { color: #fda4af; }
+.image-delete-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 22px; }
+.image-delete-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 9px 12px; font-size: .76rem; }
+.image-delete-confirm { color: #fff1f2; background: #9f263d; border: 1px solid #cd4960; }
+.image-delete-confirm:hover { background: #b32e47; }
+.image-delete-dialog button:focus-visible { outline: 2px solid var(--accent-hover); outline-offset: 3px; }

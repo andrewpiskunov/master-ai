@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "../../api/client.js";
@@ -17,6 +17,41 @@ function Panel({ docId = "d1" }: { docId?: string }) {
   return <DocumentImages campaignId="c1" docId={docId} title="Барон" typeLabel="Персонаж" description="Высокий ворон" />;
 }
 describe("DocumentImages", () => {
+  it("ignores a late avatar selection response for an image deleted through its viewer", async () => {
+    const removed = { ...image, id: "avatar-race-delete", name: "Поздний.png" };
+    const kept = { ...image, id: "avatar-race-keep", name: "Другой.png" };
+    vi.mocked(api.documentImages).mockResolvedValue([kept, removed]);
+    vi.mocked(api.deleteImage).mockResolvedValue({ deleted: true });
+    let finish!: (doc: Document) => void;
+    vi.mocked(api.setDocumentAvatar).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const onDocumentChange = vi.fn();
+    render(<DocumentImages campaignId="c1" docId="d1" title="Барон" typeLabel="NPC" description="Описание" avatar={kept} onDocumentChange={onDocumentChange} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Сделать аватаром Поздний.png" }));
+    await userEvent.click(screen.getByRole("button", { name: "Открыть Поздний.png" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Просмотр изображения" })).getByRole("button", { name: "Удалить Поздний.png" }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Удалить изображение" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    await act(async () => { finish({ id: "d1", campaignId: "c1", title: "Барон", type: "npc", status: null, contentJson: null, fields: { avatarImageId: removed.id }, avatar: removed, createdAt: "x", updatedAt: "x" }); });
+    expect(onDocumentChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Аватар: Другой.png" })).toBeInTheDocument();
+  });
+
+  it("permanently deletes from the gallery while preserving the prompt and remaining images", async () => {
+    const removed = { ...image, id: "gallery-delete", name: "Удаляемый.png" };
+    const kept = { ...image, id: "gallery-keep", name: "Оставляемый.png" };
+    vi.mocked(api.documentImages).mockResolvedValue([removed, kept]);
+    vi.mocked(api.deleteImage).mockResolvedValue({ deleted: true });
+    render(<Panel />);
+    await userEvent.type(screen.getByLabelText("Описание иллюстрации"), " Черновик");
+    await userEvent.click(await screen.findByRole("button", { name: "Удалить Удаляемый.png" }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Удалить изображение" }));
+    await waitFor(() => expect(screen.queryByAltText("Удаляемый.png")).not.toBeInTheDocument());
+    expect(api.deleteImage).toHaveBeenCalledWith("gallery-delete");
+    expect(api.detachDocumentImage).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Аватар: Оставляемый.png" })).toBeInTheDocument();
+    expect((screen.getByLabelText("Описание иллюстрации") as HTMLTextAreaElement).value).toContain("Черновик");
+  });
+
   it("uploads a chosen file, attaches it to the entity, and detaches only its association", async () => {
     vi.mocked(api.uploadImage).mockResolvedValue(image);
     vi.mocked(api.attachDocumentImage).mockResolvedValue([image]);

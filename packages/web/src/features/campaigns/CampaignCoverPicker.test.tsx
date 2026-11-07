@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import type { Campaign, ImageAttachment } from "@master-ai/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,6 +25,37 @@ function deferred<T>() {
 }
 
 describe("CampaignCoverPicker", () => {
+  it("does not restore a deleted cover from a late save response", async () => {
+    const removed = { ...portrait, id: "cover-race-delete", name: "Поздняя обложка.png" };
+    vi.mocked(api.campaignImages).mockResolvedValue([map, removed]);
+    vi.mocked(api.deleteImage).mockResolvedValue({ deleted: true });
+    const saving = deferred<Campaign>();
+    vi.mocked(api.setCampaignCover).mockReturnValue(saving.promise);
+    openPicker();
+    await userEvent.click(await screen.findByRole("button", { name: "Выбрать Поздняя обложка.png" }));
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить обложку" }));
+    await userEvent.click(screen.getByRole("button", { name: "Открыть Поздняя обложка.png" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Просмотр изображения" })).getByRole("button", { name: "Удалить Поздняя обложка.png" }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Удалить изображение" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    await act(async () => { saving.resolve({ ...campaign, cover: removed }); });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ cover: null }));
+  });
+
+  it("deletes the current cover file, clears its selection and keeps the picker open", async () => {
+    const removed = { ...map, id: "cover-delete", name: "Удаляемая обложка.png" };
+    vi.mocked(api.campaignImages).mockResolvedValue([removed, portrait]);
+    vi.mocked(api.deleteImage).mockResolvedValue({ deleted: true });
+    render(<CampaignCoverPicker campaign={{ ...campaign, cover: removed }} onChange={onChange} onClose={onClose} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Удалить Удаляемая обложка.png" }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Удалить изображение" }));
+    await waitFor(() => expect(screen.queryByAltText("Удаляемая обложка.png")).not.toBeInTheDocument());
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ cover: null }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Сохранить обложку" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Выбрать Портрет.webp" })).toBeInTheDocument();
+  });
+
   it("выбирает изображение кампании и сохраняет его обложкой", async () => {
     openPicker();
     await userEvent.click(await screen.findByRole("button", { name: "Выбрать Портрет.webp" }));

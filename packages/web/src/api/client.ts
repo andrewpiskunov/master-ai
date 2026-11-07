@@ -70,6 +70,7 @@ export const api = {
   uploadImage: (campaignId: string, image: { name: string; dataUrl: string }) =>
     request<ImageAttachment>(`/api/campaigns/${campaignId}/images`, { method: "POST", body: JSON.stringify(image) }),
   campaignImages: (campaignId: string) => request<ImageAttachment[]>(`/api/campaigns/${campaignId}/images`),
+  deleteImage: (id: string) => request<{ deleted: boolean }>(`/api/images/${id}`, { method: "DELETE" }),
   setCampaignCover: (campaignId: string, imageId: string | null) =>
     request<Campaign>(`/api/campaigns/${campaignId}/cover`, { method: "PUT", body: JSON.stringify({ imageId }) }),
   setDocumentAvatar: (docId: string, imageId: string | null) =>

@@ -5,6 +5,9 @@ import { api } from "../../api/client.js";
 import { Modal } from "../../ui/Modal.js";
 import { imageError, useImageDraft } from "../images/useImageDraft.js";
 import { ImagePreview } from "../images/ImageViewer.js";
+import { DeleteImageButton } from "../images/DeleteImageButton.js";
+import { isImageDeleted, useDeletedImageIds, useImageDeletion } from "../images/image-deletions.js";
+import { lockImageScroll } from "../images/scroll-lock.js";
 import "./CampaignCoverPicker.css";
 
 interface Props { campaign: Campaign; onChange: (campaign: Campaign) => void; onClose: () => void }
@@ -12,7 +15,9 @@ interface Props { campaign: Campaign; onChange: (campaign: Campaign) => void; on
 export function CampaignCoverPicker(props: Props) { return <CoverPicker key={props.campaign.id} {...props} />; }
 
 function CoverPicker({ campaign, onChange, onClose }: Props) {
-  const [images, setImages] = useState<ImageAttachment[]>([]);
+  const [allImages, setImages] = useState<ImageAttachment[]>([]);
+  const deleted = useDeletedImageIds();
+  const images = allImages.filter((image) => !deleted.has(image.id));
   const [selectedId, setSelectedId] = useState<string | null>(campaign.cover?.id ?? null);
   const [loading, setLoading] = useState(true);
   const [galleryError, setGalleryError] = useState("");
@@ -26,6 +31,12 @@ function CoverPicker({ campaign, onChange, onClose }: Props) {
   const content = useRef<HTMLDivElement>(null);
   const draft = useImageDraft(campaign.id);
   const close = useCallback(() => { if (!busy.current) onClose(); }, [onClose]);
+  useImageDeletion((id) => {
+    setImages((current) => current.filter((image) => image.id !== id));
+    setSelectedId((current) => current === id ? null : current);
+    if (campaign.cover?.id === id) onChange({ ...campaign, cover: null });
+    void loadImages();
+  });
 
   async function loadImages() {
     const version = ++galleryVersion.current;
@@ -40,11 +51,10 @@ function CoverPicker({ campaign, onChange, onClose }: Props) {
     active.current = true;
     void loadImages();
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockImageScroll();
     closeButton.current?.focus({ preventScroll: true });
     function keepFocus(event: KeyboardEvent) {
-      if (event.key !== "Tab" || document.querySelector(".image-viewer")) return;
+      if (event.key !== "Tab" || document.querySelector(".image-viewer, [data-image-delete-dialog]")) return;
       const controls = content.current?.closest("[role=dialog]")?.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), a[href]");
       if (!controls?.length) return;
       const first = controls[0], last = controls[controls.length - 1];
@@ -57,7 +67,7 @@ function CoverPicker({ campaign, onChange, onClose }: Props) {
       active.current = false;
       galleryVersion.current++;
       window.removeEventListener("keydown", keepFocus);
-      document.body.style.overflow = previousOverflow;
+      unlock();
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   // Кампания монтируется с новым ключом; ответы проверяют active и версию галереи.
@@ -76,7 +86,7 @@ function CoverPicker({ campaign, onChange, onClose }: Props) {
       }
       const updated = await api.setCampaignCover(campaign.id, imageId);
       if (!active.current) return;
-      onChange(updated);
+      onChange(updated.cover && isImageDeleted(updated.cover.id) ? { ...updated, cover: null } : updated);
       onClose();
     } catch (e) { if (active.current) setError(imageError(e)); }
     finally { if (active.current) { busy.current = false; setWorking(false); } }
@@ -97,7 +107,7 @@ function CoverPicker({ campaign, onChange, onClose }: Props) {
           const selected = !pending && image.id === selectedId;
           return <li key={image.id} className={selected ? "is-selected" : undefined}>
             <ImagePreview images={images} index={index} className="cover-picker-preview" />
-            <button type="button" className="cover-picker-choice" disabled={working} aria-label={selected ? `Выбрано: ${image.name}` : `Выбрать ${image.name}`} aria-pressed={selected} onClick={() => { draft.clear(); setSelectedId(image.id); setError(""); }}><span title={image.name}>{image.name}</span><span className="cover-picker-check" aria-hidden="true">{selected && <Check size={13} />}</span></button>
+            <div className="cover-picker-controls"><button type="button" className="cover-picker-choice" disabled={working} aria-label={selected ? `Выбрано: ${image.name}` : `Выбрать ${image.name}`} aria-pressed={selected} onClick={() => { draft.clear(); setSelectedId(image.id); setError(""); }}><span title={image.name}>{image.name}</span><span className="cover-picker-check" aria-hidden="true">{selected && <Check size={13} />}</span></button><DeleteImageButton image={image} disabled={working} /></div>
           </li>;
         })}</ul>}
       <div className="cover-picker-upload">

@@ -102,6 +102,8 @@ export class WorkshopImageService {
       }
       results.push(result);
     }
-    return results;
+    // Пока генерировались следующие картинки, уже обработанную могли удалить.
+    // Не возвращаем её в историю или клиентский ответ после завершения пакета.
+    return results.filter((result) => !result.image || this.media.getMetadata(result.image.id)?.campaignId === campaignId);
   }
 }

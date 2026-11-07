@@ -6,6 +6,7 @@ import { DocumentPage } from "./DocumentPage.js";
 import { api } from "../../api/client.js";
 import { ToastProvider } from "../../ui/toast.js";
 import type { Document } from "@master-ai/shared";
+import { notifyImageDeleted } from "../images/image-deletions.js";
 
 vi.mock("../../api/client.js");
 vi.mock("../../api/stream.js");
@@ -73,6 +74,20 @@ const locationDoc: Document = {
   contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Сохранённое описание" }] }] },
   fields: { tags: ["сохранено"] }, avatar: null, createdAt: "x", updatedAt: "x",
 };
+
+it("refreshes the fallback avatar after deletion without replacing a title draft", async () => {
+  const removed = { ...portrait, id: "page-delete" };
+  const kept = { ...tower, id: "page-keep" };
+  vi.mocked(api.getDocument).mockResolvedValueOnce({ ...locationDoc, avatar: removed, fields: { avatarImageId: removed.id } }).mockResolvedValue({ ...locationDoc, avatar: kept });
+  vi.mocked(api.updateDocument).mockResolvedValue({ ...locationDoc, title: "Моя башня", avatar: kept });
+  renderAt("d1");
+  const title = await screen.findByLabelText("Заголовок");
+  await userEvent.clear(title);
+  await userEvent.type(title, "Моя башня");
+  act(() => notifyImageDeleted(removed.id));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Открыть аватар Моя башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/page-keep/thumbnail?size=128"));
+  expect(title).toHaveValue("Моя башня");
+});
 
 it("refreshes an already open gallery after an assistant action without replacing its draft", async () => {
   vi.mocked(api.getDocument).mockResolvedValueOnce(locationDoc).mockResolvedValue({ ...locationDoc, avatar: tower });

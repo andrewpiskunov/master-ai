@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImageAttachmentSchema, type ImageAttachment } from "@master-ai/shared";
+import { useImageDeletion } from "../images/image-deletions.js";
 import { parsePlayerScreenMessage, playerChannelName, validPlayerChannelId, type PlayerImageState } from "./player-screen.js";
 
 const blank = (): PlayerImageState => ({ image: null, captionVisible: false });
@@ -109,6 +110,7 @@ export function usePlayerScreen(sessionId: string) {
     if (openWindow(connection, false)) publish(connection, { image: image.data, captionVisible });
   }, [active, openWindow, publish]);
   const clear = useCallback(() => { const connection = active(); if (connection) publish(connection, blank()); }, [active, publish]);
+  useImageDeletion((id) => { if (latestState.current.image?.id === id) clear(); });
 
   const state = view.sessionId === sessionId ? view : { ...blank(), error: "" };
   return { image: state.image, captionVisible: state.captionVisible, error: state.error, open, show, clear };

@@ -6,10 +6,13 @@ import { api } from "../../api/client.js";
 import { Modal } from "../../ui/Modal.js";
 import { ImagePreview } from "../images/ImageViewer.js";
 import { ThumbnailImage } from "../images/ThumbnailImage.js";
+import { useDeletedImageIds } from "../images/image-deletions.js";
 import { imageError } from "../images/useImageDraft.js";
 import "./WorkshopImages.css";
 
-export function WorkshopImageResults({ campaignId, results }: { campaignId: string; results?: WorkshopImageAttachmentResult[] }) {
+export function WorkshopImageResults({ campaignId, results: allResults }: { campaignId: string; results?: WorkshopImageAttachmentResult[] }) {
+  const deleted = useDeletedImageIds();
+  const results = allResults?.filter((result) => !result.image || !deleted.has(result.image.id));
   if (!results?.length) return null;
   const images = results.flatMap((result) => result.image ? [result.image] : []);
   return <ul className="workshop-image-results" aria-label="Результаты прикрепления изображений">
@@ -35,7 +38,9 @@ export function WorkshopMessageImages(props: MessageImagesProps) {
   return <WorkshopMessageImagesContent key={`${props.campaignId}:${props.defaultDocumentId ?? ""}`} {...props} />;
 }
 
-function WorkshopMessageImagesContent({ campaignId, images, defaultDocumentId, onImagesChange }: MessageImagesProps) {
+function WorkshopMessageImagesContent({ campaignId, images: allImages, defaultDocumentId, onImagesChange }: MessageImagesProps) {
+  const deleted = useDeletedImageIds();
+  const images = allImages?.filter((image) => !deleted.has(image.id));
   const [selected, setSelected] = useState<ImageAttachment | null>(null);
   const [attached, setAttached] = useState<WorkshopImageAttachmentResult[]>([]);
   if (!images?.length) return null;

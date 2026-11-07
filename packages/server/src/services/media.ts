@@ -3,7 +3,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import sharp from "sharp";
 import { ImageIdsSchema, ImageUploadSchema, MAX_IMAGE_BYTES, type ImageAttachment, type LlmImage } from "@master-ai/shared";
-import { campaigns, documentImages, documents, images, imageThumbnails } from "../db/schema.js";
+import { campaigns, conversations, documentImages, documents, images, imageThumbnails, messages } from "../db/schema.js";
 import { generatedImageName, repairImageNames } from "../db/image-names.js";
 
 export class MediaError extends Error {
@@ -11,12 +11,22 @@ export class MediaError extends Error {
 }
 
 type ImageRow = typeof images.$inferSelect;
-const attachment = (row: ImageRow): ImageAttachment => ({ id: row.id, name: row.name, mimeType: row.mimeType as ImageAttachment["mimeType"] });
+const attachment = (row: Pick<ImageRow, "id" | "name" | "mimeType">): ImageAttachment => ({ id: row.id, name: row.name, mimeType: row.mimeType as ImageAttachment["mimeType"] });
 export type ThumbnailSize = 128 | 256 | 512 | 1024;
 type Thumbnail = { data: Buffer; etag: string };
 // Меняем ключ при изменении формата или параметров, чтобы не отдавать старый вариант.
 const THUMBNAIL_VERSION = "webp-v1-q78";
 export const imageEtag = (data: Buffer): string => `"${createHash("sha256").update(data).digest("base64url")}"`;
+
+function jsonObject(raw: string): Record<string, unknown> | undefined {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  } catch { return undefined; }
+}
+
+const hasImageId = (value: unknown, id: string): boolean =>
+  value !== null && typeof value === "object" && "id" in value && value.id === id;
 
 // Проверяем и MIME в data URL, и сигнатуру самих байтов. SVG не принимается.
 export function validateImage(input: { name: string; dataUrl: string }): { name: string; mimeType: ImageAttachment["mimeType"]; dataUrl: string } {
@@ -66,6 +76,50 @@ export class MediaService {
 
   get(id: string): ImageRow | undefined {
     return this.db.select().from(images).where(eq(images.id, id)).get();
+  }
+
+  getMetadata(id: string): Pick<ImageRow, "id" | "name" | "mimeType" | "campaignId"> | undefined {
+    return this.db.select({ id: images.id, name: images.name, mimeType: images.mimeType, campaignId: images.campaignId })
+      .from(images).where(eq(images.id, id)).get();
+  }
+
+  delete(id: string): boolean {
+    return this.db.transaction((tx) => {
+      // Для удаления нужны только владелец и ссылки, без чтения исходных байтов.
+      const image = tx.select({ campaignId: images.campaignId }).from(images).where(eq(images.id, id)).get();
+      if (!image) return false;
+      const now = new Date().toISOString();
+      tx.delete(documentImages).where(eq(documentImages.imageId, id)).run();
+      for (const doc of tx.select({ id: documents.id, fields: documents.fields }).from(documents)
+        .where(eq(documents.campaignId, image.campaignId)).all()) {
+        const fields = jsonObject(doc.fields);
+        if (fields?.avatarImageId !== id) continue;
+        delete fields.avatarImageId;
+        tx.update(documents).set({ fields: JSON.stringify(fields), updatedAt: now }).where(eq(documents.id, doc.id)).run();
+      }
+      tx.update(campaigns).set({ coverImageId: null, updatedAt: now })
+        .where(and(eq(campaigns.id, image.campaignId), eq(campaigns.coverImageId, id))).run();
+      const history = tx.select({ id: messages.id, meta: messages.meta }).from(messages)
+        .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+        .where(eq(conversations.campaignId, image.campaignId)).all();
+      for (const message of history) {
+        const meta = jsonObject(message.meta);
+        if (!meta) continue;
+        let changed = false;
+        for (const key of ["images", "imageAttachments"] as const) {
+          const refs = meta[key];
+          if (!Array.isArray(refs)) continue;
+          const remaining = refs.filter((ref: unknown) => !hasImageId(key === "images" ? ref
+            : ref !== null && typeof ref === "object" && "image" in ref ? ref.image : undefined, id));
+          if (remaining.length !== refs.length) { meta[key] = remaining; changed = true; }
+        }
+        // Не переписываем JSON без нужды: сохраняем и неизвестные поля, и формат.
+        if (changed) tx.update(messages).set({ meta: JSON.stringify(meta) }).where(eq(messages.id, message.id)).run();
+      }
+      // Триггер удаляет миниатюры; отложенный Sharp не сможет создать их заново.
+      tx.delete(images).where(eq(images.id, id)).run();
+      return true;
+    });
   }
 
   private cachedThumbnail(id: string, size: ThumbnailSize): Thumbnail | undefined {
@@ -132,7 +186,7 @@ export class MediaService {
     const parsed = ImageIdsSchema.safeParse(ids);
     if (!parsed.success) throw new MediaError("Можно прикрепить до четырёх изображений");
     return [...new Set(parsed.data)].map((id) => {
-      const row = this.get(id);
+      const row = this.getMetadata(id);
       if (!row || row.campaignId !== campaignId) throw new MediaError("Изображение не найдено в этой кампании");
       return attachment(row);
     });
