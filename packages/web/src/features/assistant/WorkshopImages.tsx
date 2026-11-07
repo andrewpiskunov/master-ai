@@ -5,6 +5,7 @@ import { getDocumentType, type Document, type ImageAttachment, type WorkshopImag
 import { api } from "../../api/client.js";
 import { Modal } from "../../ui/Modal.js";
 import { ImagePreview } from "../images/ImageViewer.js";
+import { ThumbnailImage } from "../images/ThumbnailImage.js";
 import { imageError } from "../images/useImageDraft.js";
 import "./WorkshopImages.css";
 
@@ -15,7 +16,7 @@ export function WorkshopImageResults({ campaignId, results }: { campaignId: stri
     {results.map((result, index) => {
       const image = result.image;
       return <li key={`${result.documentId}-${image?.id ?? index}`} className={image ? "workshop-image-result" : "workshop-image-result workshop-image-result-error"}>
-        {image && <ImagePreview className="workshop-image-preview" images={images} index={images.findIndex((item) => item.id === image.id)} />}
+        {image && <ImagePreview className="workshop-image-preview" thumbnailSize={128} images={images} index={images.findIndex((item) => item.id === image.id)} />}
         <div className="workshop-image-result-body">
           <span className="workshop-image-status">{image ? <><Check size={13} /> {result.isAvatar ? "Главное изображение" : "Прикреплено"}</> : <><TriangleAlert size={13} /> Не прикреплено</>}</span>
           {image && <span className="workshop-image-caption" title={image.name}>{image.name.replace(/\.(?:png|jpe?g|webp)$/i, "")}</span>}
@@ -114,7 +115,7 @@ function ImageTargetPicker({ campaignId, image, defaultDocumentId, onClose, onAt
 
   return <Modal title="Прикрепить изображение" className="modal-image-target" onClose={onClose}>
     <div className="workshop-image-source">
-      <img src={`/api/images/${image.id}`} alt={image.name} />
+      <ThumbnailImage imageId={image.id} size={128} alt={image.name} />
       <span>{image.name}</span>
     </div>
     <form onSubmit={(event) => { event.preventDefault(); void attach(); }}>

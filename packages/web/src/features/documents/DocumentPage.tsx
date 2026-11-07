@@ -373,7 +373,7 @@ export function DocumentPage() {
             </span>
             <div className="doc-avatar-block">
               {doc.avatar
-                ? <ImagePreview key={`${doc.id}:${doc.avatar.id}`} images={[doc.avatar]} className="doc-avatar" label={`Открыть аватар ${title}`} />
+                ? <ImagePreview key={`${doc.id}:${doc.avatar.id}`} images={[doc.avatar]} thumbnailSize={128} className="doc-avatar" label={`Открыть аватар ${title}`} />
                 : <button type="button" className="doc-avatar doc-avatar-placeholder" aria-label="Добавить аватар" onClick={() => setPanel("images")}><ImageIcon size={24} strokeWidth={1.4} /><span>Аватар</span></button>}
               {doc.avatar && <button type="button" className="doc-avatar-change" onClick={() => setPanel("images")}>Изменить аватар</button>}
             </div>

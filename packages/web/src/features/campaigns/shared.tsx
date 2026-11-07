@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, getDisposition, hasDisposition, statusLabel, statusColor, type Campaign, type Document } from "@master-ai/shared";
 import { pmText } from "../../lib/prosemirror-text.js";
+import { ThumbnailImage } from "../images/ThumbnailImage.js";
 import "../images/EntityAvatars.css";
 
 // Деление типов документов на разделы — как в Campaign Arks.
@@ -149,7 +150,7 @@ function DocChips({ doc }: { doc: Document }) {
 
 function CardAvatar({ doc, size }: { doc: Document; size: number }) {
   return doc.avatar
-    ? <img className="entity-card-avatar" src={`/api/images/${doc.avatar.id}`} alt="" loading="lazy" style={{ width: size, height: size }} />
+    ? <ThumbnailImage className="entity-card-avatar" imageId={doc.avatar.id} size={128} alt="" style={{ width: size, height: size }} />
     : <TypeBadge type={doc.type} size={size} />;
 }
 

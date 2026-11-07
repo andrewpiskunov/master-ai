@@ -50,7 +50,7 @@ describe("PlayImages", () => {
     expect(within(picker).getByRole("button", { name: /С изображениями/ })).toHaveAttribute("aria-pressed", "true");
     expect(within(picker).getAllByRole("button", { name: /^Открыть галерею/ })).toHaveLength(1);
     expect(within(picker).getByRole("button", { name: "Открыть галерею Гавань" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(picker).getByAltText("Гавань")).toHaveAttribute("src", "/api/images/map");
+    expect(within(picker).getByAltText("Гавань")).toHaveAttribute("src", "/api/images/map/thumbnail?size=128");
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 

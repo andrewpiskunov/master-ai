@@ -43,7 +43,7 @@ describe("HomePage", () => {
     renderPage();
     expect(await screen.findByText("Город Солнца")).toBeInTheDocument();
     expect(visibleCampaigns()).toEqual(["/campaigns/c1", "/campaigns/c2", "/campaigns/c3"]);
-    expect(screen.getByAltText("Обложка кампании «Город Солнца»")).toHaveAttribute("src", "/api/images/img-map");
+    expect(screen.getByAltText("Обложка кампании «Город Солнца»")).toHaveAttribute("src", "/api/images/img-map/thumbnail?size=512");
     expect(within(screen.getByRole("list", { name: "Кампании" })).getByText("D&D 5e")).toBeInTheDocument();
     expect(screen.getByText("Тайна затонувшей гавани")).toBeInTheDocument();
   });

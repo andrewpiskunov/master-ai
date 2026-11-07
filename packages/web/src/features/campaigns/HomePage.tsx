@@ -6,6 +6,7 @@ import { api } from "../../api/client.js";
 import { fmtDuration, fmtTokens, plural } from "../../lib/format.js";
 import { useToast } from "../../ui/toast.js";
 import { CampaignCoverPicker } from "./CampaignCoverPicker.js";
+import { ThumbnailImage } from "../images/ThumbnailImage.js";
 import "./HomePage.css";
 
 function formatWhen(iso: string): string {
@@ -81,7 +82,7 @@ function CampaignCover({ campaign }: { campaign: Campaign }) {
   const [failedId, setFailedId] = useState<string | null>(null);
   const artId = useId();
   if (campaign.cover && failedId !== campaign.cover.id) {
-    return <img className="library-cover-image" src={`/api/images/${campaign.cover.id}`} alt={`Обложка кампании «${campaign.name}»`} loading="lazy" onError={() => setFailedId(campaign.cover!.id)} />;
+    return <ThumbnailImage className="library-cover-image" imageId={campaign.cover.id} size={512} alt={`Обложка кампании «${campaign.name}»`} onError={() => setFailedId(campaign.cover!.id)} />;
   }
   return <div className="library-cover-placeholder" aria-hidden="true">
     <svg viewBox="0 0 640 360" fill="none" preserveAspectRatio="xMidYMid slice">

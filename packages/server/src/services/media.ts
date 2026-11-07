@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import sharp from "sharp";
 import { ImageIdsSchema, ImageUploadSchema, MAX_IMAGE_BYTES, type ImageAttachment, type LlmImage } from "@master-ai/shared";
-import { campaigns, documentImages, documents, images } from "../db/schema.js";
+import { campaigns, documentImages, documents, images, imageThumbnails } from "../db/schema.js";
 import { generatedImageName, repairImageNames } from "../db/image-names.js";
 
 export class MediaError extends Error {
@@ -11,6 +12,11 @@ export class MediaError extends Error {
 
 type ImageRow = typeof images.$inferSelect;
 const attachment = (row: ImageRow): ImageAttachment => ({ id: row.id, name: row.name, mimeType: row.mimeType as ImageAttachment["mimeType"] });
+export type ThumbnailSize = 128 | 256 | 512 | 1024;
+type Thumbnail = { data: Buffer; etag: string };
+// Меняем ключ при изменении формата или параметров, чтобы не отдавать старый вариант.
+const THUMBNAIL_VERSION = "webp-v1-q78";
+export const imageEtag = (data: Buffer): string => `"${createHash("sha256").update(data).digest("base64url")}"`;
 
 // Проверяем и MIME в data URL, и сигнатуру самих байтов. SVG не принимается.
 export function validateImage(input: { name: string; dataUrl: string }): { name: string; mimeType: ImageAttachment["mimeType"]; dataUrl: string } {
@@ -32,6 +38,8 @@ export function validateImage(input: { name: string; dataUrl: string }): { name:
 }
 
 export class MediaService {
+  private thumbnailsInFlight = new Map<string, Promise<Thumbnail | undefined>>();
+
   constructor(private db: BetterSQLite3Database) {}
 
   create(campaignId: string, input: { name: string; dataUrl: string }): ImageAttachment {
@@ -58,6 +66,46 @@ export class MediaService {
 
   get(id: string): ImageRow | undefined {
     return this.db.select().from(images).where(eq(images.id, id)).get();
+  }
+
+  private cachedThumbnail(id: string, size: ThumbnailSize): Thumbnail | undefined {
+    // На попадании в кэш исходный data_url даже не читается из SQLite.
+    return this.db.select({ data: imageThumbnails.data, etag: imageThumbnails.etag })
+      .from(imageThumbnails).innerJoin(images, eq(images.id, imageThumbnails.imageId))
+      .where(and(eq(imageThumbnails.imageId, id), eq(imageThumbnails.size, size), eq(imageThumbnails.version, THUMBNAIL_VERSION))).get();
+  }
+
+  async getThumbnail(id: string, size: ThumbnailSize): Promise<Thumbnail | undefined> {
+    const cached = this.cachedThumbnail(id, size);
+    if (cached) return cached;
+    const key = `${id}:${size}:${THUMBNAIL_VERSION}`;
+    const pending = this.thumbnailsInFlight.get(key);
+    if (pending) return pending;
+    const generation = this.renderThumbnail(id, size);
+    this.thumbnailsInFlight.set(key, generation);
+    try { return await generation; }
+    finally { this.thumbnailsInFlight.delete(key); }
+  }
+
+  private async renderThumbnail(id: string, size: ThumbnailSize): Promise<Thumbnail | undefined> {
+    const source = this.get(id);
+    if (!source) return undefined;
+    let data: Buffer;
+    try {
+      const bytes = Buffer.from(source.dataUrl.slice(source.dataUrl.indexOf(",") + 1), "base64");
+      data = await sharp(bytes, { limitInputPixels: 40_000_000, failOn: "warning" }).autoOrient()
+        .resize(size, size, { fit: "inside", withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
+    } catch {
+      throw new MediaError("Не удалось создать миниатюру: изображение повреждено или превышает 40 мегапикселей", 422);
+    }
+    const etag = imageEtag(data);
+    // Пока Sharp работал, исходник могли удалить. Проверка и вставка — один SQL,
+    // а триггер удалит производные и при удалении исходника из другого соединения.
+    const inserted = this.db.run(sql`INSERT INTO image_thumbnails (image_id, size, version, data, etag)
+      SELECT ${id}, ${size}, ${THUMBNAIL_VERSION}, ${data}, ${etag}
+      WHERE EXISTS (SELECT 1 FROM images WHERE id = ${id})
+      ON CONFLICT DO NOTHING`);
+    return inserted.changes ? { data, etag } : this.cachedThumbnail(id, size);
   }
 
   listForCampaign(campaignId: string): ImageAttachment[] {

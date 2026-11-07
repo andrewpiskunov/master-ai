@@ -95,7 +95,7 @@ describe("WorkshopPanel image attachments", () => {
 
     const results = await screen.findByRole("list", { name: "Результаты прикрепления изображений" });
     const rows = within(results).getAllByRole("listitem");
-    expect(within(rows[0]).getByAltText("portrait.png")).toHaveAttribute("src", "/api/images/img-portrait");
+    expect(within(rows[0]).getByAltText("portrait.png")).toHaveAttribute("src", "/api/images/img-portrait/thumbnail?size=128");
     expect(within(rows[0]).getByRole("link", { name: "Карточка: Барон" })).toHaveAttribute("href", "/campaigns/c1/documents/baron");
     expect(within(rows[0]).getByText("Прикреплено")).toBeInTheDocument();
     expect(within(rows[1]).getByRole("link", { name: "Карточка: Замок" })).toHaveAttribute("href", "/campaigns/c1/documents/castle");

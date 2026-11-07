@@ -5,7 +5,7 @@
 .entity-image-trigger { display: flex; align-items: center; gap: 11px; width: 100%; min-width: 0; padding: 9px 11px 9px 9px; color: var(--text); text-align: left; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; }
 .entity-image-trigger:hover { background: var(--surface-2); border-color: #58779f; filter: none; }
 .entity-image-trigger-preview { display: grid; place-items: center; flex: none; width: 49px; height: 57px; overflow: hidden; border: 1px solid var(--border); border-radius: 5px; color: #7588a3; background: #080c12; }
-.entity-image-trigger-preview img { width: 100%; height: 100%; object-fit: contain; object-position: center top; }
+.entity-image-trigger-preview img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
 .entity-image-trigger-copy { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
 .entity-image-trigger-copy > span:first-child { color: #8ba3c3; font-size: .59rem; }
 .entity-image-trigger-copy strong { overflow: hidden; color: var(--text-strong); font-size: .79rem; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
@@ -40,7 +40,7 @@
 .entity-image-choice:hover { background: #1d2b3e; border-color: #52739b; filter: none; }
 .entity-image-choice[aria-pressed="true"] { background: #1c2c43; border-color: #7198ca; }
 .entity-image-choice-preview { display: grid; place-items: center; flex: none; width: 55px; height: 70px; overflow: hidden; color: #5e718c; background: #080c12; border: 1px solid #293447; border-radius: 4px; }
-.entity-image-choice-preview img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center top; }
+.entity-image-choice-preview img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
 .entity-image-choice-copy { display: flex; flex: 1; flex-direction: column; gap: 6px; min-width: 0; }
 .entity-image-choice-copy > span { color: #8ca5c7; font-size: .59rem; }
 .entity-image-choice-copy strong { display: -webkit-box; overflow: hidden; color: var(--text-strong); font-size: .77rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

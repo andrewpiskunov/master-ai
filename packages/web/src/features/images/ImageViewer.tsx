@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Download, Expand, ImageOff, Scan, X } from "lucide-react";
 import type { ImageAttachment } from "@master-ai/shared";
+import { ThumbnailImage, type ThumbnailSize } from "./ThumbnailImage.js";
 import "./ImageViewer.css";
 
 interface ImageViewerProps {
@@ -111,11 +112,12 @@ function ImageViewerContent({ images, initialIndex = 0, onClose }: ImageViewerPr
   </div>, document.body);
 }
 
-export function ImagePreview({ images, index = 0, className, label }: {
+export function ImagePreview({ images, index = 0, className, label, thumbnailSize = 256 }: {
   images: ImageAttachment[];
   index?: number;
   className?: string;
   label?: string;
+  thumbnailSize?: ThumbnailSize;
 }) {
   const [openedCollection, setOpenedCollection] = useState<string | null>(null);
   const collection = images.map((image) => image.id).join("|");
@@ -125,7 +127,7 @@ export function ImagePreview({ images, index = 0, className, label }: {
   const title = label ?? `Открыть ${image.name}`;
   return <>
     <button type="button" className={`image-preview${className ? ` ${className}` : ""}`} aria-label={title} aria-haspopup="dialog" title={title} onClick={() => setOpenedCollection(collection)}>
-      <img src={`/api/images/${image.id}`} alt={image.name} loading="lazy" />
+      <ThumbnailImage imageId={image.id} size={thumbnailSize} alt={image.name} />
     </button>
     {openedCollection === collection && <ImageViewer images={images} initialIndex={index} onClose={() => setOpenedCollection(null)} />}
   </>;

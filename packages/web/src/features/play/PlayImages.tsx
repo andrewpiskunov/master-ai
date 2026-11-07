@@ -5,6 +5,7 @@ import { api } from "../../api/client.js";
 import { ImagePreview } from "../images/ImageViewer.js";
 import { imageError } from "../images/useImageDraft.js";
 import { EntityImagePicker } from "./EntityImagePicker.js";
+import { ThumbnailImage } from "../images/ThumbnailImage.js";
 import "./PlayImages.css";
 
 export interface PlayerImageScreen {
@@ -79,7 +80,7 @@ function EntityImages({ campaignId, documents, session, initialDocumentId, playe
     </div>
 
     {playerScreen.image && <div className="play-images-current" role="status">
-      <img src={`/api/images/${playerScreen.image.id}`} alt="" />
+      <ThumbnailImage imageId={playerScreen.image.id} size={128} alt="" />
       <div><span><Monitor size={11} /> {playerScreen.error ? "Выбрано для показа" : "На экране игроков"}</span><strong title={playerScreen.image.name}>{playerScreen.image.name}</strong></div>
       <button type="button" className="btn-ghost" title="Скрыть изображение" aria-label="Скрыть изображение" onClick={() => { playerScreen.clear(); setCaptionVisible(false); }}><X size={15} /></button>
     </div>}

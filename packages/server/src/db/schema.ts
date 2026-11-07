@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const campaigns = sqliteTable("campaigns", {
   id: text("id").primaryKey(),
@@ -35,6 +35,15 @@ export const images = sqliteTable("images", {
   dataUrl: text("data_url").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+// Производные можно удалить и построить заново; в перенос кампании они не входят.
+export const imageThumbnails = sqliteTable("image_thumbnails", {
+  imageId: text("image_id").notNull(),
+  size: integer("size").notNull(),
+  version: text("version").notNull(),
+  data: blob("data", { mode: "buffer" }).notNull(),
+  etag: text("etag").notNull(),
+}, (table) => ({ pk: primaryKey({ columns: [table.imageId, table.size, table.version] }) }));
 
 export const documentImages = sqliteTable("document_images", {
   documentId: text("document_id").notNull(),

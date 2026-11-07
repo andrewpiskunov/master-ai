@@ -15,7 +15,7 @@ describe("entity cards", () => {
     render(<MemoryRouter><DocCard doc={document} variant={variant} /></MemoryRouter>);
     const card = screen.getByRole("link", { name: /^Башня/ });
     expect(card).toHaveAttribute("href", "/campaigns/c1/documents/d1");
-    expect(card.querySelector("img")).toHaveAttribute("src", "/api/images/img1");
+    expect(card.querySelector("img")).toHaveAttribute("src", "/api/images/img1/thumbnail?size=128");
     expect(within(card).queryByRole("button")).not.toBeInTheDocument();
   });
 

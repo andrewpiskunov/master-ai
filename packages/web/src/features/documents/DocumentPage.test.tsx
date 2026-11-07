@@ -62,7 +62,7 @@ it("opens an entity image panel with a gallery independent of document fields", 
   vi.mocked(api.imageGenerationStatus).mockResolvedValue({ running: false, error: null });
   renderAt("d1");
   await userEvent.click(await screen.findByRole("button", { name: "Изображения" }));
-  expect(await screen.findByAltText("portrait.png")).toHaveAttribute("src", "/api/images/img1");
+  expect(await screen.findByAltText("portrait.png")).toHaveAttribute("src", "/api/images/img1/thumbnail?size=256");
   expect(api.updateDocument).not.toHaveBeenCalled();
 });
 
@@ -121,7 +121,7 @@ it("opens the resolved header avatar in the app and preserves an edited title on
   await userEvent.type(title, "Новый заголовок");
   await userEvent.click(screen.getByRole("button", { name: "Сделать аватаром tower.png" }));
   const avatar = await screen.findByRole("button", { name: "Открыть аватар Новый заголовок" });
-  await waitFor(() => expect(avatar.querySelector("img")).toHaveAttribute("src", "/api/images/img2"));
+  await waitFor(() => expect(avatar.querySelector("img")).toHaveAttribute("src", "/api/images/img2/thumbnail?size=128"));
   expect(title).toHaveValue("Новый заголовок");
   expect(screen.getByText("Сохранённое описание")).toBeInTheDocument();
   expect(screen.getByText("сохранено")).toBeInTheDocument();
@@ -160,9 +160,9 @@ it("keeps a new avatar when an earlier tag save response arrives late", async ()
   await waitFor(() => expect(api.updateDocument).toHaveBeenCalled());
   await userEvent.click(screen.getByRole("button", { name: "Изменить аватар" }));
   await userEvent.click(await screen.findByRole("button", { name: "Сделать аватаром tower.png" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2"));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2/thumbnail?size=128"));
   await act(async () => { finishTag({ ...locationDoc, avatar: portrait, fields: { ...locationDoc.fields, tags: ["сохранено", "новый"] } }); });
-  expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2");
+  expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2/thumbnail?size=128");
   expect(screen.getByText("новый")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Добавить тег" }));
   await userEvent.type(screen.getByPlaceholderText("Тег…"), "ещё{Enter}");
@@ -181,9 +181,9 @@ it("keeps the selected avatar when an earlier type change response arrives late"
   await userEvent.click(screen.getByRole("menuitem", { name: "Предмет" }));
   await userEvent.click(screen.getByRole("button", { name: "Изменить аватар" }));
   await userEvent.click(await screen.findByRole("button", { name: "Сделать аватаром tower.png" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2"));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2/thumbnail?size=128"));
   await act(async () => { finishType({ ...locationDoc, type: "item", avatar: portrait }); });
-  expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2");
+  expect(screen.getByRole("button", { name: "Открыть аватар Башня" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2/thumbnail?size=128");
 });
 
 it("keeps the next entity visible when the previous avatar refresh finishes late", async () => {
@@ -203,7 +203,7 @@ it("keeps the next entity visible when the previous avatar refresh finishes late
   await screen.findByDisplayValue("Замок");
   await act(async () => { finish(locationDoc); });
   expect(screen.getByLabelText("Заголовок")).toHaveValue("Замок");
-  expect(screen.getByRole("button", { name: "Открыть аватар Замок" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2");
+  expect(screen.getByRole("button", { name: "Открыть аватар Замок" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2/thumbnail?size=128");
 });
 
 it("discards an old avatar refresh even after returning to the same entity route", async () => {
@@ -228,5 +228,5 @@ it("discards an old avatar refresh even after returning to the same entity route
   await screen.findByDisplayValue("Башня новая");
   await act(async () => { finish(locationDoc); });
   expect(screen.getByLabelText("Заголовок")).toHaveValue("Башня новая");
-  expect(screen.getByRole("button", { name: "Открыть аватар Башня новая" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2");
+  expect(screen.getByRole("button", { name: "Открыть аватар Башня новая" }).querySelector("img")).toHaveAttribute("src", "/api/images/img2/thumbnail?size=128");
 });

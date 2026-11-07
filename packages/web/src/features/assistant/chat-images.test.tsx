@@ -57,7 +57,7 @@ describe.each(["workshop", "document", "game"] as const)("%s image composer", (k
     vi.mocked(api.getConversation).mockResolvedValue(history);
     vi.mocked(api.getDocumentConversation).mockResolvedValue(history);
     render(<Chat kind={kind} />);
-    expect(await screen.findByAltText("map.png")).toHaveAttribute("src", "/api/images/img1");
+    expect(await screen.findByAltText("map.png")).toHaveAttribute("src", "/api/images/img1/thumbnail?size=256");
     await userEvent.click(screen.getByRole("button", { name: "Открыть map.png" }));
     const dialog = screen.getByRole("dialog", { name: "Просмотр изображения" });
     expect(within(dialog).getByRole("img", { name: "map.png" })).toHaveAttribute("src", "/api/images/img1");

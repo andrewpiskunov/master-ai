@@ -92,6 +92,13 @@
       "when": 1782759600000,
       "tag": "0012_campaign_library",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1782759700000,
+      "tag": "0013_image_thumbnails",
+      "breakpoints": true
     }
   ]
 }

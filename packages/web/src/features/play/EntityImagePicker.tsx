@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, ChevronRight, Image, Search, X } from "lucide-react";
 import { getDocumentType, type Document, type ImageAttachment } from "@master-ai/shared";
 import { Modal } from "../../ui/Modal.js";
+import { ThumbnailImage } from "../images/ThumbnailImage.js";
 import { TypeBadge, typeColors } from "../campaigns/shared.js";
 import "./EntityImagePicker.css";
 
@@ -19,7 +20,7 @@ export function EntityImagePicker({ entities, selected, preview, onSelect }: Pro
   return <div className="play-images-selector">
     <span className="play-images-selector-label">Изображения сущности</span>
     <button type="button" className="entity-image-trigger" aria-label={`Выбрать сущность: ${selected.title}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-      <span className="entity-image-trigger-preview">{thumbnail ? <img src={`/api/images/${thumbnail.id}`} alt="" /> : <TypeBadge type={selected.type} size={32} />}</span>
+      <span className="entity-image-trigger-preview">{thumbnail ? <ThumbnailImage imageId={thumbnail.id} size={128} alt="" /> : <TypeBadge type={selected.type} size={32} />}</span>
       <span className="entity-image-trigger-copy"><span className="entity-image-type-label"><TypeBadge type={selected.type} size={18} />{getDocumentType(selected.type)?.label ?? selected.type}</span><strong title={selected.title}>{selected.title}</strong><span className="entity-image-trigger-hint">Выбрать другую сущность</span></span>
       <ChevronRight size={17} strokeWidth={1.5} />
     </button>
@@ -88,7 +89,7 @@ function PickerDialog({ entities, selectedId, onClose, onSelect }: {
       <div className="entity-image-results-heading"><span>Галереи</span><span role="status" aria-live="polite">Найдено: {filtered.length}</span></div>
       {filtered.length ? <ul className="entity-image-results" aria-label="Сущности с галереями">{filtered.map((entity) => <li key={entity.id}>
         <button type="button" className="entity-image-choice" aria-label={`Открыть галерею ${entity.title}`} aria-pressed={selectedId === entity.id} onClick={() => onSelect(entity.id)}>
-          <span className="entity-image-choice-preview">{entity.avatar ? <img src={`/api/images/${entity.avatar.id}`} alt={entity.title} loading="lazy" /> : <TypeBadge type={entity.type} size={32} />}</span>
+          <span className="entity-image-choice-preview">{entity.avatar ? <ThumbnailImage imageId={entity.avatar.id} size={128} alt={entity.title} /> : <TypeBadge type={entity.type} size={32} />}</span>
           <span className="entity-image-choice-copy"><span className="entity-image-type-label"><TypeBadge type={entity.type} size={18} />{getDocumentType(entity.type)?.label ?? entity.type}</span><strong>{entity.title}</strong>{!entity.avatar && <small>Пока без изображений</small>}</span>
           <span className="entity-image-choice-mark" aria-hidden="true">{selectedId === entity.id ? <Check size={16} /> : <ChevronRight size={15} />}</span>
         </button>
