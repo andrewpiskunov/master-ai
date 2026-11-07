@@ -1,6 +1,7 @@
 import type {
   Campaign,
   NewCampaign,
+  CampaignPatch,
   Document,
   NewDocument,
   DocumentTypeDef,
@@ -11,6 +12,11 @@ import type {
   Link,
   NewLink,
   DocumentLinks,
+  ConsistencyResult,
+  MessageMeta,
+  GameLogEntry,
+  LlmUsageStats,
+  GlobalLlmUsageStats,
 } from "@master-ai/shared";
 
 export class ApiError extends Error {
@@ -40,7 +46,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-type DocumentPatch = Partial<Pick<Document, "title" | "status" | "contentJson" | "fields">>;
+type DocumentPatch = Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">>;
 
 export const api = {
   listDocumentTypes: () => request<DocumentTypeDef[]>("/api/document-types"),
@@ -48,6 +54,8 @@ export const api = {
   createCampaign: (input: NewCampaign) =>
     request<Campaign>("/api/campaigns", { method: "POST", body: JSON.stringify(input) }),
   getCampaign: (id: string) => request<Campaign>(`/api/campaigns/${id}`),
+  updateCampaign: (id: string, patch: CampaignPatch) =>
+    request<Campaign>(`/api/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteCampaign: (id: string) =>
     fetch(`/api/campaigns/${id}`, { method: "DELETE" }).then((res) => {
       if (!res.ok) throw new ApiError(res.status, res.statusText);
@@ -57,10 +65,19 @@ export const api = {
   createDocument: (input: NewDocument) =>
     request<Document>("/api/documents", { method: "POST", body: JSON.stringify(input) }),
   getDocument: (id: string) => request<Document>(`/api/documents/${id}`),
+  deleteDocument: (id: string) =>
+    fetch(`/api/documents/${id}`, { method: "DELETE" }).then((res) => {
+      if (!res.ok) throw new ApiError(res.status, res.statusText);
+    }),
   updateDocument: (id: string, patch: DocumentPatch) =>
     request<Document>(`/api/documents/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   brainstorm: (campaignId: string, message: string) =>
     request<BrainstormResponse>(`/api/campaigns/${campaignId}/brainstorm`, { method: "POST", body: JSON.stringify({ message }) }),
+  // Серверная фоновая генерация мастерской: старт / статус.
+  startBrainstorm: (campaignId: string, message: string) =>
+    request<{ started: boolean }>(`/api/campaigns/${campaignId}/brainstorm/start`, { method: "POST", body: JSON.stringify({ message }) }),
+  brainstormStatus: (campaignId: string) =>
+    request<{ running: boolean; partial: string; error: string | null }>(`/api/campaigns/${campaignId}/brainstorm/status`),
   listProposals: (campaignId: string, status?: string) =>
     request<Proposal[]>(`/api/campaigns/${campaignId}/proposals${status ? `?status=${status}` : ""}`),
   approveProposal: (id: string) =>
@@ -69,6 +86,47 @@ export const api = {
     request<Proposal>(`/api/proposals/${id}/reject`, { method: "POST" }),
   getConversation: (campaignId: string) =>
     request<ConversationMessage[]>(`/api/campaigns/${campaignId}/conversation`),
+  nextSession: (docId: string) =>
+    request<Document>(`/api/documents/${docId}/next-session`, { method: "POST" }),
+  getDocumentConversation: (docId: string) =>
+    request<ConversationMessage[]>(`/api/documents/${docId}/conversation`),
+  addDocumentMessage: (docId: string, role: "user" | "assistant", content: string) =>
+    request<ConversationMessage>(`/api/documents/${docId}/conversation/messages`, {
+      method: "POST",
+      body: JSON.stringify({ role, content }),
+    }),
+  // Серверная генерация помощника документа: старт / статус / остановка.
+  // opts.mode="game" + opts.meta — игровой чат режима игры (актор действия).
+  startAssistant: (docId: string, message: string, system?: string, opts?: { mode?: "game"; meta?: MessageMeta }) =>
+    request<{ started: boolean }>(`/api/documents/${docId}/assistant`, {
+      method: "POST",
+      body: JSON.stringify({ message, system, ...opts }),
+    }),
+  assistantStatus: (docId: string) =>
+    request<{ running: boolean; partial: string; error: string | null }>(`/api/documents/${docId}/assistant`),
+  stopAssistant: (docId: string) =>
+    fetch(`/api/documents/${docId}/assistant/stop`, { method: "POST" }).then(() => undefined),
+  stopBrainstorm: (campaignId: string) =>
+    fetch(`/api/campaigns/${campaignId}/brainstorm/stop`, { method: "POST" }).then(() => undefined),
+  // Переключение важности записи лога в игровом чате.
+  updateMessageMeta: (messageId: string, patch: { log: GameLogEntry }) =>
+    request<ConversationMessage>(`/api/messages/${messageId}/meta`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  clearDocumentConversation: (docId: string) =>
+    fetch(`/api/documents/${docId}/conversation`, { method: "DELETE" }).then((res) => {
+      if (!res.ok) throw new ApiError(res.status, res.statusText);
+    }),
+  worldSummary: (campaignId: string) =>
+    request<{ summary: string; question: string }>(`/api/campaigns/${campaignId}/world`),
+  llmUsage: (campaignId: string) =>
+    request<LlmUsageStats>(`/api/campaigns/${campaignId}/llm-usage`),
+  llmUsageGlobal: () => request<GlobalLlmUsageStats>("/api/llm-usage"),
+  importCampaignJson: (data: unknown) =>
+    request<Campaign>("/api/campaigns/import-json", { method: "POST", body: JSON.stringify(data) }),
+  checkConsistency: (campaignId: string) =>
+    request<ConsistencyResult>(`/api/campaigns/${campaignId}/consistency`),
   search: (campaignId: string, q: string) =>
     request<SearchHit[]>(`/api/campaigns/${campaignId}/search?q=${encodeURIComponent(q)}`),
   createLink: (input: NewLink) =>

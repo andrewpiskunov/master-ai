@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Запуск и настройка
+    url: https://github.com/andrewpiskunov/master-ai/blob/main/docs/getting-started.md
+    about: Инструкции установки, подключения ИИ и решения частых проблем.
+  - name: Сообщить об уязвимости приватно
+    url: https://github.com/andrewpiskunov/master-ai/blob/main/SECURITY.md
+    about: Порядок приватного сообщения и запасной контакт сопровождающего.

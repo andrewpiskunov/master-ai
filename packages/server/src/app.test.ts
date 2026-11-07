@@ -6,10 +6,34 @@ import type { LLMProvider } from "./llm/provider.js";
 
 function makeApp() {
   const { db } = createDb(":memory:");
-  return buildApp({ db });
+  // Фейковый LLM: приветствие кампании теперь генерируется ИИ — не дёргаем настоящий CLI в тестах.
+  return buildApp({ db, llm: new FakeProvider(["Приветствую! Готов помочь с кампанией."]) });
+}
+
+// Ждёт завершения фоновой генерации ассистента по документу.
+async function waitAssistant(app: ReturnType<typeof buildApp>, docId: string) {
+  for (let i = 0; i < 100; i++) {
+    const st = (await app.inject({ method: "GET", url: `/api/documents/${docId}/assistant` })).json();
+    if (!st.running) return;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  throw new Error("генерация не завершилась");
 }
 
 describe("REST API", () => {
+  it("GET /api/backup отдаёт валидный файл SQLite; без sqlite-инстанса — 503", async () => {
+    const { db, sqlite } = createDb(":memory:");
+    const app = buildApp({ db, sqlite, llm: new FakeProvider([""]) });
+    const res = await app.inject({ method: "GET", url: "/api/backup" });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-disposition"]).toMatch(/master-ai-.*\.sqlite/);
+    expect(res.rawPayload.subarray(0, 15).toString()).toBe("SQLite format 3");
+
+    const bare = makeApp(); // без sqlite
+    const denied = await bare.inject({ method: "GET", url: "/api/backup" });
+    expect(denied.statusCode).toBe(503);
+  });
+
   it("POST затем GET кампаний", async () => {
     const app = makeApp();
     const created = await app.inject({
@@ -136,7 +160,7 @@ describe("REST API", () => {
       const res = await app.inject({
         method: "POST",
         url: "/api/documents",
-        payload: { campaignId: c.id, type: "npc", title: "X", status: "alive" },
+        payload: { campaignId: c.id, type: "npc", title: "X", status: "active" },
       });
       expect(res.statusCode).toBe(201);
     });
@@ -292,14 +316,18 @@ describe("LLM endpoint", () => {
 });
 
 describe("жизненный цикл кампании", () => {
-  it("создание заводит беседу с приветствием, упоминающим название", async () => {
+  it("создание заводит беседу с приветствием от ИИ (генерируется в фоне)", async () => {
     const app = makeApp();
     const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "Авалон" } })).json();
-    const conv = await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` });
-    const msgs = conv.json();
+    // Приветствие пишется в беседу асинхронно после ответа — дожидаемся его появления.
+    let msgs: { role: string; content: string }[] = [];
+    for (let i = 0; i < 20 && msgs.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      msgs = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` })).json();
+    }
     expect(msgs.length).toBeGreaterThanOrEqual(1);
     expect(msgs[0].role).toBe("assistant");
-    expect(msgs[0].content).toContain("Авалон");
+    expect(msgs[0].content).toContain("Приветствую");
   });
 
   it("DELETE удаляет кампанию и её документы", async () => {
@@ -316,5 +344,321 @@ describe("жизненный цикл кампании", () => {
     const app = makeApp();
     const res = await app.inject({ method: "DELETE", url: "/api/campaigns/нет-такой" });
     expect(res.statusCode).toBe(404);
+  });
+
+  it("DELETE удаляет документ и его связи", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const a = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "А" } })).json();
+    const b = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Б" } })).json();
+    await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/links`, payload: { campaignId: c.id, fromDocId: a.id, toDocId: b.id, kind: "знает" } });
+
+    const del = await app.inject({ method: "DELETE", url: `/api/documents/${a.id}` });
+    expect(del.statusCode).toBe(204);
+    expect((await app.inject({ method: "GET", url: `/api/documents/${a.id}` })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/documents` })).json()).toHaveLength(1);
+    // связь, ссылавшаяся на удалённый документ, тоже исчезла
+    const bLinks = (await app.inject({ method: "GET", url: `/api/documents/${b.id}/links` })).json();
+    expect(bLinks.incoming).toHaveLength(0);
+  });
+
+  it("DELETE несуществующего документа → 404", async () => {
+    const app = makeApp();
+    const res = await app.inject({ method: "DELETE", url: "/api/documents/нет-такой" });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("PATCH меняет тип и сбрасывает несовместимый статус", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб", status: "active" } })).json();
+    // location не имеет статусов — статус "active" должен сброситься
+    const res = await app.inject({ method: "PATCH", url: `/api/documents/${d.id}`, payload: { type: "location" } });
+    expect(res.statusCode).toBe(200);
+    const updated = res.json();
+    expect(updated.type).toBe("location");
+    expect(updated.status).toBeNull();
+  });
+
+  it("PATCH на неизвестный тип → 400", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+    const res = await app.inject({ method: "PATCH", url: `/api/documents/${d.id}`, payload: { type: "дракон" } });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("беседа ассистента по документу", () => {
+  it("сохраняет реплики и отдаёт их в порядке добавления", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+
+    expect((await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json()).toHaveLength(0);
+
+    await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "user", content: "добавь фамилию" } });
+    await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "assistant", content: "Глеб Двукоготь" } });
+
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json();
+    expect(msgs.map((m: { role: string }) => m.role)).toEqual(["user", "assistant"]);
+    expect(msgs[1].content).toBe("Глеб Двукоготь");
+
+    // беседа Мастерской не загрязнена репликами по документу
+    const workshop = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` })).json();
+    expect(workshop.every((m: { content: string }) => m.content !== "добавь фамилию")).toBe(true);
+  });
+
+  it("DELETE очищает беседу; повторное обращение начинает её заново", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+    await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "user", content: "привет" } });
+
+    const del = await app.inject({ method: "DELETE", url: `/api/documents/${d.id}/conversation` });
+    expect(del.statusCode).toBe(204);
+    expect((await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json()).toHaveLength(0);
+    // и снова можно писать
+    const again = await app.inject({ method: "POST", url: `/api/documents/${d.id}/conversation/messages`, payload: { role: "user", content: "заново" } });
+    expect(again.statusCode).toBe(201);
+  });
+
+  it("по несуществующему документу → 404", async () => {
+    const app = makeApp();
+    expect((await app.inject({ method: "GET", url: "/api/documents/нет/conversation" })).statusCode).toBe(404);
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/conversation/messages", payload: { role: "user", content: "x" } })).statusCode).toBe(404);
+  });
+});
+
+describe("серверная генерация мастерской", () => {
+  it("start сохраняет вопрос, задача пишет ответ и создаёт предложения", async () => {
+    const { db } = createDb(":memory:");
+    const reply = 'Вот идея!\n```json\n{"proposals":[{"type":"npc","title":"Барон","content":"Злодей."}]}\n```';
+    const app = buildApp({ db, llm: new FakeProvider([reply]) });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+
+    const started = await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm/start`, payload: { message: "Придумай злодея" } });
+    expect(started.statusCode).toBe(202);
+    for (let i = 0; i < 50; i++) {
+      const st = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/brainstorm/status` })).json();
+      if (!st.running) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    const msgs = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/conversation` })).json();
+    // приветствие + вопрос + ответ (без JSON-блока предложений)
+    const tail = msgs.slice(-2);
+    expect(tail.map((m: { role: string }) => m.role)).toEqual(["user", "assistant"]);
+    expect(tail[1].content).toBe("Вот идея!");
+    const props = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/proposals?status=pending` })).json();
+    expect(props).toHaveLength(1);
+    expect(props[0].title).toBe("Барон");
+  });
+
+  it("несуществующая кампания → 404", async () => {
+    const app = makeApp();
+    expect((await app.inject({ method: "POST", url: "/api/campaigns/нет/brainstorm/start", payload: { message: "x" } })).statusCode).toBe(404);
+  });
+});
+
+describe("серверная генерация помощника документа", () => {
+  it("start сохраняет вопрос, задача копит ответ и записывает его в беседу", async () => {
+    const { db } = createDb(":memory:");
+    const app = buildApp({ db, llm: new FakeProvider(["", "Ответ помощника."]) }); // 1-й ответ — приветствие кампании
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const d = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "Глеб" } })).json();
+
+    const started = await app.inject({ method: "POST", url: `/api/documents/${d.id}/assistant`, payload: { message: "Кто такой Глеб?", system: "Ты — помощник." } });
+    expect(started.statusCode).toBe(202);
+
+    // дожидаемся завершения фоновой задачи
+    for (let i = 0; i < 50; i++) {
+      const st = (await app.inject({ method: "GET", url: `/api/documents/${d.id}/assistant` })).json();
+      if (!st.running) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${d.id}/conversation` })).json();
+    expect(msgs.map((m: { role: string }) => m.role)).toEqual(["user", "assistant"]);
+    expect(msgs[1].content).toBe("Ответ помощника.");
+  });
+
+  it("stop без задачи → 404, старт по несуществующему документу → 404", async () => {
+    const app = makeApp();
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/assistant", payload: { message: "x" } })).statusCode).toBe(404);
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/assistant/stop" })).statusCode).toBe(404);
+  });
+});
+
+describe("сессии: следующая сессия", () => {
+  it("создаёт следующую сессию, помечает текущую сыгранной, идемпотентна", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const sess = (await app.inject({
+      method: "POST", url: "/api/documents",
+      payload: { campaignId: c.id, type: "session", title: "Сессия 1", fields: { sessionNumber: 1, sessionLog: "Был бой." } },
+    })).json();
+
+    const res = await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` });
+    expect(res.statusCode).toBe(201);
+    const next = res.json();
+    expect(next.title).toBe("Сессия 2");
+    expect(next.type).toBe("session");
+    expect(next.fields.sessionNumber).toBe(2);
+    expect(next.fields.prevSessionId).toBe(sess.id);
+
+    // текущая помечена сыгранной и связана со следующей
+    const cur = (await app.inject({ method: "GET", url: `/api/documents/${sess.id}` })).json();
+    expect(cur.status).toBe("played");
+    expect(cur.fields.nextSessionId).toBe(next.id);
+
+    // повторный вызов возвращает ту же следующую сессию
+    const again = await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` });
+    expect(again.json().id).toBe(next.id);
+  });
+
+  it("без fields.sessionNumber номер берётся из названий сессий кампании — дубль «Сессия 1» не создаётся", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    // сессия, созданная ИИ/сидом: номер только в названии, fields.sessionNumber нет
+    const sess = (await app.inject({
+      method: "POST", url: "/api/documents",
+      payload: { campaignId: c.id, type: "session", title: "Сессия 1: Корона", fields: { sessionLog: "лог" } },
+    })).json();
+
+    const next = (await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` })).json();
+    expect(next.title).toBe("Сессия 2");
+    expect(next.fields.sessionNumber).toBe(2);
+  });
+
+  it("сессия с авторским названием без номера: следующая — «Сессия 2», а не «Сессия 1»", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const sess = (await app.inject({
+      method: "POST", url: "/api/documents",
+      payload: { campaignId: c.id, type: "session", title: "Испытание Шпигельгрунда", fields: { sessionLog: "лог" } },
+    })).json();
+
+    const next = (await app.inject({ method: "POST", url: `/api/documents/${sess.id}/next-session` })).json();
+    expect(next.title).toBe("Сессия 2");
+    expect(next.fields.sessionNumber).toBe(2);
+  });
+
+  it("стоп мастерской: без запущенной генерации → 404", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    expect((await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm/stop` })).statusCode).toBe(404);
+  });
+
+  it("учитывает токены запросов и отдаёт статистику по кампании", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    // Мастерская: синхронный ответ фейкового ИИ — расход должен записаться с фичей workshop.
+    await app.inject({ method: "POST", url: `/api/campaigns/${c.id}/brainstorm`, payload: { message: "придумай злодея" } });
+
+    const stats = (await app.inject({ method: "GET", url: `/api/campaigns/${c.id}/llm-usage` })).json();
+    expect(stats.total.requests).toBeGreaterThanOrEqual(1);
+    expect(stats.total.promptTokens).toBeGreaterThan(0);
+    expect(stats.total.completionTokens).toBeGreaterThan(0);
+    expect(stats.total.estimated).toBe(true); // фейковый провайдер отдаёт оценку
+    const features = stats.byFeature.map((f: { feature: string }) => f.feature);
+    expect(features).toContain("workshop");
+  });
+
+  it("для не-сессии → 400, для отсутствующего документа → 404", async () => {
+    const app = makeApp();
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "К" } })).json();
+    const npc = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "npc", title: "N" } })).json();
+    expect((await app.inject({ method: "POST", url: `/api/documents/${npc.id}/next-session` })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/api/documents/нет/next-session" })).statusCode).toBe(404);
+  });
+});
+
+describe("игровой режим ассистента и PATCH меты сообщения", () => {
+  it("игровой режим: мета актора у вопроса, log-блок в мете ответа, PATCH важности", async () => {
+    const { db } = createDb(":memory:");
+    const reply =
+      "## Прочитай игрокам\nЗамок щёлкает.\n## Скрытое для мастера\nЗа дверью ловушка.\n" +
+      "```log\n{\"title\": \"Алдар взломал замок\", \"important\": false}\n```";
+    const app = buildApp({ db, llm: new FakeProvider([reply]) });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const s = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "session", title: "Сессия 1" } })).json();
+
+    const started = await app.inject({
+      method: "POST",
+      url: `/api/documents/${s.id}/assistant`,
+      payload: { message: "взламывает замок", mode: "game", meta: { actorId: "p1", actorName: "Алдар", actorKind: "pc" } },
+    });
+    expect(started.statusCode).toBe(202);
+    await waitAssistant(app, s.id);
+
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${s.id}/conversation` })).json();
+    expect(msgs[0].meta.actorName).toBe("Алдар");
+    expect(msgs[1].meta.log).toEqual({ title: "Алдар взломал замок", important: false });
+
+    const patched = await app.inject({
+      method: "PATCH",
+      url: `/api/messages/${msgs[1].id}/meta`,
+      payload: { log: { title: "Алдар взломал замок", important: true } },
+    });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json().meta.log.important).toBe(true);
+
+    // Вопрос мастера — без записи лога.
+    await app.inject({
+      method: "POST",
+      url: `/api/documents/${s.id}/assistant`,
+      payload: { message: "какая сложность взлома?", mode: "game", meta: { actorKind: "master", actorName: "Мастер" } },
+    });
+    await waitAssistant(app, s.id);
+    const msgs2 = (await app.inject({ method: "GET", url: `/api/documents/${s.id}/conversation` })).json();
+    expect(msgs2).toHaveLength(4);
+    expect(msgs2[3].meta.log).toBeUndefined();
+  });
+
+  it("игровой режим: без log-блока в ответе — заголовок записи из действия", async () => {
+    const { db } = createDb(":memory:");
+    const app = buildApp({ db, llm: new FakeProvider(["## Прочитай игрокам\nВы входите в зал."]) });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const s = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "session", title: "Сессия 1" } })).json();
+    await app.inject({
+      method: "POST",
+      url: `/api/documents/${s.id}/assistant`,
+      payload: { message: "Партия входит в тронный зал", mode: "game", meta: { actorName: "Мира", actorKind: "pc" } },
+    });
+    await waitAssistant(app, s.id);
+    const msgs = (await app.inject({ method: "GET", url: `/api/documents/${s.id}/conversation` })).json();
+    expect(msgs[1].meta.log).toEqual({ title: "Партия входит в тронный зал", important: false });
+  });
+
+  it("PATCH меты несуществующего сообщения → 404", async () => {
+    const app = makeApp();
+    const res = await app.inject({ method: "PATCH", url: "/api/messages/nope/meta", payload: { log: { title: "x", important: true } } });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("игровой режим: история для LLM уходит без служебных log-блоков, содержимое сохраняется", async () => {
+    const { db } = createDb(":memory:");
+    const seen: string[] = [];
+    const reply = "## Прочитай игрокам\nСцена.\n```log\n{\"title\": \"Событие\", \"important\": false}\n```\nХвост после блока.";
+    const llm = {
+      async *complete(input: { messages: { content: string }[] }) {
+        seen.push(input.messages.map((m) => m.content).join("\n---\n"));
+        yield reply;
+      },
+    };
+    const app = buildApp({ db, llm: llm as unknown as LLMProvider });
+    const c = (await app.inject({ method: "POST", url: "/api/campaigns", payload: { name: "C" } })).json();
+    const s = (await app.inject({ method: "POST", url: "/api/documents", payload: { campaignId: c.id, type: "session", title: "Сессия 1" } })).json();
+
+    const game = { mode: "game", meta: { actorName: "Фури", actorKind: "pc" } };
+    await app.inject({ method: "POST", url: `/api/documents/${s.id}/assistant`, payload: { message: "первое действие", ...game } });
+    await waitAssistant(app, s.id);
+    await app.inject({ method: "POST", url: `/api/documents/${s.id}/assistant`, payload: { message: "второе действие", ...game } });
+    await waitAssistant(app, s.id);
+
+    // Во втором вызове история содержит первый ответ ИИ: без log-блока, но с хвостом.
+    const second = seen[seen.length - 1];
+    expect(second).toContain("Сцена.");
+    expect(second).toContain("Хвост после блока.");
+    expect(second).not.toContain("```log");
   });
 });

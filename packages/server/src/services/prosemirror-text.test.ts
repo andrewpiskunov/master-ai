@@ -17,4 +17,16 @@ describe("proseMirrorToText", () => {
     expect(proseMirrorToText(null)).toBe("");
     expect(proseMirrorToText({ type: "doc", content: [] })).toBe("");
   });
+
+  it("пункты списка разделяются переводом строки, а не склеиваются", () => {
+    const li = (text: string) => ({ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+    const doc = {
+      type: "doc",
+      content: [
+        { type: "bulletList", content: [li("первый пункт"), li("второй пункт")] },
+        { type: "orderedList", content: [li("раз"), li("два")] },
+      ],
+    };
+    expect(proseMirrorToText(doc)).toBe("первый пункт\nвторой пункт\nраз\nдва");
+  });
 });

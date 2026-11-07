@@ -5,10 +5,11 @@ import { documents } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
 
 // Превращает пользовательский запрос в безопасную FTS5 MATCH-строку:
-// каждый токен — фразой в кавычках (внутренние кавычки удваиваются), термы через AND.
+// каждый токен — фразой в кавычках (внутренние кавычки удваиваются) с «*» на конце,
+// чтобы поиск работал по началу слова («Песн» находит «Песнь»), термы через AND.
 function toMatchQuery(q: string): string {
   const tokens = q.trim().split(/\s+/).filter(Boolean);
-  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(" ");
+  return tokens.map((t) => `"${t.replace(/"/g, '""')}"*`).join(" ");
 }
 
 export class SearchService {

@@ -1,0 +1,1 @@
+ALTER TABLE `conversations` ADD `document_id` text;

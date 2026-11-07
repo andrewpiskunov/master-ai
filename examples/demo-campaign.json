@@ -1,0 +1,1082 @@
+{
+  "format": "master-ai-campaign",
+  "version": 1,
+  "campaign": {
+    "name": "Маяк на краю бурь",
+    "system": "Любая фэнтезийная НРИ",
+    "description": "Демонстрационная кампания: рыбацкий остров, зелёный огонь в тумане и маяк, который зовёт корабли к скалам. Все персонажи и события вымышлены.",
+    "realism": "balanced",
+    "llmProvider": "cli",
+    "llmSettings": {},
+    "createdAt": "2026-01-01T12:00:00.000Z"
+  },
+  "documents": [
+    {
+      "id": "demo-harbor",
+      "campaignId": "demo-lighthouse",
+      "type": "location",
+      "title": "Пепельная Гавань",
+      "status": null,
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Рыбацкий порт на острове, где туман держится даже в ясную погоду. Три ночи подряд корабли видят свет давно погасшего маяка."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Первое впечатление"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Канаты скрипят на ветру, пахнет солью и мокрой древесиной. У причала ждёт Ильва Соль; на её ладони лежит осколок зелёного стекла."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Что происходит"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Гильдия фонарщиков закрыла выход в море. Одни жители требуют зажечь маяк, другие заколачивают окна до рассвета."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Зацепки"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Спросить Ильву о пропавшей лодке. Проверить судовой журнал. Узнать, кто платит за новый колокол."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "tags": [
+          "порт",
+          "начало приключения"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-lighthouse-place",
+      "campaignId": "demo-lighthouse",
+      "type": "location",
+      "title": "Старый маяк",
+      "status": null,
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Каменная башня на краю утёса. Её огонь погас двадцать лет назад, но вчера кто-то сменил замок на входной двери."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Планировка"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Нижний этаж занят заброшенной мастерской. Выше — лестница, жильё смотрителя и фонарная камера с треснувшей линзой."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Опасность"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "На третьем пролёте прогнили ступени. В сильный ветер башня гудит так, будто под полом отвечает другой колокол."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Находка"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Под верстаком спрятан футляр: Линза из зелёного стекла в точности подходит к старой оправе."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "tags": [
+          "исследование",
+          "маяк"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-ilva",
+      "campaignId": "demo-lighthouse",
+      "type": "npc",
+      "title": "Ильва Соль",
+      "status": "active",
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Лоцман Пепельной Гавани. Знает каждую мель у острова и никогда не выходит в море без красного платка."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Как отыгрывать"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Говорит коротко, проверяет узлы даже во время разговора. Когда волнуется, считает корабли у причала."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Чего хочет"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Найти брата, ушедшего к маяку на лодке. Попросит героев проверить Старый маяк до следующего прилива."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Что знает"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "В ночь исчезновения свет был зелёным. Смотритель Керн уверяет, что башня всё ещё заперта."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "disposition": "ally",
+        "tags": [
+          "лоцман",
+          "союзник"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-kern",
+      "campaignId": "demo-lighthouse",
+      "type": "npc",
+      "title": "Смотритель Керн",
+      "status": "active",
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Бывший хранитель маяка; теперь чинит фонари для Гильдии фонарщиков. Прячет обожжённую руку в кожаной перчатке."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Первое впечатление"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Вежлив и рассеян. Не отвечает на вопросы о старом огне, зато точно помнит высоту каждого прилива."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Скрытый мотив"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Он зажёг линзу, надеясь услышать голос погибшей дочери. Свет отвечает ему чужими голосами."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Отношение к героям"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Готов помочь с инструментами, но попробует первым попасть в фонарную камеру."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "disposition": "rival",
+        "tags": [
+          "смотритель",
+          "тайна"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-runa",
+      "campaignId": "demo-lighthouse",
+      "type": "pc",
+      "title": "Руна Ветер",
+      "status": "active",
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Картограф, приехавшая на остров исправить морские карты. На старой карте вокруг маяка отмечен круг без пояснений."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Замысел"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Любопытная путешественница, которая прежде всего замечает пути и ориентиры."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Связь с островом"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Ильва Соль однажды вывела её судно из шторма. Теперь Руна хочет вернуть долг."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Личная зацепка"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "На обороте карты проступает надпись, когда рядом горит зелёный огонь."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "disposition": "friendly",
+        "tags": [
+          "картограф"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-guild",
+      "campaignId": "demo-lighthouse",
+      "type": "faction",
+      "title": "Гильдия фонарщиков",
+      "status": null,
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Мастера, которые поддерживают огни в порту и на прибрежных дорогах. Их мастерская стала временным штабом поисков."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Цель"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Вернуть безопасный проход к гавани и не дать жителям уйти с острова."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Ресурсы"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Масло, инструменты, лодка с плоским дном и доступ к старым портовым журналам."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Внутренний спор"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Молодые мастера хотят разобрать маяк. Старшие требуют сначала найти пропавших моряков."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "tags": [
+          "порт",
+          "ремесло"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-secret",
+      "campaignId": "demo-lighthouse",
+      "type": "secret",
+      "title": "Свет зовёт корабли под воду",
+      "status": "hidden",
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Зелёный луч показывает морякам огни родного дома. Следуя за ними, суда проходят мимо гавани к затопленным скалам."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Истина для мастера"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "В линзе заперт отголосок древнего сигнала. Смотритель Керн слышит в нём голос дочери, потому что сам ждёт именно его."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Улики"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Судовой журнал описывает одинаковые огни на разных курсах. На Линзе из зелёного стекла видны старые морские координаты."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Как раскрыть"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Погасить свет недостаточно: линзу нужно повернуть к затопленным скалам во время отлива."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "gmOnly": true,
+        "tags": [
+          "тайна",
+          "маяк"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-bell",
+      "campaignId": "demo-lighthouse",
+      "type": "scene",
+      "title": "Колокол без звонаря",
+      "status": "planned",
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "В полночь над портом раздаётся звон. Верёвка на колокольне обрезана; под ней лежат мокрые следы босых ног."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Начало сцены"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Ильва Соль зовёт героев к причалу. В тумане виден силуэт лодки, но волн от неё нет."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Выбор героев"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Следовать за лодкой, подняться на колокольню или искать человека, который видел звонаря."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Последствия"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Любой путь приводит к маяку, но разными уликами: зелёным стеклом, портовым журналом или рассказом Керна."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "tags": [
+          "вступление",
+          "расследование"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-session",
+      "campaignId": "demo-lighthouse",
+      "type": "session",
+      "title": "Сессия 1 · Огонь в тумане",
+      "status": "planned",
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Первая встреча героев в Пепельной Гавани. Цель вечера — узнать причину странного света и решить, кому доверить маяк."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Открытие"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Прочитай игрокам: «В гавани гаснет последний фонарь. На дальнем утёсе вспыхивает зелёная точка. Лоцман рядом с вами шепчет: этого огня не должно быть». "
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Сцены"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Знакомство с Ильвой Соль. Колокол без звонаря. Путь к Старому маяку. Разговор со Смотрителем Керном."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Подготовка мастера"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Открыть документы «Свет зовёт корабли под воду» и «Линза из зелёного стекла». Не решать заранее, будут ли герои спасать или разбирать маяк."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "sessionNumber": 1,
+        "tags": [
+          "первая сессия"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-lens",
+      "campaignId": "demo-lighthouse",
+      "type": "item",
+      "title": "Линза из зелёного стекла",
+      "status": null,
+      "contentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Тяжёлое оптическое стекло в медной оправе. На ощупь холодное даже у горящего фонаря."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Свойство"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "В её свете проступают стёртые чернила и старые метки на морских картах."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Цена использования"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Чем дольше горит огонь, тем громче владелец слышит голоса людей, которых потерял."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Связь с приключением"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Линза подходит к фонарной камере Старого маяка. Её координаты совпадают с кругом на карте Руны Ветер."
+              }
+            ]
+          }
+        ]
+      },
+      "fields": {
+        "tags": [
+          "улика",
+          "маяк"
+        ]
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "updatedAt": "2026-01-01T12:00:00.000Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "demo-workshop",
+      "campaignId": "demo-lighthouse",
+      "documentId": null,
+      "createdAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-game",
+      "campaignId": "demo-lighthouse",
+      "documentId": "demo-session",
+      "createdAt": "2026-01-01T12:00:00.000Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "demo-message-1",
+      "conversationId": "demo-workshop",
+      "role": "user",
+      "content": "Подготовим короткое приключение про маяк, который светит, хотя должен быть заброшен. Хочется расследования, моря и трудного выбора в финале.",
+      "meta": {},
+      "createdAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-message-2",
+      "conversationId": "demo-workshop",
+      "role": "assistant",
+      "content": "Начнём в Пепельной Гавани: лоцман Ильва Соль ищет брата, а старый смотритель не хочет говорить о зелёном огне.\n\nДля первой сессии уже есть завязка «Колокол без звонаря», два места для исследования и секрет о том, куда ведёт свет. Герои могут помочь Керну, убедить его погасить маяк или найти третий путь.\n\nЭто демонстрационный диалог: он включён в пример кампании, запрос к модели не выполнялся.",
+      "meta": {},
+      "createdAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-message-3",
+      "conversationId": "demo-game",
+      "role": "user",
+      "content": "Начинаем сессию. Герои вместе с Ильвой ждут у причала. Что они видят, когда звонит колокол?",
+      "meta": {
+        "actorName": "Мастер",
+        "actorKind": "master"
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z"
+    },
+    {
+      "id": "demo-message-4",
+      "conversationId": "demo-game",
+      "role": "assistant",
+      "content": "## Прочитай игрокам\n\nКолокол ударяет один раз. Над гаванью стелется туман, и в нём медленно проступает лодка — без вёсел и без человека у руля. Ильва Соль делает шаг к воде. В её руке звенит осколок зелёного стекла.\n\nНа дальнем утёсе вспыхивает Старый маяк. Зелёный луч на мгновение освещает мокрые следы, ведущие с причала в город.\n\n## Скрытое для мастера\n\n- Лодка принадлежала брату Ильвы. На дне остался его красный платок.\n- Следы ведут к мастерской Гильдии фонарщиков.\n- Свет погаснет через минуту; до этого на карте Руны видна новая отметка.\n\n```log\n{\"title\":\"У причала появилась пустая лодка, на маяке зажёгся зелёный огонь\",\"important\":true}\n```",
+      "meta": {
+        "log": {
+          "title": "У причала появилась пустая лодка",
+          "important": true
+        }
+      },
+      "createdAt": "2026-01-01T12:00:00.000Z"
+    }
+  ],
+  "proposals": [],
+  "links": [
+    {
+      "id": "demo-link-1",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-harbor",
+      "toDocId": "demo-ilva",
+      "kind": "лоцман гавани"
+    },
+    {
+      "id": "demo-link-2",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-harbor",
+      "toDocId": "demo-guild",
+      "kind": "поддерживают огни"
+    },
+    {
+      "id": "demo-link-3",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-ilva",
+      "toDocId": "demo-lighthouse-place",
+      "kind": "ищет брата"
+    },
+    {
+      "id": "demo-link-4",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-kern",
+      "toDocId": "demo-lighthouse-place",
+      "kind": "бывший смотритель"
+    },
+    {
+      "id": "demo-link-5",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-kern",
+      "toDocId": "demo-secret",
+      "kind": "скрывает причину"
+    },
+    {
+      "id": "demo-link-6",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-kern",
+      "toDocId": "demo-guild",
+      "kind": "чинит фонари"
+    },
+    {
+      "id": "demo-link-7",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-runa",
+      "toDocId": "demo-ilva",
+      "kind": "долг за спасение"
+    },
+    {
+      "id": "demo-link-8",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-runa",
+      "toDocId": "demo-lens",
+      "kind": "метки на карте"
+    },
+    {
+      "id": "demo-link-9",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-lighthouse-place",
+      "toDocId": "demo-lens",
+      "kind": "фонарная камера"
+    },
+    {
+      "id": "demo-link-10",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-secret",
+      "toDocId": "demo-lens",
+      "kind": "источник света"
+    },
+    {
+      "id": "demo-link-11",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-bell",
+      "toDocId": "demo-harbor",
+      "kind": "место действия"
+    },
+    {
+      "id": "demo-link-12",
+      "campaignId": "demo-lighthouse",
+      "fromDocId": "demo-session",
+      "toDocId": "demo-bell",
+      "kind": "вступительная сцена"
+    }
+  ],
+  "llmUsage": []
+}

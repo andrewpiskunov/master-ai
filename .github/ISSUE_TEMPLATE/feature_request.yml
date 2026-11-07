@@ -1,0 +1,28 @@
+name: Предложение
+description: Предложить улучшение для подготовки или проведения игры
+title: "[Idea]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу вы решаете?
+      description: Опишите ситуацию при подготовке кампании или во время игры и то, что мешает сейчас.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Какого результата вы ждёте?
+      description: Приведите пример действия и результата, по которому можно проверить улучшение.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Как вы обходите ограничение сейчас?
+      description: Если пробовали другие варианты, опишите их.
+  - type: textarea
+    id: context
+    attributes:
+      label: Пример или дополнительный контекст
+      description: Используйте вымышленные данные; не прикладывайте ключи и личные материалы кампании.

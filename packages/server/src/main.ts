@@ -2,11 +2,16 @@ import { mkdirSync } from "node:fs";
 import { createDb } from "./db/client.js";
 import { buildApp } from "./app.js";
 import { SearchService } from "./services/search.js";
+import { backupDaily } from "./services/backup.js";
 
 mkdirSync("./data", { recursive: true });
-const { db } = createDb("./data/master-ai.sqlite");
+const { db, sqlite } = createDb("./data/master-ai.sqlite");
+// Дневная резервная копия с ротацией — до того, как сервер начнёт писать в базу.
+backupDaily(sqlite, "./data/backups").then((f) => {
+  if (f) console.log(`бэкап БД: ${f}`);
+}).catch((err) => console.error("не удалось сделать бэкап БД:", err));
 new SearchService(db).reindexAll();
-const app = buildApp({ db });
+const app = buildApp({ db, sqlite });
 
 const port = 5174;
 app.listen({ port, host: "127.0.0.1" }).then(() => {
