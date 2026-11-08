@@ -22,6 +22,7 @@ interface Props {
   session: Document;
   initialDocumentId?: string;
   refreshKey?: number;
+  onRefreshEntities?: () => void;
   playerScreen: PlayerImageScreen;
 }
 interface GalleryState {
@@ -36,7 +37,7 @@ export function PlayImages(props: Props) {
   return <EntityImages key={`${props.campaignId}:${props.session.id}`} {...props} />;
 }
 
-function EntityImages({ campaignId, documents, session, initialDocumentId, playerScreen, refreshKey }: Props) {
+function EntityImages({ campaignId, documents, session, initialDocumentId, playerScreen, refreshKey, onRefreshEntities }: Props) {
   const deleted = useDeletedImageIds();
   const captionId = useId();
   const entities = useMemo(() => {
@@ -88,7 +89,7 @@ function EntityImages({ campaignId, documents, session, initialDocumentId, playe
     </div>}
     {playerScreen.error && <p className="play-images-error" role="alert">{playerScreen.error}</p>}
 
-    {selected && <EntityImagePicker entities={entities} selected={selected} preview={images[0]} onSelect={(id) => setChoice({ id, settled: true })} />}
+    {selected && <EntityImagePicker entities={entities} selected={selected} preview={images[0]} onOpen={onRefreshEntities} onSelect={(id) => setChoice({ id, settled: true })} />}
     <label className="play-images-caption" htmlFor={captionId}>
       <input id={captionId} type="checkbox" checked={captionVisible} onChange={(event) => {
         const visible = event.target.checked;

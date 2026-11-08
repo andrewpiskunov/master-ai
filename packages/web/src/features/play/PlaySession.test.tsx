@@ -197,6 +197,44 @@ describe("PlaySession images", () => {
 
 });
 
+describe("fresh campaign characters in an already open session", () => {
+  const pc = { ...sessionDoc, id: "steven", type: "pc", title: "Стивен", avatar: { id: "portrait", name: "Стивен — портрет.png", mimeType: "image/png" as const } };
+
+  it.each(["focus", "visibilitychange"])("loads newly created characters on %s without changing the session", async (event) => {
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([sessionDoc]);
+    renderSession();
+    await screen.findByRole("button", { name: "Следующая сессия" });
+    expect(screen.queryByRole("button", { name: "Стивен" })).toBeNull();
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([sessionDoc, pc]);
+    fireEvent(event === "focus" ? window : document, new Event(event));
+    expect(await screen.findByRole("button", { name: "Стивен" })).toBeInTheDocument();
+    expect(screen.getByText("Завязка")).toBeVisible();
+    expect(api.updateDocument).not.toHaveBeenCalled();
+  });
+
+  it("loads new characters when opening the image tab", async () => {
+    vi.mocked(api.listCampaignDocuments).mockResolvedValueOnce([sessionDoc]).mockResolvedValue([sessionDoc, pc]);
+    vi.mocked(api.documentImages).mockResolvedValue([]);
+    renderSession();
+    await userEvent.click(await screen.findByRole("button", { name: "Изображения" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Выбрать сущность: Стивен" }));
+    expect(screen.getByRole("button", { name: "Открыть галерею Стивен" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Персонаж игрока" })).toBeInTheDocument();
+  });
+
+  it("refreshes characters when reopening the picker inside the image tab", async () => {
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([sessionDoc]);
+    vi.mocked(api.documentImages).mockResolvedValue([]);
+    renderSession();
+    await userEvent.click(await screen.findByRole("button", { name: "Изображения" }));
+    const picker = await screen.findByRole("button", { name: "Выбрать сущность: Сессия 1" });
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([sessionDoc, pc]);
+    await userEvent.click(picker);
+    expect(await screen.findByRole("button", { name: "Открыть галерею Стивен" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Персонаж игрока" })).toBeInTheDocument();
+  });
+});
+
 describe("mentions inside the in-session document viewer", () => {
   const npc = { ...sessionDoc, id: "npc", type: "npc", title: "Хелена Бауэр" };
   const location = { ...sessionDoc, id: "hospital", type: "location", title: "Больница Мерси" };

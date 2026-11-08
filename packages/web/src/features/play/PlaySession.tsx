@@ -152,10 +152,11 @@ export function PlaySession() {
   useEffect(() => {
     if (!campaignId) return;
     let current = true;
+    const version = ++imageRefreshVersion.current;
     setDocs([]);
     setCampaignName("");
     api.getCampaign(campaignId).then((c) => { if (current) setCampaignName(c.name); }).catch(() => {});
-    api.listCampaignDocuments(campaignId).then((result) => { if (current) setDocs(result); }).catch(() => {});
+    api.listCampaignDocuments(campaignId).then((result) => { if (current && version === imageRefreshVersion.current) setDocs(result); }).catch(() => {});
     return () => { current = false; };
   }, [campaignId]);
 
@@ -174,11 +175,11 @@ export function PlaySession() {
     }
   }, [documentId, showToast]);
 
-  async function refreshImages() {
+  const refreshImages = useCallback(async () => {
     if (!imageScope.active || imageScopeRef.current !== imageScope) return;
-    const version = ++imageRefreshVersion.current;
     const sessionId = documentId;
-    if (!campaignId || !sessionId) return;
+    if (!campaignId || !sessionId || docRef.current?.id !== sessionId || docRef.current.campaignId !== campaignId) return;
+    const version = ++imageRefreshVersion.current;
     setImagesRevision((value) => value + 1);
     try {
       const updated = await api.listCampaignDocuments(campaignId);
@@ -196,8 +197,18 @@ export function PlaySession() {
           return next;
         });
       }
-    } catch { if (imageScope.active && imageScopeRef.current === imageScope) showToast("Не удалось обновить изображения сущностей"); }
-  }
+    } catch { if (imageScope.active && imageScopeRef.current === imageScope && version === imageRefreshVersion.current) showToast("Не удалось обновить изображения сущностей"); }
+  }, [campaignId, documentId, imageScope, showToast]);
+
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") void refreshImages(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [refreshImages]);
 
   // Игровой чат с ИИ-мастером: состояние здесь, чтобы лог-панель строилась из тех же сообщений.
   const chat = useGameChat(documentId!, (content) => {
@@ -397,6 +408,7 @@ export function PlaySession() {
   function openImages(id = viewerDoc?.id) {
     setImageTargetId(id);
     setTab("images");
+    void refreshImages();
   }
 
   function exit() {
@@ -563,7 +575,7 @@ export function PlaySession() {
               </div>
             </div>
 
-            {tab === "images" && <PlayImages campaignId={campaignId!} documents={docs} session={doc} initialDocumentId={imageTargetId} playerScreen={playerScreen} refreshKey={imagesRevision} />}
+            {tab === "images" && <PlayImages campaignId={campaignId!} documents={docs} session={doc} initialDocumentId={imageTargetId} playerScreen={playerScreen} refreshKey={imagesRevision} onRefreshEntities={refreshImages} />}
 
             <div className="play-combat-wrap" style={{ display: tab === "combat" ? undefined : "none" }}>
               <CombatTracker

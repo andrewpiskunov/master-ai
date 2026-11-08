@@ -11,15 +11,16 @@ interface Props {
   entities: Document[];
   selected: Document;
   preview?: ImageAttachment;
+  onOpen?: () => void;
   onSelect: (id: string) => void;
 }
 
-export function EntityImagePicker({ entities, selected, preview, onSelect }: Props) {
+export function EntityImagePicker({ entities, selected, preview, onOpen, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const thumbnail = selected.avatar ?? preview;
   return <div className="play-images-selector">
     <span className="play-images-selector-label">Изображения сущности</span>
-    <button type="button" className="entity-image-trigger" aria-label={`Выбрать сущность: ${selected.title}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+    <button type="button" className="entity-image-trigger" aria-label={`Выбрать сущность: ${selected.title}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => { setOpen(true); onOpen?.(); }}>
       <span className="entity-image-trigger-preview">{thumbnail ? <ThumbnailImage imageId={thumbnail.id} size={128} alt="" /> : <TypeBadge type={selected.type} size={32} />}</span>
       <span className="entity-image-trigger-copy"><span className="entity-image-type-label"><TypeBadge type={selected.type} size={18} />{getDocumentType(selected.type)?.label ?? selected.type}</span><strong title={selected.title}>{selected.title}</strong><span className="entity-image-trigger-hint">Выбрать другую сущность</span></span>
       <ChevronRight size={17} strokeWidth={1.5} />
