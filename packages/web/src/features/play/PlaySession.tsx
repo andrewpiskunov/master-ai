@@ -18,6 +18,7 @@ import { documentHref, documentIdFromHref, isPlainLinkClick } from "../../lib/do
 import { GameChat, GameLogPanel, useGameChat, type GameMsg } from "./GameChat.js";
 import { PlayImages } from "./PlayImages.js";
 import { usePlayerScreen } from "./usePlayerScreen.js";
+import { useGameEntityEdits } from "./GameEntityEdits.js";
 
 // Делает названия упоминаемых документов кликабельными прямо в тексте сессии.
 function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
@@ -128,6 +129,10 @@ export function PlaySession() {
   const [combatAiBusy, setCombatAiBusy] = useState(false);
   // Режим показа игрокам — прячет секции, помеченные «только мастер».
   const [playerView, setPlayerView] = useState(false);
+  const { requestEdit, dialog: editDialog } = useGameEntityEdits({ campaignId, sessionId: documentId, onSaved: (updated) => {
+    setDocs((current) => current.map((d) => d.id === updated.id ? updated : d));
+    if (docRef.current?.id === updated.id) { docRef.current = updated; setDoc(updated); }
+  } });
 
   useEffect(() => {
     if (!documentId) return;
@@ -230,7 +235,7 @@ export function PlaySession() {
       `## Скрытое для мастера\n- Перед сундуком растяжка: Восприятие СЛ 13, иначе дротики, 1d4 урона.\n- Скрип двери услышал охранник этажом выше — появится через 2 раунда.\n` +
       "```log\n" + `{"title": "Партия вскрыла дверь в подвал", "important": false}\n` + "```\n\n" +
       `Остальные сообщения — вопросы мастера тебе: отвечай обычным текстом и без log-блока. Но если в ответе есть текст, который мастер будет читать игрокам вслух (вступление, описание сцены, реплики NPC), — оформи его секцией «## Прочитай игрокам»; а всё, что игрокам знать рано (сюрпризы, скрытые механики, истинные планы NPC), — короткими пунктами в «## Скрытое для мастера». Порядок частей: сначала обычный текст мастеру, затем «Прочитай игрокам», затем «Скрытое для мастера». НЕ выдумывай свои заголовки вроде «Вступление (читать вслух)» — только эти две секции.\n\n` +
-      entityBlocksPrompt(docs.map((x) => ({ title: x.title, type: x.type })))
+      entityBlocksPrompt(docs.map((x) => ({ id: x.id, title: x.title, type: x.type })))
     );
   }
 
@@ -432,7 +437,7 @@ export function PlaySession() {
             chat={chat}
             pcs={pcs}
             npcs={npcs}
-            documents={docs.map((d) => ({ title: d.title, type: d.type }))}
+            documents={docs.map((d) => ({ id: d.id, title: d.title, type: d.type }))}
             buildSystem={buildGameSystem}
             playerView={playerView}
             currentText={pmText(doc.contentJson).trim()}
@@ -440,7 +445,7 @@ export function PlaySession() {
             docUpdatedAt={(doc.fields?.contentUpdatedAt as string | undefined) ?? doc.updatedAt}
             onApply={applyToSession}
             onCreateEntity={createGameEntity}
-            onEditEntity={() => { showToast("Изменяйте документы вне режима игры"); return false; }}
+            onEditEntity={requestEdit}
             onImagesChange={() => { void refreshImages(); }}
             mentions={prepared}
             onMentionClick={(id) => { setTab("docs"); openDoc(id); }}
@@ -559,6 +564,7 @@ export function PlaySession() {
           </div>
         </aside>
       </div>
+      {editDialog}
     </div>
   );
 }

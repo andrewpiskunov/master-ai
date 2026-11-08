@@ -150,7 +150,7 @@ export function GameChat({
   chat: GameChatState;
   pcs: { id: string; title: string }[];
   npcs: { id: string; title: string }[];
-  documents: { title: string; type: string }[];
+  documents: { id?: string; title: string; type: string }[];
   buildSystem: () => string;
   playerView: boolean;
   currentText: string;

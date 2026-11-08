@@ -196,3 +196,25 @@ describe("PlaySession images", () => {
   });
 
 });
+
+describe("editing existing campaign cards during play", () => {
+  it("reviews an NPC edit and refreshes the open in-session viewer after saving", async () => {
+    const npc = { ...sessionDoc, id: "npc", type: "npc", title: "Проводник", contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Старое описание проводника" }] }] }, fields: { health: 7 }, updatedAt: "2026-01-01T00:00:00Z" };
+    const updated = { ...npc, title: "Иван Проводник", contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Новое описание проводника" }] }] } };
+    vi.mocked(api.getDocument).mockImplementation(async (id) => id === "npc" ? npc : sessionDoc);
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([sessionDoc, npc]);
+    vi.mocked(api.updateDocument).mockResolvedValue(updated);
+    vi.mocked(api.getDocumentConversation).mockResolvedValue([{ id: "edit", role: "assistant", content: 'Правка: Проводник.\n```edit-doc\nid: npc\ntitle: Проводник\nrename: Иван Проводник\n---\nНовое описание проводника\n```', createdAt: "x" }]);
+    renderSession();
+    const link = await screen.findByRole("link", { name: "Проводник" }); fireEvent.click(link);
+    expect(document.querySelector(".play-viewer")).toHaveTextContent("Старое описание проводника");
+    await userEvent.click(screen.getByRole("button", { name: "Обновить «Иван Проводник»" }));
+    const modal = await screen.findByRole("dialog", { name: "Изменить карточку" });
+    expect(modal).toHaveTextContent("Старое описание проводника"); expect(api.updateDocument).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить изменения" }));
+    await waitFor(() => expect(document.querySelector(".play-viewer")).toHaveTextContent("Новое описание проводника"));
+    expect(document.querySelector(".play-viewer")).toHaveTextContent("Иван Проводник");
+    expect(api.updateDocument).toHaveBeenCalledWith("npc", expect.objectContaining({ expectedUpdatedAt: "2026-01-01T00:00:00Z" }));
+    expect(screen.queryByText("Изменяйте документы вне режима игры")).not.toBeInTheDocument();
+  });
+});

@@ -48,7 +48,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-type DocumentPatch = Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">>;
+type DocumentPatch = Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">> & { expectedUpdatedAt?: string };
 
 export const api = {
   llmConfig: () => request<LlmRuntimeConfig>("/api/llm/config"),

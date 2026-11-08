@@ -10,7 +10,7 @@ import { blockKey, parseAssistant, type EditEntity, type NewEntity } from "./ass
 
 // Превью изменений блока ```doc``` относительно текущего документа: только изменённые
 // строки (+/−) с короткими неизменными участками; длинные — сворачиваем.
-function DiffPreview({ current, proposed }: { current: string; proposed: string }) {
+export function DiffPreview({ current, proposed }: { current: string; proposed: string }) {
   const diff = lineDiff(current, proposed);
   if (!diff.some((l) => l.type !== "same")) {
     return <div className="apply-preview apply-diff-empty">Изменений нет — текст совпадает с документом.</div>;
@@ -46,7 +46,7 @@ export function AssistantAnswer({
   stale: boolean;
   currentText: string;
   appliedBlocks: string[];
-  documents: { title: string; type: string }[];
+  documents: { id?: string; title: string; type: string }[];
   onApply: (text: string) => void;
   // Возвращают true, только если сущность реально создана/обновлена —
   // отметка «создана»/«обновлено» ставится строго по этому результату.
@@ -58,6 +58,7 @@ export function AssistantAnswer({
   const [appliedLocal, setAppliedLocal] = useState<Set<string>>(() => new Set());
   const [createdLocal, setCreatedLocal] = useState<Set<string>>(() => new Set());
   const [editedLocal, setEditedLocal] = useState<Set<string>>(() => new Set());
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const { intro, doc, newDocs, edits } = parseAssistant(content);
 
   const isApplied = (block: string): boolean => {
@@ -68,9 +69,9 @@ export function AssistantAnswer({
   const entityKey = (e: NewEntity) => `${e.type}:${e.title.trim().toLowerCase()}`;
   const isCreated = (nd: NewEntity): boolean =>
     createdLocal.has(entityKey(nd)) || documents.some((d) => d.title.trim().toLowerCase() === nd.title.trim().toLowerCase());
-  const editKey = (e: EditEntity) => `${e.title.trim().toLowerCase()}→${(e.rename ?? "").trim().toLowerCase()}`;
+  const editKey = (e: EditEntity) => `${e.documentId ?? e.title.trim().toLowerCase()}→${(e.rename ?? "").trim().toLowerCase()}:${blockKey(e.text ?? "")}`;
   const isEdited = (e: EditEntity): boolean =>
-    editedLocal.has(editKey(e)) || (!!e.rename && documents.some((d) => d.title.trim().toLowerCase() === e.rename!.trim().toLowerCase()));
+    editedLocal.has(editKey(e)) || (!e.text && !!e.documentId && !!e.rename && documents.some((d) => d.id === e.documentId && d.title.trim().toLowerCase() === e.rename!.trim().toLowerCase()));
 
   return (
     <>
@@ -121,7 +122,11 @@ export function AssistantAnswer({
               <span className="apply-new-title">{e.title}{e.rename ? ` → ${e.rename}` : ""}</span>
             </div>
             {e.text && <div className="apply-preview">{e.text}</div>}
-            <button type="button" className="apply-btn" onClick={async () => { if (await onEditEntity(e)) setEditedLocal((s) => new Set(s).add(editKey(e))); }}>
+            <button type="button" className="apply-btn" disabled={editingKey === editKey(e)} onClick={async () => {
+              const key = editKey(e); setEditingKey(key);
+              try { if (await onEditEntity(e)) setEditedLocal((s) => new Set(s).add(key)); }
+              finally { setEditingKey(null); }
+            }}>
               <Check size={15} /> Обновить «{e.rename ?? e.title}»
             </button>
           </div>

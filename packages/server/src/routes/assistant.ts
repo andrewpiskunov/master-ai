@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AssistantJobService } from "../services/assistant-jobs.js";
 import { buildImageActionsContext, IMAGE_ACTIONS_PROMPT } from "../services/image-actions-context.js";
 import { parseImageActions } from "../llm/parse-proposals.js";
+import { buildWorkshopContext } from "../services/workshop-context.js";
 import type { RouteDependencies, IdParams } from "./dependencies.js";
 
 const MessageMetaSchema = z.object({
@@ -20,8 +21,8 @@ const AssistantStartSchema = z.object({
   meta: MessageMetaSchema.optional(),
 }).refine((body) => body.message.trim().length > 0 || (body.imageIds?.length ?? 0) > 0, { message: "Напишите сообщение или прикрепите изображение" });
 
-export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "documentsSvc" | "conversationsSvc" | "llmFor" | "trackUsage" | "mediaSvc" | "workshopImagesSvc">): void {
-  const { documentsSvc, conversationsSvc, llmFor, trackUsage, mediaSvc, workshopImagesSvc } = deps;
+export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "campaignsSvc" | "documentsSvc" | "conversationsSvc" | "llmFor" | "trackUsage" | "mediaSvc" | "workshopImagesSvc">): void {
+  const { campaignsSvc, documentsSvc, conversationsSvc, llmFor, trackUsage, mediaSvc, workshopImagesSvc } = deps;
   const assistantJobs = new AssistantJobService();
   app.addHook("onClose", () => assistantJobs.stopAll());
 
@@ -55,10 +56,14 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: Pick<RouteDe
     })).filter((message) => message.content.trim() || message.images?.length);
     // Контроллер остановки: stop() обрывает генерацию у провайдера (CLI/HTTP) сразу.
     const abort = new AbortController();
+    const currentDocuments = documentsSvc.listByCampaign(doc.campaignId);
+    const brief = parsed.data.mode === "game" ? campaignsSvc.get(doc.campaignId)?.description?.trim() : undefined;
     const system = [
       parsed.data.system,
+      brief ? `Бриф кампании (учитывай тон, жанр, мир и домашние правила):\n${brief}` : undefined,
+      parsed.data.mode === "game" ? buildWorkshopContext(currentDocuments, [], parsed.data.message, {}, "game") : undefined,
       IMAGE_ACTIONS_PROMPT,
-      buildImageActionsContext(documentsSvc.listByCampaign(doc.campaignId), mediaSvc, storedHistory, doc.id),
+      buildImageActionsContext(currentDocuments, mediaSvc, storedHistory, doc.id),
     ].filter(Boolean).join("\n\n");
     const stream = llmFor(doc.campaignId).complete(
       { system, messages: history },

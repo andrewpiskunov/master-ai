@@ -8,6 +8,18 @@ import { proseMirrorToText } from "./prosemirror-text.js";
 
 type DocumentRow = typeof documents.$inferSelect;
 
+export class DocumentConflictError extends Error {
+  constructor() { super("Документ изменён. Откройте сравнение заново."); }
+}
+
+// updatedAt служит версией для условного сохранения, включая несколько правок
+// за одну миллисекунду и перевод системных часов назад.
+export function nextDocumentUpdatedAt(previous: string): string {
+  const previousTime = Date.parse(previous);
+  const now = Date.now();
+  return new Date(Number.isFinite(previousTime) ? Math.max(now, previousTime + 1) : now).toISOString();
+}
+
 function toDocument(row: DocumentRow): Document {
   return {
     ...row,
@@ -90,9 +102,11 @@ export class DocumentService {
   update(
     id: string,
     patch: Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">>,
+    expectedUpdatedAt?: string,
   ): Document | undefined {
     const existing = this.get(id);
     if (!existing) return undefined;
+    if (expectedUpdatedAt !== undefined && existing.updatedAt !== expectedUpdatedAt) throw new DocumentConflictError();
     // The dedicated avatar endpoint owns this field. Older whole-fields saves
     // from tags, sessions or AI edits must not erase a newer image selection.
     let patchedFields = patch.fields;
@@ -101,7 +115,7 @@ export class DocumentService {
       delete patchedFields.avatarImageId;
       if (typeof existing.fields.avatarImageId === "string") patchedFields.avatarImageId = existing.fields.avatarImageId;
     }
-    const updates: Partial<DocumentRow> = { updatedAt: new Date().toISOString() };
+    const updates: Partial<DocumentRow> = { updatedAt: nextDocumentUpdatedAt(existing.updatedAt) };
     if (patch.type !== undefined) updates.type = patch.type;
     if (patch.title !== undefined) updates.title = patch.title;
     if (patch.status !== undefined) updates.status = patch.status;
@@ -115,7 +129,13 @@ export class DocumentService {
     } else if (patchedFields !== undefined) {
       updates.fields = JSON.stringify(patchedFields);
     }
-    this.db.update(documents).set(updates).where(eq(documents.id, id)).run();
+    const result = this.db.update(documents).set(updates).where(expectedUpdatedAt === undefined
+      ? eq(documents.id, id)
+      : and(eq(documents.id, id), eq(documents.updatedAt, expectedUpdatedAt))).run();
+    if (!result.changes) {
+      if (expectedUpdatedAt !== undefined && this.get(id)) throw new DocumentConflictError();
+      return undefined;
+    }
     const updated = this.get(id);
     if (updated) {
       this.indexFts({

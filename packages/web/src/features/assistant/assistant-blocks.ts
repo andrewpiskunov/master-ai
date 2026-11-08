@@ -1,7 +1,7 @@
 import { DOCUMENT_TYPES, getDocumentType } from "@master-ai/shared";
 
 export interface NewEntity { type: string; title: string; text: string }
-export interface EditEntity { title: string; rename?: string; text?: string }
+export interface EditEntity { title: string; documentId?: string; rename?: string; text?: string }
 
 // Стабильный ключ блока ```doc``` — чтобы персистентно помнить, что его уже применяли.
 // Сравнение по тексту документа ненадёжно: markdown→doc→text расходится с сохранённым
@@ -23,12 +23,14 @@ function parseEdits(content: string): { edits: EditEntity[]; rest: string } {
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     const block = m[1];
-    const titleM = /^\s*title:\s*(.+)$/im.exec(block);
+    const separator = /^---\s*$/m.exec(block);
+    const header = separator ? block.slice(0, separator.index) : block;
+    const titleM = /^\s*title:\s*(.+)$/im.exec(header);
     if (!titleM) continue;
-    const renameM = /^\s*rename:\s*(.+)$/im.exec(block);
-    const sep = block.indexOf("---");
-    const text = sep >= 0 ? block.slice(sep + 3).trim() : "";
-    edits.push({ title: dequote(titleM[1]), rename: renameM ? dequote(renameM[1]) : undefined, text: text || undefined });
+    const renameM = /^\s*rename:\s*(.+)$/im.exec(header);
+    const idM = /^\s*id:\s*(.+)$/im.exec(header);
+    const text = separator ? block.slice(separator.index + separator[0].length).trim() : "";
+    edits.push({ title: dequote(titleM[1]), ...(idM ? { documentId: dequote(idM[1]) } : {}), rename: renameM ? dequote(renameM[1]) : undefined, text: text || undefined });
     rest = rest.replace(m[0], "");
   }
   return { edits, rest };
@@ -88,7 +90,7 @@ const TYPE_LIST = DOCUMENT_TYPES.map((t) => `${t.key} (${t.label})`).join(", ");
 
 // Общая часть системного промпта про блоки new-doc/edit-doc — используется
 // помощником документа и игровым чатом режима игры.
-export function entityBlocksPrompt(documents: { title: string; type: string }[]): string {
+export function entityBlocksPrompt(documents: { id?: string; title: string; type: string }[]): string {
   return (
     `Когда пользователь просит СОЗДАТЬ новую сущность (например «сделай из этой заметки персонажа», ` +
     `«создай NPC», «добавь локацию») — НЕ переписывай текущий документ. Вместо этого предложи новую сущность ` +
@@ -100,9 +102,10 @@ export function entityBlocksPrompt(documents: { title: string; type: string }[])
     `Когда пользователь просит ИЗМЕНИТЬ, ПЕРЕИМЕНОВАТЬ или ОБНОВИТЬ уже существующие документы ` +
     `(например «добавь всем NPC фамилии», «переименуй X», «обнови описание Y») — НЕ создавай новые. ` +
     `Для КАЖДОГО изменяемого документа верни отдельный блок \`\`\`edit-doc и \`\`\` строго в формате:\n` +
+    (documents.some((d) => d.id) ? `id: <точный id карточки из контекста>\n` : "") +
     `title: <точное название существующего документа из списка ниже>\nrename: <новое название> (только если меняешь имя)\n---\n<полный новый текст документа> (только если меняешь содержимое; иначе оставь пустым)\n` +
     `Можно вернуть несколько блоков edit-doc подряд. Существующие документы кампании: ` +
-    `${documents.slice(0, 100).map((d) => `«${d.title}» (${getDocumentType(d.type)?.label ?? d.type})`).join(", ") || "(пока нет)"}.\n\n` +
+    `${documents.slice(0, 100).map((d) => `«${d.title}» (${getDocumentType(d.type)?.label ?? d.type})${d.id ? ` [id: ${d.id}]` : ""}`).join(", ") || "(пока нет)"}.\n\n` +
     `Если правка не нужна — отвечай обычным текстом без блоков.`
   );
 }

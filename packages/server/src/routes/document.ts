@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { DOCUMENT_TYPES, NewDocumentSchema, getDocumentType } from "@master-ai/shared";
 import { z } from "zod";
+import { DocumentConflictError } from "../services/documents.js";
 import type { RouteDependencies, IdParams } from "./dependencies.js";
 
 const DocumentPatchSchema = z.object({
@@ -9,6 +10,7 @@ const DocumentPatchSchema = z.object({
   status: z.string().nullable().optional(),
   contentJson: z.unknown().optional(),
   fields: z.record(z.unknown()).optional(),
+  expectedUpdatedAt: z.string().optional(),
 });
 
 
@@ -67,7 +69,7 @@ export function registerDocumentRoutes(app: FastifyInstance, deps: Pick<RouteDep
     const effectiveType = parsed.data.type ?? existing.type;
     const typeDef = getDocumentType(effectiveType);
 
-    const patch = { ...parsed.data };
+    const { expectedUpdatedAt, ...patch } = parsed.data;
     if (patch.status != null) {
       if (typeDef && !typeDef.statuses.includes(patch.status)) {
         return reply.code(400).send({ error: `invalid status "${patch.status}" for type "${effectiveType}"` });
@@ -77,9 +79,14 @@ export function registerDocumentRoutes(app: FastifyInstance, deps: Pick<RouteDep
       patch.status = null;
     }
 
-    const updated = documentsSvc.update(id, patch);
-    if (!updated) return reply.code(404).send({ error: "not found" });
-    return updated;
+    try {
+      const updated = documentsSvc.update(id, patch, expectedUpdatedAt);
+      if (!updated) return reply.code(404).send({ error: "not found" });
+      return updated;
+    } catch (error) {
+      if (error instanceof DocumentConflictError) return reply.code(409).send({ error: error.message });
+      throw error;
+    }
   });
 
 }

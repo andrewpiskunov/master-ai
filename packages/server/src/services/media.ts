@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { ImageIdsSchema, ImageUploadSchema, MAX_IMAGE_BYTES, type ImageAttachment, type LlmImage } from "@master-ai/shared";
 import { campaigns, conversations, documentImages, documents, images, imageThumbnails, messages } from "../db/schema.js";
 import { generatedImageName, repairImageNames } from "../db/image-names.js";
+import { nextDocumentUpdatedAt } from "./documents.js";
 
 export class MediaError extends Error {
   constructor(message: string, readonly statusCode = 400) { super(message); }
@@ -90,12 +91,12 @@ export class MediaService {
       if (!image) return false;
       const now = new Date().toISOString();
       tx.delete(documentImages).where(eq(documentImages.imageId, id)).run();
-      for (const doc of tx.select({ id: documents.id, fields: documents.fields }).from(documents)
+      for (const doc of tx.select({ id: documents.id, fields: documents.fields, updatedAt: documents.updatedAt }).from(documents)
         .where(eq(documents.campaignId, image.campaignId)).all()) {
         const fields = jsonObject(doc.fields);
         if (fields?.avatarImageId !== id) continue;
         delete fields.avatarImageId;
-        tx.update(documents).set({ fields: JSON.stringify(fields), updatedAt: now }).where(eq(documents.id, doc.id)).run();
+        tx.update(documents).set({ fields: JSON.stringify(fields), updatedAt: nextDocumentUpdatedAt(doc.updatedAt) }).where(eq(documents.id, doc.id)).run();
       }
       tx.update(campaigns).set({ coverImageId: null, updatedAt: now })
         .where(and(eq(campaigns.id, image.campaignId), eq(campaigns.coverImageId, id))).run();
@@ -200,7 +201,7 @@ export class MediaService {
   }
 
   private document(id: string) {
-    const doc = this.db.select({ id: documents.id, campaignId: documents.campaignId, title: documents.title, type: documents.type, fields: documents.fields }).from(documents).where(eq(documents.id, id)).get();
+    const doc = this.db.select({ id: documents.id, campaignId: documents.campaignId, title: documents.title, type: documents.type, fields: documents.fields, updatedAt: documents.updatedAt }).from(documents).where(eq(documents.id, id)).get();
     if (!doc) throw new MediaError("документ не найден", 404);
     return doc;
   }
@@ -220,7 +221,7 @@ export class MediaService {
     const fields = JSON.parse(doc.fields) as Record<string, unknown>;
     if (imageId === null) delete fields.avatarImageId;
     else fields.avatarImageId = imageId;
-    this.db.update(documents).set({ fields: JSON.stringify(fields), updatedAt: new Date().toISOString() })
+    this.db.update(documents).set({ fields: JSON.stringify(fields), updatedAt: nextDocumentUpdatedAt(doc.updatedAt) })
       .where(eq(documents.id, docId)).run();
   }
 
