@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useImageDeletion } from "../images/image-deletions.js";
 import { useNavigate, useParams } from "react-router-dom";
 import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff, Monitor, Image } from "lucide-react";
@@ -277,6 +277,17 @@ export function PlaySession() {
     });
   }
 
+  function followMention(event: ReactMouseEvent<HTMLElement>) {
+    if (!isPlainLinkClick(event)) return;
+    const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a.play-link");
+    if (!link?.dataset.docId) return;
+    event.preventDefault();
+    setTab("docs");
+    // Одноимённые документы: повторный клик открывает следующий по кругу.
+    const ids = link.dataset.docIds?.split(",") ?? [];
+    openDoc(ids.length > 1 ? ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length] : link.dataset.docId);
+  }
+
   // Открывает в просмотрщике документы кампании, упомянутые в реплике чата с ИИ-мастером.
   function openMentionedDocs(text: string) {
     for (const span of matchMentions(text, prepared)) {
@@ -375,6 +386,13 @@ export function PlaySession() {
   const viewerId = view.idx >= 0 ? view.stack[view.idx] : null;
   const viewerDoc = (viewerId && docs.find((d) => d.id === viewerId)) || null;
   const viewerProposed = viewerId && !viewerDoc ? proposed[viewerId] ?? null : null;
+  const viewerHtml = useMemo(() => {
+    const container = document.createElement("div");
+    container.innerHTML = contentToHtml(viewerDoc?.contentJson);
+    const mentions = prepareMentions(docs.filter((d) => d.id !== viewerId).map((d) => ({ title: d.title, type: d.type, href: documentHref(d.campaignId, d.id) })));
+    linkifyMentions(container, mentions);
+    return container.innerHTML;
+  }, [viewerDoc, viewerId, docs]);
 
   function openImages(id = viewerDoc?.id) {
     setImageTargetId(id);
@@ -470,18 +488,7 @@ export function PlaySession() {
               className="play-content play-scenario"
               style={{ display: tab === "scenario" ? undefined : "none" }}
               ref={contentRef}
-              onClick={(e) => {
-                if (!isPlainLinkClick(e)) return;
-                const a = (e.target as HTMLElement).closest("a.play-link") as HTMLElement | null;
-                if (!a?.dataset.docId) return;
-                e.preventDefault();
-                // Явный клик по упоминанию в сценарии переключает на вкладку «Документы», а тихие открытия из чата — нет.
-                setTab("docs");
-                // Одноимённые документы: повторный клик открывает следующий по кругу.
-                const ids = a.dataset.docIds ? a.dataset.docIds.split(",") : [];
-                if (ids.length > 1) openDoc(ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length]);
-                else openDoc(a.dataset.docId);
-              }}
+              onClick={followMention}
             >
               {sections.length === 0 ? (
                 <p className="muted">Сессия пуста — заполните её на странице документа.</p>
@@ -542,9 +549,9 @@ export function PlaySession() {
                   ))}
                 </div>
               )}
-              <div className="play-viewer-body">
+              <div className="play-viewer-body" onClick={followMention}>
                 {viewerDoc ? (
-                  <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(viewerDoc.contentJson) }} />
+                  <div className="md" dangerouslySetInnerHTML={{ __html: viewerHtml }} />
                 ) : viewerProposed ? (
                   <div className="play-proposed">
                     <div className="play-proposed-head"><TypeTag type={viewerProposed.type} /></div>

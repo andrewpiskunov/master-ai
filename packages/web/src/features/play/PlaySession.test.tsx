@@ -1,5 +1,5 @@
 import { userEvent } from "@testing-library/user-event";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PlaySession } from "./PlaySession.js";
@@ -195,6 +195,59 @@ describe("PlaySession images", () => {
     expect(screen.queryByText("Сессия 1")).not.toBeInTheDocument();
   });
 
+});
+
+describe("mentions inside the in-session document viewer", () => {
+  const npc = { ...sessionDoc, id: "npc", type: "npc", title: "Хелена Бауэр" };
+  const location = { ...sessionDoc, id: "hospital", type: "location", title: "Больница Мерси" };
+  const scene = { ...sessionDoc, id: "scene", type: "scene", title: "Дело у постели", contentJson: { type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "Дело у постели. Больница Мерси; Хелена Бауэр. Сессия 1." }] },
+  ] } };
+
+  async function openScene() {
+    vi.mocked(api.getDocument).mockResolvedValue({ ...sessionDoc, contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Дело у постели." }] }] } });
+    vi.mocked(api.listCampaignDocuments).mockResolvedValue([sessionDoc, scene, npc, location]);
+    renderSession();
+    await userEvent.click(await screen.findByRole("link", { name: "Дело у постели" }));
+    return within(document.querySelector<HTMLElement>(".play-viewer-body")!);
+  }
+
+  it("links characters, locations and the session, and navigates between cards with history", async () => {
+    const viewer = await openScene();
+    const person = viewer.getByRole("link", { name: "Хелена Бауэр" });
+    expect(person).toHaveClass("mention-npc");
+    expect(person).toHaveAttribute("href", "/campaigns/c1/documents/npc");
+    expect(viewer.getByRole("link", { name: "Больница Мерси" })).toHaveClass("mention-location");
+    expect(viewer.getByRole("link", { name: "Сессия 1" })).toHaveAttribute("href", "/campaigns/c1/documents/d1");
+    expect(viewer.queryByRole("link", { name: "Дело у постели" })).toBeNull();
+    await userEvent.click(person);
+    expect(document.querySelector(".play-viewer-title")).toHaveTextContent("Хелена Бауэр");
+    await userEvent.click(screen.getByRole("button", { name: "Назад" }));
+    expect(document.querySelector(".play-viewer-title")).toHaveTextContent("Дело у постели");
+    await userEvent.click(viewer.getByRole("link", { name: "Больница Мерси" }));
+    expect(document.querySelector(".play-viewer-title")).toHaveTextContent("Больница Мерси");
+    expect(screen.getByRole("button", { name: "Выйти" })).toBeInTheDocument();
+  });
+
+  it("keeps right-click and modified clicks native inside viewed cards", async () => {
+    const viewer = await openScene();
+    const person = viewer.getByRole("link", { name: "Хелена Бауэр" });
+    for (const [type, options] of [
+      ["contextmenu", { button: 2 }], ["auxclick", { button: 1 }],
+      ["click", { button: 0, metaKey: true }], ["click", { button: 0, ctrlKey: true }],
+      ["click", { button: 0, shiftKey: true }],
+    ] as const) {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...options });
+      let preventedByApp: boolean | undefined;
+      document.addEventListener(type, (nativeEvent) => {
+        preventedByApp = nativeEvent.defaultPrevented;
+        nativeEvent.preventDefault();
+      }, { once: true });
+      fireEvent(person, event);
+      expect(preventedByApp).toBe(false);
+      expect(document.querySelector(".play-viewer-title")).toHaveTextContent("Дело у постели");
+    }
+  });
 });
 
 describe("editing existing campaign cards during play", () => {
