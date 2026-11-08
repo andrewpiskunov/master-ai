@@ -1328,13 +1328,6 @@ a.mention:hover { filter: brightness(1.12); }
 .cmd-item-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmd-item-hint { flex: none; font-size: 0.75rem; color: var(--muted); }
 
-/* Карта связей */
-.linkmap-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); margin-top: 8px; }
-.linkmap { display: block; max-width: none; }
-.linkmap-node { cursor: pointer; }
-.linkmap-node circle { transition: r 0.1s; }
-.linkmap-node:hover circle { r: 9; }
-.linkmap-node:hover text { fill: var(--text-strong); font-weight: 600; }
 @media (max-width: 980px) {
   .doc-assistant .doc-chat { flex: none; height: 360px; }
 }
@@ -1397,19 +1390,6 @@ a.mention:hover { filter: brightness(1.12); }
   background: var(--surface); color: var(--muted); font-size: 0.85rem; text-decoration: none;
 }
 .brief-nudge:hover { color: var(--text); border-color: var(--accent); }
-
-/* Легенда-фильтр карты связей */
-.linkmap-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.linkmap-chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-  color: var(--text); font-size: 0.8rem;
-}
-.linkmap-chip:hover { border-color: var(--accent); }
-.linkmap-chip.off { opacity: 0.45; }
-.linkmap-chip.off .linkmap-dot { background: var(--muted) !important; }
-.linkmap-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.linkmap-chip-count { color: var(--muted); }
 
 /* Экран «Кампания не найдена» */
 .campaign-missing { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 60vh; text-align: center; }

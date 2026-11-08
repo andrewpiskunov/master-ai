@@ -105,6 +105,8 @@ export const api = {
     request<{ started: boolean }>(`/api/campaigns/${campaignId}/brainstorm/start`, { method: "POST", body: JSON.stringify({ message, ...(images?.length ? { imageIds: images.map((i) => i.id) } : {}) }) }),
   brainstormStatus: (campaignId: string) =>
     request<{ running: boolean; partial: string; error: string | null }>(`/api/campaigns/${campaignId}/brainstorm/status`),
+  startWorkshopTopic: (campaignId: string) =>
+    request<ConversationMessage>(`/api/campaigns/${campaignId}/brainstorm/new-topic`, { method: "POST" }),
   listProposals: (campaignId: string, status?: string) =>
     request<Proposal[]>(`/api/campaigns/${campaignId}/proposals${status ? `?status=${status}` : ""}`),
   approveProposal: (id: string) =>
@@ -158,6 +160,7 @@ export const api = {
     request<SearchHit[]>(`/api/campaigns/${campaignId}/search?q=${encodeURIComponent(q)}`),
   createLink: (input: NewLink) =>
     request<Link>(`/api/campaigns/${input.campaignId}/links`, { method: "POST", body: JSON.stringify(input) }),
+  listCampaignLinks: (campaignId: string) => request<Link[]>(`/api/campaigns/${campaignId}/links`),
   listDocumentLinks: (docId: string) =>
     request<DocumentLinks>(`/api/documents/${docId}/links`),
   deleteLink: (id: string) =>

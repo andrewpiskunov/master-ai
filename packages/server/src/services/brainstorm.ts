@@ -1,4 +1,4 @@
-import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type ConsistencyIssue, type ImageAttachment, type LlmMessage, type Proposal } from "@master-ai/shared";
+import { activeWorkshopHistory, DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type ConsistencyIssue, type ImageAttachment, type LlmMessage, type Proposal } from "@master-ai/shared";
 import type { LLMProvider } from "../llm/provider.js";
 import { parseProposals } from "../llm/parse-proposals.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
@@ -95,7 +95,7 @@ export class BrainstormService {
     const conv = conversations.getOrCreateForCampaign(campaignId);
     conversations.addMessage(conv.id, "user", userMessage, images?.length ? { images } : undefined);
 
-    const storedHistory = conversations.listMessages(conv.id);
+    const storedHistory = activeWorkshopHistory(conversations.listMessages(conv.id));
     const history: LlmMessage[] = storedHistory
       .map((m) => ({ role: m.role, content: m.content, ...(m.meta?.images?.length ? { images: this.deps.media!.toLlmImages(campaignId, m.meta.images) } : {}) }))
       .filter((message) => message.content.trim() || message.images?.length);
@@ -149,7 +149,7 @@ export class BrainstormService {
     const { conversations, campaigns } = this.deps;
     const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
-    const history = conversations.listMessages(conv.id);
+    const history = activeWorkshopHistory(conversations.listMessages(conv.id));
     if (history.length === 0) return { summary: "", question: "" };
 
     const campaign = campaigns.get(campaignId);

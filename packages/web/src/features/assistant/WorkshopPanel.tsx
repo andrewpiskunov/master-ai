@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Proposal } from "@master-ai/shared";
+import { activeWorkshopHistory, type Proposal } from "@master-ai/shared";
 import { Globe, RefreshCw, MessageCircle, Check, X, Plus, FileUp, Square } from "lucide-react";
 import { ImageAttachments } from "../images/ImageAttachments.js";
 import { Markdown } from "../../ui/Markdown.js";
@@ -30,7 +30,8 @@ function clip(s: string): string {
 }
 
 export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
-  const { campaignId, messages, busy, awaitingWelcome, send, stop, draft, setDraft, images } = useWorkshopChat();
+  const { campaignId, messages, busy, topicBusy, startTopic, awaitingWelcome, send, stop, draft, setDraft, images } = useWorkshopChat();
+  const activeMessages = activeWorkshopHistory(messages);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const [importing, setImporting] = useState(false);
@@ -38,7 +39,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
 
   function submitImport() {
     const text = source.trim();
-    if (!text || busy) return;
+    if (!text || busy || topicBusy) return;
     send(`Вот исходный материал кампании (модуль, заметки, выдержки). Извлеки из него ключевые сущности — NPC, локации, фракции, секреты, сцены, арки — и оформи их документами. Сохраняй имена и факты из текста.\n\n---\n${text}`, false);
     setSource("");
     setImporting(false);
@@ -78,22 +79,30 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
     const text = draft.trim();
-    if ((!text && !images.items.length) || busy || images.reading) return;
+    if ((!text && !images.items.length) || busy || topicBusy || images.reading) return;
     send(text);
   }
 
   return (
     <section className="workshop">
       <div className="workshop-bar">
-        <button type="button" className="import-btn" onClick={() => setImporting(true)}>
+        <button type="button" className="import-btn" onClick={() => setImporting(true)} disabled={topicBusy}>
           <FileUp size={14} strokeWidth={1.9} /> Импорт материала
+        </button>
+        <button type="button" className="new-topic-btn btn-ghost" onClick={startTopic} disabled={busy || topicBusy || awaitingWelcome}
+          title="Начать новую тему: история сохранится, ИИ будет учитывать бриф, документы и предложения без прежней переписки">
+          <Plus size={14} strokeWidth={1.9} /> Новая тема
         </button>
       </div>
       <div className="chat" ref={chatRef}>
         {messages.length === 0 && !busy && !awaitingWelcome && (
           <p className="chat-empty">Опишите идею кампании — ИИ ответит и предложит документы.</p>
         )}
-        {messages.map((m) => (
+        {messages.map((m) => m.meta?.workshopTopicStart ? (
+          <div key={m.id} className="workshop-topic-divider" role="separator" aria-label="Новая тема">
+            <span>Новая тема</span>
+          </div>
+        ) : (
           <div key={m.id} className={`msg msg-${m.role}`}>
             <div className="msg-role">{m.role === "user" ? "Вы" : "ИИ"}</div>
             <Markdown mentions={mentions}>{m.content}</Markdown>
@@ -101,6 +110,9 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
             <WorkshopImageResults campaignId={campaignId} results={m.meta?.imageAttachments} />
           </div>
         ))}
+        {messages.length > 0 && activeMessages.length === 0 && !busy && (
+          <p className="chat-empty workshop-topic-empty">Напишите первый вопрос новой темы. Бриф, документы и предложения доступны ИИ; прежняя переписка сохранена выше.</p>
+        )}
         {(busy || awaitingWelcome) && (
           <div className="msg msg-assistant">
             <div className="msg-role">ИИ</div>
@@ -111,7 +123,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
         )}
       </div>
 
-      <ImageAttachments draft={images} disabled={busy} />
+      <ImageAttachments draft={images} disabled={busy || topicBusy} />
       <form className="chat-form" onSubmit={submit}>
         <label htmlFor="brainstorm-input" className="sr-only">Сообщение</label>
         <MentionTextarea
@@ -123,7 +135,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
           onChange={setDraft}
           onEnter={() => submit({ preventDefault() {} })}
           mentions={(mentions ?? []).map((m) => ({ title: m.title, type: m.type }))}
-          disabled={busy}
+          disabled={busy || topicBusy}
           onPaste={images.onPaste}
         />
         {busy ? (
@@ -131,7 +143,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
             <Square size={13} strokeWidth={2.2} /> Стоп
           </button>
         ) : (
-          <button type="submit" disabled={images.reading}>Отправить</button>
+          <button type="submit" disabled={images.reading || topicBusy}>Отправить</button>
         )}
       </form>
 
@@ -152,7 +164,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
             onChange={(e) => setSource(e.target.value)}
           />
           <div className="modal-actions">
-            <button type="button" onClick={submitImport} disabled={!source.trim() || busy}>Разобрать материал</button>
+            <button type="button" onClick={submitImport} disabled={!source.trim() || busy || topicBusy}>Разобрать материал</button>
             <button type="button" className="btn-ghost" onClick={() => setImporting(false)}>Отмена</button>
           </div>
         </Modal>
@@ -164,7 +176,7 @@ export function WorkshopPanel({ mentions }: { mentions?: MentionItem[] }) {
 // «Мир пока что» — живая сводка кампании по беседе + текущий ключевой вопрос.
 export function WorldSummary() {
   const { world, worldBusy, refreshWorld, messages } = useWorkshopChat();
-  if (messages.length < 2 && !world) return null;
+  if (activeWorkshopHistory(messages).length < 2 && !world) return null;
   return (
     <section className="panel world-panel">
       <div className="world-head">

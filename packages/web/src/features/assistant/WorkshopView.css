@@ -32,6 +32,11 @@
 .workshop-materials { display: flex; flex-direction: column; gap: 18px; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
 .workshop-materials > * { flex: none; }
 .workshop-materials-toggle { display: none; }
+.workshop-bar { gap: 8px; flex-wrap: wrap; }
+.new-topic-btn { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-size: 0.78rem; }
+.workshop-topic-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 12px; color: var(--muted); font-size: 0.75rem; }
+.workshop-topic-divider::before, .workshop-topic-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.workshop-topic-empty { margin: 0; padding: 8px 12px 18px; }
 
 @media (max-width: 900px) {
   .workspace:has(.workshop-view) > .sidebar { height: auto; flex: none; }

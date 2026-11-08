@@ -51,7 +51,11 @@ export function registerCampaignRoutes(app: FastifyInstance, deps: Pick<RouteDep
     const conv = conversationsSvc.getOrCreateForCampaign(campaign.id);
     void generateWelcome(llmFor(campaign.id), campaign.name, trackUsage(campaign.id, "welcome").onUsage)
       // Пока генерировалось приветствие, кампанию могли удалить — не создаём «висячее» сообщение.
-      .then((text) => { if (campaignsSvc.get(campaign.id)) conversationsSvc.addMessage(conv.id, "assistant", text); })
+      .then((text) => {
+        if (campaignsSvc.get(campaign.id) && conversationsSvc.listMessages(conv.id).length === 0) {
+          conversationsSvc.addMessage(conv.id, "assistant", text);
+        }
+      })
       .catch(() => { /* приветствие не критично для создания кампании */ });
     return reply.code(201).send(campaign);
   });

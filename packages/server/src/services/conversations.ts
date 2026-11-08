@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type { ConversationMessage, MessageMeta } from "@master-ai/shared";
 import { conversations, messages } from "../db/schema.js";
@@ -73,7 +73,8 @@ export class ConversationService {
       .select()
       .from(messages)
       .where(eq(messages.conversationId, conversationId))
-      .orderBy(asc(messages.createdAt))
+      // Несколько реплик и граница темы могут иметь одинаковую миллисекунду.
+      .orderBy(asc(messages.createdAt), asc(sql`rowid`))
       .all();
     return rows.map((r) => ({
       id: r.id,

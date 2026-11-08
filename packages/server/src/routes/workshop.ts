@@ -11,6 +11,8 @@ const BrainstormBodySchema = z.object({ message: z.string(), imageIds: ImageIdsS
 export function registerWorkshopRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "campaignsSvc" | "documentsSvc" | "brainstormSvc" | "mediaSvc" | "workshopImagesSvc" | "conversationsSvc">): void {
   const { campaignsSvc, documentsSvc, brainstormSvc, mediaSvc, workshopImagesSvc, conversationsSvc } = deps;
   const workshopJobs = new AssistantJobService(); // фоновые генерации мастерской (ключ — id кампании)
+  const synchronousJobs = new Set<string>();
+  const generating = (id: string) => workshopJobs.status(id).running || synchronousJobs.has(id);
   app.addHook("onClose", () => workshopJobs.stopAll());
 
   app.post("/api/campaigns/:id/brainstorm", async (req, reply) => {
@@ -18,8 +20,11 @@ export function registerWorkshopRoutes(app: FastifyInstance, deps: Pick<RouteDep
     const parsed = BrainstormBodySchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     if (!campaignsSvc.get(id)) return reply.code(404).send({ error: "кампания не найдена" });
+    if (generating(id)) return reply.code(409).send({ error: "Генерация мастерской уже идёт" });
     const images = mediaSvc.getForCampaign(id, parsed.data.imageIds ?? []);
-    return brainstormSvc.respond(id, parsed.data.message, images);
+    synchronousJobs.add(id);
+    try { return await brainstormSvc.respond(id, parsed.data.message, images); }
+    finally { synchronousJobs.delete(id); }
   });
 
   // Генерация мастерской фоновой задачей на сервере (как у помощника документа):
@@ -29,7 +34,7 @@ export function registerWorkshopRoutes(app: FastifyInstance, deps: Pick<RouteDep
     const parsed = BrainstormBodySchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     if (!campaignsSvc.get(id)) return reply.code(404).send({ error: "кампания не найдена" });
-    if (workshopJobs.status(id).running) return reply.code(409).send({ error: "Генерация мастерской уже идёт" });
+    if (generating(id)) return reply.code(409).send({ error: "Генерация мастерской уже идёт" });
     const images = mediaSvc.getForCampaign(id, parsed.data.imageIds ?? []);
     const abort = new AbortController();
     const { conversationId, stream } = brainstormSvc.prepareRespond(id, parsed.data.message, abort.signal, images);
@@ -41,6 +46,14 @@ export function registerWorkshopRoutes(app: FastifyInstance, deps: Pick<RouteDep
   });
 
   app.get("/api/campaigns/:id/brainstorm/status", (req) => workshopJobs.status((req.params as { id: string }).id));
+
+  app.post("/api/campaigns/:id/brainstorm/new-topic", (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!campaignsSvc.get(id)) return reply.code(404).send({ error: "Кампания не найдена" });
+    if (generating(id)) return reply.code(409).send({ error: "Дождитесь завершения генерации мастерской" });
+    const conv = conversationsSvc.getOrCreateForCampaign(id);
+    return reply.code(201).send(conversationsSvc.addMessage(conv.id, "assistant", "", { workshopTopicStart: true }));
+  });
 
   app.post("/api/campaigns/:id/image-attachments", async (req, reply) => {
     const { id } = req.params as { id: string };

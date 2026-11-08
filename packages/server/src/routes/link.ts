@@ -4,6 +4,7 @@ import type { RouteDependencies, IdParams } from "./dependencies.js";
 
 export function registerLinkRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "searchSvc" | "linksSvc">): void {
   const { searchSvc, linksSvc } = deps;
+  app.get<IdParams>("/api/campaigns/:id/links", (req) => linksSvc.listByCampaign(req.params.id));
   app.get("/api/campaigns/:id/search", (req) => {
     const { id } = req.params as { id: string };
     const { q } = req.query as { q?: string };

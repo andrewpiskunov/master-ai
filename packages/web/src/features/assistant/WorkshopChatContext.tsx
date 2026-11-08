@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import type { ConversationMessage, Proposal } from "@master-ai/shared";
+import { activeWorkshopHistory, type ConversationMessage, type Proposal } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { useImageDraft, imageError, type ImageDraft } from "../images/useImageDraft.js";
 import { useToast } from "../../ui/toast.js";
@@ -11,6 +11,8 @@ interface WorkshopChat {
   messages: ConversationMessage[];
   proposals: Proposal[];
   busy: boolean;
+  topicBusy: boolean;
+  startTopic: () => void;
   // Ждём фоновое приветствие только что созданной кампании — показываем «печатает…»,
   // но НЕ блокируем ввод (это не запрос пользователя).
   awaitingWelcome: boolean;
@@ -48,6 +50,7 @@ function WorkshopChatProviderContent({
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [busy, setBusy] = useState(false);
+  const [topicBusy, setTopicBusy] = useState(false);
   const [awaitingWelcome, setAwaitingWelcome] = useState(false);
   // Черновик сообщения живёт здесь, чтобы не теряться при переключении вкладок.
   const [draft, setDraft] = useState("");
@@ -64,6 +67,8 @@ function WorkshopChatProviderContent({
   useEffect(() => { scope.alive = true; return () => { scope.alive = false; }; }, [scope]);
   const [world, setWorld] = useState<WorldState | null>(null);
   const [worldBusy, setWorldBusy] = useState(false);
+  const worldTokenRef = useRef(0);
+  const activeMessageCount = activeWorkshopHistory(messages).length;
   // Как только в беседе появилось хоть одно сообщение (приветствие или реплика
   // пользователя) — прекращаем опрос, чтобы он не затирал сообщения.
   const hasMessagesRef = useRef(false);
@@ -161,7 +166,7 @@ function WorkshopChatProviderContent({
   const send = (text: string, includeDraftImages = true) => {
     const trimmed = text.trim();
     const withImages = includeDraftImages && images.items.length > 0;
-    if ((!trimmed && !withImages) || busy || sendingRef.current || (withImages && images.reading)) return;
+    if ((!trimmed && !withImages) || busy || topicBusy || sendingRef.current || (withImages && images.reading)) return;
     sendingRef.current = true;
     const sendToken = ++sendTokenRef.current;
     hasMessagesRef.current = true;
@@ -192,6 +197,35 @@ function WorkshopChatProviderContent({
     })();
   };
 
+  const startTopic = () => {
+    if (busy || topicBusy || awaitingWelcome || sendingRef.current) return;
+    sendingRef.current = true;
+    setTopicBusy(true);
+    void api.startWorkshopTopic(campaignId)
+      .then(async (marker) => {
+        if (!scope.alive || campaignScope.current !== scope) return;
+        const topicToken = ++pollTokenRef.current;
+        hasMessagesRef.current = true;
+        setAwaitingWelcome(false);
+        setMessages((prev) => [...prev, marker]);
+        // Уже запущенная сводка прежней темы не должна вернуться в новый чат.
+        worldTokenRef.current++;
+        setWorld(null);
+        setWorldBusy(false);
+        // Reconcile any final stopped reply without letting the previous poll
+        // overwrite the boundary. A failed refresh still leaves the marker visible.
+        const stored = await api.getConversation(campaignId).catch(() => null);
+        if (scope.alive && campaignScope.current === scope && pollTokenRef.current === topicToken && stored?.some((m) => m.id === marker.id)) setMessages(stored);
+      })
+      .catch((error) => { if (scope.alive) showToast(imageError(error)); })
+      .finally(() => {
+        if (scope.alive && campaignScope.current === scope) {
+          sendingRef.current = false;
+          setTopicBusy(false);
+        }
+      });
+  };
+
   const stop = async () => {
     const token = ++sendTokenRef.current;
     try { await api.stopBrainstorm(campaignId); }
@@ -216,19 +250,20 @@ function WorkshopChatProviderContent({
   }, [showToast]);
 
   const refreshWorld = useCallback(() => {
+    const token = ++worldTokenRef.current;
     setWorldBusy(true);
     api.worldSummary(campaignId)
-      .then(setWorld)
-      .catch(() => showToast("Не удалось обновить сводку мира"))
-      .finally(() => setWorldBusy(false));
-  }, [campaignId, showToast]);
+      .then((value) => { if (scope.alive && token === worldTokenRef.current) setWorld(value); })
+      .catch(() => { if (scope.alive && token === worldTokenRef.current) showToast("Не удалось обновить сводку мира"); })
+      .finally(() => { if (scope.alive && token === worldTokenRef.current) setWorldBusy(false); });
+  }, [campaignId, showToast, scope]);
 
   // Один раз подтягиваем сводку, когда в беседе уже есть обмен репликами.
   useEffect(() => {
-    if (!world && !worldBusy && messages.length >= 2) refreshWorld();
-  }, [messages.length, world, worldBusy, refreshWorld]);
+    if (!world && !worldBusy && activeMessageCount >= 2) refreshWorld();
+  }, [activeMessageCount, world, worldBusy, refreshWorld]);
 
-  return <Ctx.Provider value={{ campaignId, messages, proposals, busy, awaitingWelcome, draft, setDraft, images, send, stop, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ campaignId, messages, proposals, busy, topicBusy, startTopic, awaitingWelcome, draft, setDraft, images, send, stop, approve, reject, world, worldBusy, refreshWorld }}>{children}</Ctx.Provider>;
 }
 
 export function useWorkshopChat(): WorkshopChat {
