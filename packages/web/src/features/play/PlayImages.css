@@ -4,6 +4,12 @@
 .play-player-screen.has-image { color: var(--accent-hover); border-color: var(--accent); }
 .play-player-error { flex: none; margin: 0; padding: 8px 20px; border-bottom: 1px solid #92412650; background: #44231844; color: #f2b39a; font-size: .77rem; }
 .play-mode .play-viewer-images { margin-left: auto; flex: none; }
+.play-viewer-nav > button { flex: none; }
+.play-viewer-identity { display: flex; flex: 1; align-items: center; gap: 9px; min-width: 0; }
+.play-viewer-nav .play-viewer-avatar { display: flex; flex: none; align-items: center; justify-content: center; width: 40px; height: 48px; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.play-viewer-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+.play-viewer-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.play-mode .play-viewer-nav .play-pin-btn { margin-left: 0; }
 .play-images { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 14px 22px; }
 .play-images-intro { margin-bottom: 18px; }
 .play-images-intro > div { display: flex; align-items: center; gap: 7px; color: #a9bad2; }

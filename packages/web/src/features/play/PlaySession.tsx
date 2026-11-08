@@ -17,6 +17,7 @@ import { prepareMentions, matchMentions, type MentionItem } from "../../lib/ment
 import { documentHref, documentIdFromHref, isPlainLinkClick } from "../../lib/document-links.js";
 import { GameChat, GameLogPanel, useGameChat, type GameMsg } from "./GameChat.js";
 import { PlayImages } from "./PlayImages.js";
+import { ImagePreview } from "../images/ImageViewer.js";
 import { usePlayerScreen } from "./usePlayerScreen.js";
 import { useGameEntityEdits } from "./GameEntityEdits.js";
 
@@ -509,7 +510,12 @@ export function PlaySession() {
               <div className="play-viewer-nav">
                 <button type="button" title="Назад" aria-label="Назад" disabled={view.idx <= 0} onClick={() => setView((v) => ({ ...v, idx: v.idx - 1 }))}><ArrowLeft size={15} /></button>
                 <button type="button" title="Вперёд" aria-label="Вперёд" disabled={view.idx >= view.stack.length - 1} onClick={() => setView((v) => ({ ...v, idx: v.idx + 1 }))}><ArrowRight size={15} /></button>
-                {viewerDoc && <span className="play-viewer-title">{viewerDoc.title}</span>}
+                {viewerDoc && <div className="play-viewer-identity">
+                  {viewerDoc.avatar
+                    ? <ImagePreview key={`${viewerDoc.id}:${viewerDoc.avatar.id}`} images={[viewerDoc.avatar]} thumbnailSize={128} className="play-viewer-avatar" label={`Открыть аватар ${viewerDoc.title}`} />
+                    : <span className="play-viewer-avatar play-viewer-avatar-placeholder"><TypeBadge type={viewerDoc.type} size={24} /></span>}
+                  <span className="play-viewer-title" title={viewerDoc.title}>{viewerDoc.title}</span>
+                </div>}
                 {viewerProposed && <span className="play-viewer-title">{viewerProposed.title} <span className="play-proposed-tag">предлагается создать</span></span>}
                 {viewerDoc && <button type="button" className="play-viewer-images" aria-label={`Изображения: ${viewerDoc.title}`} title="Открыть изображения сущности" onClick={() => openImages(viewerDoc.id)}><Image size={14} /></button>}
                 {viewerDoc && (
