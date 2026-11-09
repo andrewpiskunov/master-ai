@@ -15,7 +15,7 @@
     "@master-ai/shared": "workspace:*",
     "@tiptap/core": "^2.6.0",
     "@tiptap/extension-link": "^2.27.2",
-    "@tiptap/extension-text-align": "^2.27.2",
+    "@tiptap/extension-text-align": "^3.32.2",
     "@tiptap/extension-underline": "^2.27.2",
     "@tiptap/pm": "^2.6.0",
     "@tiptap/react": "^2.6.0",
