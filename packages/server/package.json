@@ -13,7 +13,7 @@
     "@master-ai/shared": "workspace:*",
     "better-sqlite3": "^11.0.0",
     "drizzle-orm": "^0.33.0",
-    "fastify": "^5.0.0",
+    "fastify": "^5.12.8",
     "@fastify/cors": "^10.0.0",
     "sharp": "^0.35.5",
     "zod": "^3.23.0"
