@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Crown, Lock, Plus, Send, Shield, Square, Star, User } from "lucide-react";
-import { dedupeGameTail, extractLogBlock, parseGameSections, stripChoicePrompts, type MessageMeta } from "@master-ai/shared";
+import { dedupeGameTail, extractLogBlock, parseGameSections, stripChoicePrompts, type MessageMeta, type ImageAttachment } from "@master-ai/shared";
+import { ImageAttachments } from "../images/ImageAttachments.js";
+import { AssistantMessageMedia } from "../assistant/AssistantMessageMedia.js";
+import { useImageDraft, imageError } from "../images/useImageDraft.js";
 import { api } from "../../api/client.js";
 import { Markdown } from "../../ui/Markdown.js";
 import { MentionTextarea } from "../../ui/MentionTextarea.js";
 import { useToast } from "../../ui/toast.js";
 import { AssistantAnswer } from "../assistant/AssistantAnswer.js";
-import type { EditEntity, NewEntity } from "../assistant/assistant-blocks.js";
+import { stripAssistantImageActions, type EditEntity, type NewEntity } from "../assistant/assistant-blocks.js";
 import type { MentionItem } from "../../lib/mentions.js";
+import { documentIdFromHref, isPlainLinkClick } from "../../lib/document-links.js";
 
 export interface Actor { kind: "pc" | "npc" | "master"; id: string | null; name: string }
 export interface GameMsg { id?: string; role: "user" | "assistant"; content: string; createdAt?: string; meta?: MessageMeta }
@@ -16,12 +20,21 @@ const MASTER: Actor = { kind: "master", id: null, name: "Мастер" };
 
 // Состояние игрового чата: живёт в PlaySession, чтобы лог-панель в правой
 // колонке строилась из тех же сообщений (один источник правды).
-export function useGameChat(docId: string, onAssistantMessage?: (content: string) => void) {
+export function useGameChat(docId: string, onAssistantMessage?: (content: string) => void, onImagesChange?: () => void) {
   const { showToast } = useToast();
   const [messages, setMessages] = useState<GameMsg[]>([]);
   const [busy, setBusy] = useState(false);
   // Токен активного опроса: новый запуск или смена документа гасят старый цикл.
   const pollTokenRef = useRef(0);
+  const sendingRef = useRef(false);
+  const scopeRef = useRef({ id: docId, alive: true });
+  if (scopeRef.current.id !== docId) {
+    scopeRef.current.alive = false;
+    scopeRef.current = { id: docId, alive: true };
+    sendingRef.current = false;
+  }
+  const scope = scopeRef.current;
+  useEffect(() => { scope.alive = true; return () => { scope.alive = false; }; }, [scope]);
 
   async function pollJob(notify: boolean): Promise<void> {
     const token = ++pollTokenRef.current;
@@ -39,13 +52,16 @@ export function useGameChat(docId: string, onAssistantMessage?: (content: string
         return [...prev.slice(0, -1), { ...last, content: st.partial }];
       });
       if (!st.running) {
-        if (st.error) showToast("Не удалось получить ответ ИИ");
+        if (st.error) showToast(st.error);
         const msgs = await api.getDocumentConversation(docId).catch(() => null);
         if (token !== pollTokenRef.current) return;
         if (msgs) {
           setMessages(msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, meta: m.meta })));
           const last = msgs[msgs.length - 1];
-          if (notify && last?.role === "assistant") onAssistantMessage?.(last.content);
+          if (notify && last?.role === "assistant") {
+            if (last.meta?.imageAttachments?.some((result) => result.image)) onImagesChange?.();
+            onAssistantMessage?.(last.content);
+          }
         } else {
           // Сервер недоступен: убираем пустую заглушку ответа, чтобы не висел вечный «печатает».
           setMessages((prev) => (prev[prev.length - 1]?.role === "assistant" && !prev[prev.length - 1].content ? prev.slice(0, -1) : prev));
@@ -61,6 +77,7 @@ export function useGameChat(docId: string, onAssistantMessage?: (content: string
   // История беседы сессии хранится на сервере; идущую генерацию подхватываем.
   useEffect(() => {
     let cancelled = false;
+    setMessages([]); setBusy(false);
     api.getDocumentConversation(docId)
       .then(async (msgs) => {
         if (cancelled) return;
@@ -77,21 +94,29 @@ export function useGameChat(docId: string, onAssistantMessage?: (content: string
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docId]);
 
-  async function send(text: string, actor: Actor, system: string) {
+  async function send(text: string, actor: Actor, system: string, images?: ImageAttachment[]) {
     const t = text.trim();
-    if (!t || busy) return;
+    if ((!t && !images?.length) || busy || sendingRef.current) return false;
+    sendingRef.current = true;
     const meta: MessageMeta = actor.kind === "master"
       ? { actorKind: "master", actorName: "Мастер" }
       : { actorKind: actor.kind, actorName: actor.name, actorId: actor.id ?? undefined };
+    if (images?.length) meta.images = images;
     setMessages((prev) => [...prev, { role: "user", content: t, meta }, { role: "assistant", content: "" }]);
     setBusy(true);
     try {
-      await api.startAssistant(docId, t, system, { mode: "game", meta });
-      await pollJob(true);
-    } catch {
-      showToast("Не удалось запустить генерацию");
-      setMessages((prev) => prev.slice(0, -2)); // откат оптимистичной пары
+      await api.startAssistant(docId, t, system, { mode: "game", meta, ...(images?.length ? { images } : {}) });
+      if (!scope.alive || scopeRef.current !== scope) return false;
+      void pollJob(true);
+      return true;
+    } catch (error) {
+      if (!scope.alive || scopeRef.current !== scope) return false;
+      showToast(imageError(error));
+      setMessages((prev) => prev.slice(0, -2));
       setBusy(false);
+      return false;
+    } finally {
+      if (scopeRef.current === scope) sendingRef.current = false;
     }
   }
 
@@ -116,15 +141,16 @@ export type GameChatState = ReturnType<typeof useGameChat>;
 
 // Центральная колонка режима игры: лента чата с ИИ-мастером, чипы акторов, поле ввода.
 export function GameChat({
-  docId, chat, pcs, npcs, documents, buildSystem, playerView,
+  docId, campaignId, chat, pcs, npcs, documents, buildSystem, playerView,
   currentText, appliedBlocks, docUpdatedAt, onApply, onCreateEntity, onEditEntity,
-  mentions, onMentionClick,
+  mentions, onMentionClick, onImagesChange,
 }: {
   docId: string;
+  campaignId?: string;
   chat: GameChatState;
   pcs: { id: string; title: string }[];
   npcs: { id: string; title: string }[];
-  documents: { title: string; type: string }[];
+  documents: { id?: string; title: string; type: string }[];
   buildSystem: () => string;
   playerView: boolean;
   currentText: string;
@@ -133,12 +159,18 @@ export function GameChat({
   onApply: (text: string) => void;
   onCreateEntity: (entity: NewEntity) => boolean | Promise<boolean>;
   onEditEntity: (edit: EditEntity) => boolean | Promise<boolean>;
-  // Сущности кампании для подсветки в ленте (пилюли, как в Мастерской); href = id документа.
+  // Сущности кампании для подсветки в ленте; href — полный путь к карточке.
   mentions?: MentionItem[];
   // Клик по пилюле — открыть документ (например, во вкладке «Документы»).
   onMentionClick?: (docId: string) => void;
+  onImagesChange?: () => void;
 }) {
   const [input, setInput] = useState("");
+  const images = useImageDraft(docId);
+  const { showToast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const uploadRef = useRef(false);
+  useEffect(() => { setInput(""); setUploading(false); uploadRef.current = false; }, [docId]);
   const [actor, setActor] = useState<Actor>(MASTER);
   // NPC, добавленные чипами на время сессии (в память — «временные» по спеке).
   const [extraNpcs, setExtraNpcs] = useState<{ id: string; title: string }[]>([]);
@@ -155,11 +187,21 @@ export function GameChat({
     if (el) el.scrollTop = el.scrollHeight;
   }, [chat.messages, chat.busy]);
 
-  function submit() {
+  async function submit() {
     const text = input.trim();
-    if (!text || chat.busy) return;
-    setInput("");
-    void chat.send(text, actor, buildSystem());
+    if ((!text && !images.items.length) || chat.busy || uploadRef.current || images.reading) return;
+    uploadRef.current = true;
+    setUploading(true);
+    try {
+      const attached = images.items.length ? await images.upload(campaignId ?? (await api.getDocument(docId)).campaignId) : [];
+      if (!images.isCurrent()) return;
+      const started = await chat.send(text, actor, buildSystem(), attached.length ? attached : undefined);
+      if (started && images.isCurrent()) { setInput(""); images.clear(); }
+    } catch (error) {
+      if (images.isCurrent()) showToast(imageError(error));
+    } finally {
+      if (images.isCurrent()) { setUploading(false); uploadRef.current = false; }
+    }
   }
 
   // Сообщение «устарело», если документ сессии сохранялся после него (как в помощнике).
@@ -185,13 +227,15 @@ export function GameChat({
       <div
         className="chat game-feed"
         ref={feedRef}
-        onClick={(e) => {
-          // Пилюля — <a href="<id документа>">: не даём браузеру перейти по «ссылке», открываем в просмотрщике.
+        onClickCapture={(e) => {
+          if (!isPlainLinkClick(e) || !onMentionClick) return;
           const a = (e.target as HTMLElement).closest("a.mention") as HTMLAnchorElement | null;
           if (!a) return;
+          const id = documentIdFromHref(a.getAttribute("href"));
+          if (!id) return;
+          // Перехватываем до React Router; остальные жесты остаются нативными.
           e.preventDefault();
-          const id = a.getAttribute("href");
-          if (id && onMentionClick) onMentionClick(id);
+          onMentionClick(id);
         }}
       >
         {chat.messages.length === 0 && !chat.busy && (
@@ -201,15 +245,17 @@ export function GameChat({
           <div key={m.id ?? `i${i}`} className="msg gmsg-user" data-msg-id={m.id}>
             <div className="msg-role">{m.meta?.actorName ?? "Мастер"}</div>
             <Markdown mentions={feedMentions}>{m.content}</Markdown>
+            <AssistantMessageMedia campaignId={playerView ? undefined : campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
           </div>
         ) : (
           <div key={m.id ?? `i${i}`} className="msg gmsg-ai" data-msg-id={m.id}>
             <div className="msg-role">ИИ-мастер</div>
+            <AssistantMessageMedia campaignId={playerView ? undefined : campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
             {m.content ? (() => {
               // По контракту log-блок завершает ответ; если модель дописала сцену после него,
               // показываем хвост обычным текстом — он не «скрытое» и не должен краситься жёлтым.
               // Абзацы хвоста, дословно повторяющие уже показанный текст, отбрасываем.
-              const parts = extractLogBlock(m.content);
+              const parts = extractLogBlock(stripAssistantImageActions(m.content));
               const rest = parts.rest;
               const after = dedupeGameTail(stripChoicePrompts(parts.after), parts.rest);
               return (
@@ -253,9 +299,9 @@ export function GameChat({
               {after && <Markdown mentions={feedMentions}>{after}</Markdown>}
               </>
               );
-            })() : (
+            })() : chat.busy && i === chat.messages.length - 1 ? (
               <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
-            )}
+            ) : null}
           </div>
         ))}
       </div>
@@ -294,6 +340,7 @@ export function GameChat({
           onClick={() => setActor(MASTER)}><Crown size={13} /> Мастер</button>
       </div>
 
+      <ImageAttachments draft={images} disabled={chat.busy || uploading} />
       <form className="chat-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <label htmlFor="game-chat-input" className="sr-only">Сообщение ИИ-мастеру</label>
         <MentionTextarea
@@ -305,15 +352,16 @@ export function GameChat({
           onChange={setInput}
           onEnter={submit}
           mentions={documents}
-          disabled={chat.busy}
+          disabled={chat.busy || uploading}
+          onPaste={images.onPaste}
         />
         {chat.busy ? (
           <button type="button" className="chat-send chat-stop" onClick={chat.stop} title="Остановить генерацию — набранный текст останется">
             <Square size={13} strokeWidth={2.2} /> <span>Стоп</span>
           </button>
         ) : (
-          <button type="submit" className="chat-send" title="Отправить">
-            <Send size={15} strokeWidth={1.9} /> <span>Отправить</span>
+          <button type="submit" className="chat-send" title="Отправить" disabled={images.reading || uploading}>
+            <Send size={15} strokeWidth={1.9} /> <span>{uploading ? "Загрузка…" : "Отправить"}</span>
           </button>
         )}
       </form>

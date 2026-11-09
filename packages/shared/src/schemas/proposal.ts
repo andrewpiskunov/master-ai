@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MessageMeta } from "../lib/game.js";
+import type { WorkshopImageAttachmentResult } from "./images.js";
 
 export const ProposalStatusSchema = z.enum(["pending", "approved", "rejected"]);
 export type ProposalStatus = z.infer<typeof ProposalStatusSchema>;
@@ -43,4 +44,5 @@ export interface BrainstormResponse {
   conversationId: string;
   reply: string;
   proposals: Proposal[];
+  imageAttachments?: WorkshopImageAttachmentResult[];
 }

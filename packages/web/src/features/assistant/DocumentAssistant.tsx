@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import type { MessageMeta } from "@master-ai/shared";
+import { ImageAttachments } from "../images/ImageAttachments.js";
+import { AssistantMessageMedia } from "./AssistantMessageMedia.js";
+import { useImageDraft, imageError } from "../images/useImageDraft.js";
 import { Send, Sparkles, Square, Trash2 } from "lucide-react";
 import { api } from "../../api/client.js";
 import { Markdown } from "../../ui/Markdown.js";
@@ -7,10 +11,11 @@ import { useToast } from "../../ui/toast.js";
 import { entityBlocksPrompt, parseAssistant, type EditEntity, type NewEntity } from "./assistant-blocks.js";
 import { AssistantAnswer } from "./AssistantAnswer.js";
 
-interface Msg { role: "user" | "assistant"; content: string; createdAt?: string }
+interface Msg { role: "user" | "assistant"; content: string; createdAt?: string; meta?: MessageMeta }
 
 export function DocumentAssistant({
   docId,
+  campaignId,
   title,
   typeLabel,
   template,
@@ -25,8 +30,10 @@ export function DocumentAssistant({
   onMessage,
   onProposeDoc,
   clearConfirmText,
+  onImagesChange,
 }: {
   docId: string;
+  campaignId?: string;
   title: string;
   typeLabel: string;
   template?: string;
@@ -50,10 +57,22 @@ export function DocumentAssistant({
   // Текст второго шага подтверждения очистки беседы. У документов типа «session»
   // передаётся особый текст: беседа общая с режимом игры, в мета-полях — лог событий.
   clearConfirmText?: string;
+  onImagesChange?: () => void;
 }) {
   const { showToast } = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const images = useImageDraft(docId);
+  const sendingRef = useRef(false);
+  const sendTokenRef = useRef(0);
+  const docScopeRef = useRef({ id: docId, alive: true });
+  if (docScopeRef.current.id !== docId) {
+    docScopeRef.current.alive = false;
+    docScopeRef.current = { id: docId, alive: true };
+    sendingRef.current = false;
+  }
+  const scope = docScopeRef.current;
+  useEffect(() => { scope.alive = true; return () => { scope.alive = false; }; }, [scope]);
   const [busy, setBusy] = useState(false);
   // Двухшаговая очистка беседы: первый клик — подтверждение, второй — удаление.
   const [confirmClear, setConfirmClear] = useState(false);
@@ -81,13 +100,14 @@ export function DocumentAssistant({
         return [...prev.slice(0, -1), { ...last, content: st.partial }];
       });
       if (!st.running) {
-        if (st.error) showToast("Не удалось получить ответ ИИ");
+        if (st.error) showToast(st.error);
         const msgs = await api.getDocumentConversation(docId).catch(() => null);
         if (token !== pollTokenRef.current) return;
         if (msgs) {
-          setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt })));
+          setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt, meta: m.meta })));
           const last = msgs[msgs.length - 1];
           if (notify && last?.role === "assistant") {
+            if (last.meta?.imageAttachments?.some((result) => result.image)) onImagesChange?.();
             onMessage?.(last.content);
             if (onProposeDoc) parseAssistant(last.content).newDocs.forEach((nd) => onProposeDoc(nd));
           }
@@ -104,10 +124,11 @@ export function DocumentAssistant({
   // Если по документу прямо сейчас идёт серверная генерация — подхватываем её.
   useEffect(() => {
     let cancelled = false;
+    setMessages([]); setInput(""); setBusy(false); setConfirmClear(false);
     api.getDocumentConversation(docId)
       .then(async (msgs) => {
         if (cancelled) return;
-        setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt })));
+        setMessages(msgs.map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt, meta: m.meta })));
         const st = await api.assistantStatus(docId).catch(() => null);
         if (cancelled || !st?.running) return;
         setMessages((prev) => [...prev, { role: "assistant", content: st.partial }]);
@@ -138,14 +159,19 @@ export function DocumentAssistant({
   async function send(e: { preventDefault: () => void }, override?: string) {
     e.preventDefault();
     const text = (override ?? input).trim();
-    if (!text || busy) return;
-    setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
-    if (override === undefined) setInput(""); // быстрые действия не трогают черновик
+    const withImages = override === undefined && images.items.length > 0;
+    if ((!text && !withImages) || busy || sendingRef.current || (withImages && images.reading)) return;
+    sendingRef.current = true;
+    const sendToken = ++sendTokenRef.current;
     setBusy(true);
-    onMessage?.(text);
+    let optimistic = false;
     // Генерация выполняется на сервере фоновой задачей (переживает навигацию);
     // вопрос сохраняет сервер, клиент только опрашивает статус.
     try {
+      const attached = withImages ? await images.upload(campaignId ?? (await api.getDocument(docId)).campaignId) : [];
+      if (!scope.alive || docScopeRef.current !== scope || sendTokenRef.current !== sendToken) return;
+      setMessages((prev) => [...prev, { role: "user", content: text, ...(attached.length ? { meta: { images: attached } } : {}) }, { role: "assistant", content: "" }]);
+      optimistic = true;
       await api.startAssistant(
         docId,
         text,
@@ -163,13 +189,30 @@ export function DocumentAssistant({
             `Вне блока коротко, по-русски, поясни, что изменил.\n\n` +
             entityBlocksPrompt(documents)
         ),
+        ...(attached.length ? [{ images: attached }] : []),
       );
+      if (!scope.alive || docScopeRef.current !== scope || sendTokenRef.current !== sendToken) return;
+      if (override === undefined) { setInput(""); images.clear(); }
+      onMessage?.(text);
       await pollJob(true);
-    } catch {
-      showToast("Не удалось запустить генерацию");
-      // откатываем оптимистичные вопрос и заглушку ответа
-      setMessages((prev) => prev.slice(0, -2));
+    } catch (error) {
+      if (!scope.alive || docScopeRef.current !== scope || sendTokenRef.current !== sendToken) return;
+      showToast(imageError(error));
+      if (optimistic) setMessages((prev) => prev.slice(0, -2));
       setBusy(false);
+    } finally {
+      if (docScopeRef.current === scope && sendTokenRef.current === sendToken) sendingRef.current = false;
+    }
+  }
+
+  async function stop() {
+    const token = ++sendTokenRef.current;
+    try { await api.stopAssistant(docId); }
+    catch (error) { if (scope.alive) showToast(imageError(error)); }
+    finally {
+      if (scope.alive && docScopeRef.current === scope && sendTokenRef.current === token) {
+        sendingRef.current = false; setBusy(false);
+      }
     }
   }
 
@@ -196,12 +239,14 @@ export function DocumentAssistant({
               <div key={i} className="msg msg-user">
                 <div className="msg-role">Вы</div>
                 <Markdown>{m.content}</Markdown>
+                <AssistantMessageMedia campaignId={campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
               </div>
             );
           }
           return (
             <div key={i} className="msg msg-assistant">
               <div className="msg-role">ИИ</div>
+              <AssistantMessageMedia campaignId={campaignId} documentId={docId} meta={m.meta} onImagesChange={onImagesChange} />
               {m.content ? (
                 <AssistantAnswer
                   content={m.content}
@@ -213,9 +258,9 @@ export function DocumentAssistant({
                   onCreateEntity={onCreateEntity}
                   onEditEntity={onEditEntity}
                 />
-              ) : (
+              ) : busy && i === messages.length - 1 ? (
                 <div className="typing" aria-label="ИИ печатает"><span></span><span></span><span></span></div>
-              )}
+              ) : null}
             </div>
           );
         })}
@@ -248,6 +293,7 @@ export function DocumentAssistant({
           </button>
         )}
       </div>
+      <ImageAttachments draft={images} disabled={busy} />
       <form className="chat-form" onSubmit={send}>
         <label htmlFor="doc-assistant-input" className="sr-only">Сообщение помощнику</label>
         <MentionTextarea
@@ -260,13 +306,14 @@ export function DocumentAssistant({
           onEnter={() => send({ preventDefault() {} })}
           mentions={documents}
           disabled={busy}
+          onPaste={images.onPaste}
         />
         {busy ? (
-          <button type="button" className="chat-send chat-stop" onClick={() => void api.stopAssistant(docId)} title="Остановить генерацию — набранный текст останется">
+          <button type="button" className="chat-send chat-stop" onClick={() => { void stop(); }} title="Остановить генерацию — набранный текст останется">
             <Square size={13} strokeWidth={2.2} /> <span>Стоп</span>
           </button>
         ) : (
-          <button type="submit" className="chat-send" title="Отправить">
+          <button type="submit" className="chat-send" title="Отправить" disabled={images.reading}>
             <Send size={15} strokeWidth={1.9} /> <span>Отправить</span>
           </button>
         )}

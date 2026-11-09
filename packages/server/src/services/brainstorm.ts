@@ -1,7 +1,9 @@
-import { DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type ConsistencyIssue, type LlmMessage, type Proposal } from "@master-ai/shared";
+import { activeWorkshopHistory, DOCUMENT_TEMPLATES, realismHint, type BrainstormResponse, type ConsistencyIssue, type ImageAttachment, type LlmMessage, type Proposal } from "@master-ai/shared";
 import type { LLMProvider } from "../llm/provider.js";
 import { parseProposals } from "../llm/parse-proposals.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
+import { buildWorkshopContext } from "./workshop-context.js";
+import { buildImageActionsContext, IMAGE_ACTIONS_PROMPT } from "./image-actions-context.js";
 
 // Разбор JSON-ответа с противоречиями (терпим к обрамлению текстом/фенсами).
 function parseIssues(text: string): ConsistencyIssue[] {
@@ -26,6 +28,8 @@ import type { ConversationService } from "./conversations.js";
 import type { DocumentService } from "./documents.js";
 import type { ProposalService } from "./proposals.js";
 import type { UsageService } from "./usage.js";
+import type { MediaService } from "./media.js";
+import type { WorkshopImageService } from "./workshop-images.js";
 
 const TEMPLATES_BLOCK = Object.entries(DOCUMENT_TEMPLATES)
   .map(([type, tpl]) => `Шаблон для ${type}:\n${tpl}`)
@@ -44,6 +48,8 @@ const SYSTEM_PROMPT = [
   "- Будь конкретным; в конце предлагай 2–4 варианта следующего шага — для УГЛУБЛЕНИЯ уже предложенного (улики, шифры, таймлайн, связи, новые сцены), а не для создания того, что ты уже назвал в ответе.",
   "",
   "Важно: ты НЕ можешь открывать сайты и ссылки. Если мастер ссылается на внешний источник — попроси прислать выдержки текстом, и работай по ним.",
+  "",
+  IMAGE_ACTIONS_PROMPT,
   "",
   "Документы кампании ты предлагаешь, а не создаёшь напрямую: мастер их принимает или отклоняет.",
   "ГЛАВНОЕ ПРАВИЛО: каждая значимая названная сущность из твоего ответа должна стать отдельным предложением В ЭТОМ ЖЕ сообщении. Если ты назвал персонажа по имени, описал место, фракцию, тайну или сцену — заведи на это документ сразу, не откладывай «на потом» и не предлагай мастеру «сказать, что оформить карточками».",
@@ -73,7 +79,7 @@ export class BrainstormService {
   private consistencyCache = new Map<string, { hash: string; result: { issues: ConsistencyIssue[] } }>();
 
   constructor(
-    private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService; usage?: UsageService },
+    private deps: { llmFor: (campaignId: string) => LLMProvider; conversations: ConversationService; proposals: ProposalService; documents: DocumentService; campaigns: CampaignService; usage?: UsageService; media?: MediaService; imageAttachments?: WorkshopImageService },
   ) {}
 
   // Колбэк учёта токенов для запроса от имени кампании.
@@ -83,15 +89,16 @@ export class BrainstormService {
 
   // Готовит генерацию ответа мастерской: сохраняет вопрос и строит промт.
   // Стрим отдаётся вызывающему — фоновой задаче или синхронному respond.
-  prepareRespond(campaignId: string, userMessage: string, signal?: AbortSignal): { conversationId: string; stream: AsyncIterable<string> } {
+  prepareRespond(campaignId: string, userMessage: string, signal?: AbortSignal, images?: ImageAttachment[]): { conversationId: string; stream: AsyncIterable<string> } {
     const { conversations, documents, campaigns } = this.deps;
     const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
-    conversations.addMessage(conv.id, "user", userMessage);
+    conversations.addMessage(conv.id, "user", userMessage, images?.length ? { images } : undefined);
 
-    const history: LlmMessage[] = conversations
-      .listMessages(conv.id)
-      .map((m) => ({ role: m.role, content: m.content }));
+    const storedHistory = activeWorkshopHistory(conversations.listMessages(conv.id));
+    const history: LlmMessage[] = storedHistory
+      .map((m) => ({ role: m.role, content: m.content, ...(m.meta?.images?.length ? { images: this.deps.media!.toLlmImages(campaignId, m.meta.images) } : {}) }))
+      .filter((message) => message.content.trim() || message.images?.length);
 
     // Настройки кампании — постоянный бриф (описание) и тон (реализм) идут в промт.
     const campaign = campaigns.get(campaignId);
@@ -100,29 +107,36 @@ export class BrainstormService {
       : "";
     const tone = `\n\n${realismHint(campaign?.realism ?? "balanced")}`;
 
-    // Список существующих документов — чтобы ИИ менял их (action: update), а не плодил дубликаты.
+    // Свежие тексты документов и непринятых предложений нужны для точных правок:
+    // JSON предложений отделён от ответа и больше не содержится в истории беседы.
     const existing = documents.listByCampaign(campaignId);
-    const docList = existing.length
-      ? existing.slice(0, 120).map((d) => `«${d.title}» (${d.type})`).join(", ")
-      : "(пока нет)";
-    const system = `${SYSTEM_PROMPT}${brief}${tone}\n\nУже существующие документы кампании (для action: update используй их точные названия): ${docList}.`;
+    const pending = this.deps.proposals.listByCampaign(campaignId, "pending");
+    const documentImages = this.deps.media ? Object.fromEntries(existing.map((doc) => [doc.id, this.deps.media!.listForDocument(doc.id)])) : {};
+    const context = buildWorkshopContext(existing, pending, userMessage, documentImages);
+    const imageContext = this.deps.media ? `\n\n${buildImageActionsContext(existing, this.deps.media, storedHistory)}` : "";
+    const system = `${SYSTEM_PROMPT}${brief}${tone}${imageContext}\n\n${context}`;
 
     return { conversationId: conv.id, stream: llm.complete({ system, messages: history }, { ...this.track(campaignId, "workshop"), signal }) };
   }
 
   // Завершение генерации: разбирает предложения, сохраняет ответ и предложения.
-  finishRespond(campaignId: string, conversationId: string, full: string): BrainstormResponse {
+  async finishRespond(campaignId: string, conversationId: string, full: string, signal?: AbortSignal): Promise<BrainstormResponse> {
     const { conversations, proposals } = this.deps;
-    const { reply, proposals: drafts } = parseProposals(full);
-    conversations.addMessage(conversationId, "assistant", reply);
+    const { reply, proposals: drafts, imageAttachments: requests } = parseProposals(full);
+    const message = conversations.addMessage(conversationId, "assistant", reply);
     const created: Proposal[] = drafts.map((draft) =>
       proposals.create({ campaignId, conversationId, draft }),
     );
-    return { conversationId, reply, proposals: created };
+    if (!requests.length) return { conversationId, reply, proposals: created };
+    const imageAttachments = this.deps.imageAttachments
+      ? await this.deps.imageAttachments.attach(campaignId, requests, signal)
+      : requests.map((request) => ({ documentId: request.documentId, documentTitle: "", error: "Прикрепление изображений недоступно" }));
+    conversations.updateMessageMeta(message.id, { imageAttachments });
+    return { conversationId, reply, proposals: created, imageAttachments };
   }
 
-  async respond(campaignId: string, userMessage: string): Promise<BrainstormResponse> {
-    const { conversationId, stream } = this.prepareRespond(campaignId, userMessage);
+  async respond(campaignId: string, userMessage: string, images?: ImageAttachment[]): Promise<BrainstormResponse> {
+    const { conversationId, stream } = this.prepareRespond(campaignId, userMessage, undefined, images);
     let full = "";
     for await (const chunk of stream) {
       full += chunk;
@@ -135,7 +149,7 @@ export class BrainstormService {
     const { conversations, campaigns } = this.deps;
     const llm = this.deps.llmFor(campaignId);
     const conv = conversations.getOrCreateForCampaign(campaignId);
-    const history = conversations.listMessages(conv.id);
+    const history = activeWorkshopHistory(conversations.listMessages(conv.id));
     if (history.length === 0) return { summary: "", question: "" };
 
     const campaign = campaigns.get(campaignId);

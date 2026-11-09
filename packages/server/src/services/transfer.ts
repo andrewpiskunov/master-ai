@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { z } from "zod";
-import type { Campaign } from "@master-ai/shared";
-import { campaigns, conversations, documents, links, llmUsage, messages, proposals } from "../db/schema.js";
+import { ImageAttachmentSchema, ImageUploadSchema, WorkshopImageAttachmentResultSchema, MAX_MESSAGE_IMAGES, type Campaign } from "@master-ai/shared";
+import { campaigns, conversations, documentImages, documents, images, links, llmUsage, messages, proposals } from "../db/schema.js";
 import { proseMirrorToText } from "./prosemirror-text.js";
+import { validateImage } from "./media.js";
+import { CampaignService } from "./campaigns.js";
+import { repairImageNames } from "../db/image-names.js";
 
 // Полный перенос кампании: экспорт всего содержимого в один JSON и импорт из него.
 // Формат единый и самодостаточный: кампания, документы, беседы, сообщения,
@@ -27,6 +30,8 @@ const TransferSchema = z.object({
     llmProvider: z.string().optional(),
     llmSettings: z.record(z.unknown()).optional(),
     createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+    cover: ImageAttachmentSchema.nullable().optional(),
   }).passthrough(),
   documents: z.array(Row).default([]),
   conversations: z.array(Row).default([]),
@@ -34,6 +39,8 @@ const TransferSchema = z.object({
   proposals: z.array(Row).default([]),
   links: z.array(Row).default([]),
   llmUsage: z.array(Row).default([]),
+  images: z.array(ImageUploadSchema.extend({ id: z.string().min(1), createdAt: z.string().optional() })).default([]),
+  documentImages: z.array(z.object({ documentId: z.string().min(1), imageId: z.string().min(1) })).default([]),
 });
 export type CampaignTransfer = z.infer<typeof TransferSchema>;
 
@@ -58,6 +65,11 @@ export class TransferService {
     const props = this.db.select().from(proposals).where(eq(proposals.campaignId, campaignId)).all();
     const lnks = this.db.select().from(links).where(eq(links.campaignId, campaignId)).all();
     const usage = this.db.select().from(llmUsage).where(eq(llmUsage.campaignId, campaignId)).all();
+    const media = this.db.select().from(images).where(eq(images.campaignId, campaignId)).all();
+    const docMedia = docs.length
+      ? this.db.select().from(documentImages).where(inArray(documentImages.documentId, docs.map((d) => d.id))).all()
+      : [];
+    const cover = media.find((image) => image.id === campaign.coverImageId);
 
     const { apiKey: _secret, ...llmSettings } = JSON.parse(campaign.llmSettings) as Record<string, unknown>;
     return {
@@ -72,6 +84,8 @@ export class TransferService {
         llmProvider: campaign.llmProvider,
         llmSettings,
         createdAt: campaign.createdAt,
+        updatedAt: campaign.updatedAt,
+        cover: cover ? { id: cover.id, name: cover.name, mimeType: cover.mimeType as "image/png" | "image/jpeg" | "image/webp" } : null,
       },
       documents: docs.map((d) => ({ ...d, contentJson: JSON.parse(d.contentJson), fields: JSON.parse(d.fields) })),
       conversations: convs,
@@ -79,6 +93,8 @@ export class TransferService {
       proposals: props.map((p) => ({ ...p, fields: JSON.parse(p.fields) })),
       links: lnks,
       llmUsage: usage,
+      images: media,
+      documentImages: docMedia,
     };
   }
 
@@ -94,6 +110,13 @@ export class TransferService {
     for (const d of data.documents) docId.set(d.id, randomUUID());
     const convId = new Map<string, string>();
     for (const c of data.conversations) convId.set(c.id, randomUUID());
+    const imageRows = data.images.map((image) => ({
+      id: randomUUID(), campaignId, ...validateImage(image), createdAt: image.createdAt ?? now, oldId: image.id,
+    }));
+    const imageByOldId = new Map(imageRows.map((image) => [image.oldId, image]));
+    if (imageByOldId.size !== imageRows.length) throw new Error("Повторяются id изображений");
+    const cover = data.campaign.cover ? imageByOldId.get(data.campaign.cover.id) : undefined;
+    if (data.campaign.cover && !cover) throw new Error("Не найдено изображение обложки кампании");
     const mapDoc = (v: unknown): string | null => (typeof v === "string" ? docId.get(v) ?? null : null);
 
     const campaignRow = {
@@ -105,16 +128,25 @@ export class TransferService {
       llmProvider: data.campaign.llmProvider ?? "cli",
       llmSettings: jsonStr(data.campaign.llmSettings, "{}"),
       createdAt: str(data.campaign.createdAt, now),
+      updatedAt: data.campaign.updatedAt ?? data.campaign.createdAt ?? now,
+      coverImageId: cover?.id ?? null,
     };
 
     this.db.transaction((tx) => {
       tx.insert(campaigns).values(campaignRow).run();
+      for (const { oldId: _oldId, ...image } of imageRows) tx.insert(images).values(image).run();
 
       for (const d of data.documents) {
         // Ссылки на сессии в fields указывают на документы — перевязываем на новые id.
         const fields = { ...(d.fields as Record<string, unknown> | undefined ?? {}) };
         if ("prevSessionId" in fields) fields.prevSessionId = mapDoc(fields.prevSessionId) ?? undefined;
         if ("nextSessionId" in fields) fields.nextSessionId = mapDoc(fields.nextSessionId) ?? undefined;
+        if ("avatarImageId" in fields) {
+          const image = typeof fields.avatarImageId === "string" ? imageByOldId.get(fields.avatarImageId) : undefined;
+          const attached = image && data.documentImages.some((ref) => ref.documentId === d.id && ref.imageId === image.oldId);
+          if (attached) fields.avatarImageId = image.id;
+          else delete fields.avatarImageId;
+        }
         const row = {
           id: docId.get(d.id)!,
           campaignId,
@@ -140,15 +172,40 @@ export class TransferService {
         }).run();
       }
 
+      for (const item of data.documentImages) {
+        const documentId = mapDoc(item.documentId);
+        const image = imageByOldId.get(item.imageId);
+        if (!documentId || !image) throw new Error("Не найдена привязка изображения");
+        tx.insert(documentImages).values({ documentId, imageId: image.id }).onConflictDoNothing().run();
+      }
+
       for (const m of data.messages) {
         const cid = typeof m.conversationId === "string" ? convId.get(m.conversationId) : undefined;
         if (!cid) continue; // сообщение осиротевшей беседы — пропускаем
+        const meta = m.meta && typeof m.meta === "object" && !Array.isArray(m.meta) ? { ...m.meta as Record<string, unknown> } : {};
+        if (meta.images !== undefined) {
+          const refs = z.array(ImageAttachmentSchema).max(MAX_MESSAGE_IMAGES).parse(meta.images);
+          meta.images = refs.map((ref) => {
+            const image = imageByOldId.get(ref.id);
+            if (!image) throw new Error("Не найдено изображение сообщения");
+            return { id: image.id, name: image.name, mimeType: image.mimeType };
+          });
+        }
+        if (meta.imageAttachments !== undefined) {
+          meta.imageAttachments = z.array(WorkshopImageAttachmentResultSchema).max(50).parse(meta.imageAttachments).flatMap((result) => {
+            const documentId = mapDoc(result.documentId);
+            if (!documentId) return []; // карточка могла быть удалена после прикрепления
+            const image = result.image ? imageByOldId.get(result.image.id) : undefined;
+            if (result.image && !image) throw new Error("Не найдено прикреплённое изображение мастерской");
+            return [{ ...result, documentId, ...(image ? { image: { id: image.id, name: image.name, mimeType: image.mimeType } } : {}) }];
+          });
+        }
         tx.insert(messages).values({
           id: randomUUID(),
           conversationId: cid,
           role: str(m.role, "user"),
           content: str(m.content),
-          meta: jsonStr(m.meta, "{}"),
+          meta: JSON.stringify(meta),
           createdAt: str(m.createdAt, now),
         }).run();
       }
@@ -193,12 +250,7 @@ export class TransferService {
       }
     });
 
-    return {
-      ...campaignRow,
-      system: campaignRow.system,
-      llmProvider: campaignRow.llmProvider as Campaign["llmProvider"],
-      realism: campaignRow.realism as Campaign["realism"],
-      llmSettings: JSON.parse(campaignRow.llmSettings) as Campaign["llmSettings"],
-    };
+    repairImageNames(this.db, campaignId);
+    return new CampaignService(this.db).get(campaignId)!;
   }
 }

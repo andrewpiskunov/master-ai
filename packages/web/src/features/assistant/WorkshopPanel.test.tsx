@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ToastProvider } from "../../ui/toast.js";
@@ -21,6 +21,26 @@ function renderPanel(onApproved = vi.fn()) {
 }
 
 describe("WorkshopPanel", () => {
+  it("allows scrolling a draft when the available field height is below its content", async () => {
+    vi.mocked(api.getConversation).mockResolvedValue([{ id: "w", role: "assistant", content: "Привет!", createdAt: "x" }]);
+    vi.mocked(api.listProposals).mockResolvedValue([]);
+    vi.mocked(api.worldSummary).mockResolvedValue({ summary: "", question: "" });
+    vi.mocked(api.brainstormStatus).mockResolvedValue({ running: false, partial: "", error: null });
+    renderPanel();
+    const input = screen.getByLabelText(/сообщение/i);
+    let height = 72;
+    Object.defineProperty(input, "scrollHeight", { configurable: true, get: () => 150 });
+    Object.defineProperty(input, "clientHeight", { configurable: true, get: () => height });
+    await userEvent.type(input, "Черновик");
+    expect(input).toHaveStyle({ overflowY: "auto" });
+    height = 180;
+    fireEvent(window, new Event("resize"));
+    await waitFor(() => expect(input).toHaveStyle({ overflowY: "hidden" }));
+    height = 72;
+    fireEvent(window, new Event("resize"));
+    await waitFor(() => expect(input).toHaveStyle({ overflowY: "auto" }));
+  });
+
   it("отправляет сообщение через серверную задачу, показывает предложение и принимает его", async () => {
     // до отправки беседа с приветствием; после завершения задачи — с ответом
     vi.mocked(api.getConversation)

@@ -13,6 +13,23 @@ backupDaily(sqlite, "./data/backups").then((f) => {
 new SearchService(db).reindexAll();
 const app = buildApp({ db, sqlite });
 
+// Closing Fastify also stops background image jobs and removes their workspaces.
+// This matters during tsx watch restarts as well as a normal local shutdown.
+let closing = false;
+function shutdown() {
+  if (closing) return;
+  closing = true;
+  void app.close().then(() => {
+    sqlite.close();
+    process.exit(0);
+  }).catch((error) => {
+    console.error("не удалось завершить работу сервера:", error);
+    process.exit(1);
+  });
+}
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);
+
 const port = 5174;
 app.listen({ port, host: "127.0.0.1" }).then(() => {
   console.log(`master-ai server on http://127.0.0.1:${port}`);

@@ -78,6 +78,27 @@
       "when": 1782759400000,
       "tag": "0010_llm_usage_provider_duration",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1782759500000,
+      "tag": "0011_images",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1782759600000,
+      "tag": "0012_campaign_library",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1782759700000,
+      "tag": "0013_image_thumbnails",
+      "breakpoints": true
     }
   ]
 }

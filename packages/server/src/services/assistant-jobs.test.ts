@@ -21,6 +21,20 @@ function manualStream() {
 }
 
 describe("AssistantJobService", () => {
+  it("keeps the job running until asynchronous result storage finishes", async () => {
+    const svc = new AssistantJobService();
+    let release!: () => void;
+    const stored = new Promise<void>((resolve) => { release = resolve; });
+    let storing = false;
+    svc.start("d1", (async function* () { yield "Портрет"; })(), async () => { storing = true; await stored; });
+    await expect.poll(() => storing).toBe(true);
+    try {
+      expect(svc.status("d1").running).toBe(true);
+      expect(svc.start("d1", (async function* () { yield "Другой"; })(), () => {})).toBe(false);
+    } finally { release(); await svc.stopAll(); }
+    expect(svc.status("d1").running).toBe(false);
+  });
+
   it("копит partial по мере генерации и сохраняет ответ по завершении", async () => {
     const svc = new AssistantJobService();
     const { stream, push, finish } = manualStream();
@@ -107,5 +121,40 @@ describe("AssistantJobService", () => {
 
   it("stop без задачи → false", () => {
     expect(new AssistantJobService().stop("нет")).toBe(false);
+  });
+
+  it("stopAll signals every job and waits for stream cleanup without saving empty replies", async () => {
+    const svc = new AssistantJobService();
+    const aborts = [new AbortController(), new AbortController()];
+    let releaseCleanup!: () => void;
+    const cleanup = new Promise<void>((resolve) => { releaseCleanup = resolve; });
+    const saved: string[] = [];
+    let streamsWaiting = 0;
+    let streamsCleaned = 0;
+    const stream = (index: number) => (async function* () {
+      try {
+        if (index === 0) yield "Начало ответа";
+        streamsWaiting++;
+        await new Promise<void>((resolve) => aborts[index].signal.addEventListener("abort", () => resolve(), { once: true }));
+      } finally {
+        await cleanup;
+        streamsCleaned++;
+      }
+    })();
+    aborts.forEach((abort, index) => svc.start(`d${index}`, stream(index), (text) => { saved.push(text); }, abort));
+    await tick();
+    expect(streamsWaiting).toBe(2);
+    let stopped = false;
+    const done = svc.stopAll().then(() => { stopped = true; });
+    expect(aborts.map((abort) => abort.signal.aborted)).toEqual([true, true]);
+    await tick();
+    expect(stopped).toBe(false);
+    expect(streamsCleaned).toBe(0);
+    releaseCleanup();
+    await done;
+    expect(streamsCleaned).toBe(2);
+    expect(saved).toEqual(["Начало ответа"]);
+    expect(svc.status("d0")).toMatchObject({ running: false, error: null });
+    expect(svc.status("d1")).toMatchObject({ running: false, error: null });
   });
 });

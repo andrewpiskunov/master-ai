@@ -1,14 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { ImageIdsSchema } from "@master-ai/shared";
 import type { RouteDependencies, IdParams } from "./dependencies.js";
 
-const NewMessageSchema = z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1) });
+const NewMessageSchema = z.object({ role: z.enum(["user", "assistant"]), content: z.string(), imageIds: ImageIdsSchema.optional() })
+  .refine((body) => body.content.trim().length > 0 || (body.imageIds?.length ?? 0) > 0, { message: "Напишите сообщение или прикрепите изображение" });
 const MessageMetaPatchSchema = z.object({
   log: z.object({ title: z.string().min(1), important: z.boolean() }).optional(),
 });
 
-export function registerConversationRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "documentsSvc" | "conversationsSvc">): void {
-  const { documentsSvc, conversationsSvc } = deps;
+export function registerConversationRoutes(app: FastifyInstance, deps: Pick<RouteDependencies, "documentsSvc" | "conversationsSvc" | "mediaSvc">): void {
+  const { documentsSvc, conversationsSvc, mediaSvc } = deps;
   app.get("/api/campaigns/:id/conversation", (req) => {
     const { id } = req.params as { id: string };
     const conv = conversationsSvc.getOrCreateForCampaign(id);
@@ -38,8 +40,9 @@ export function registerConversationRoutes(app: FastifyInstance, deps: Pick<Rout
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.message });
     const doc = documentsSvc.get(id);
     if (!doc) return reply.code(404).send({ error: "документ не найден" });
+    const images = mediaSvc.getForCampaign(doc.campaignId, parsed.data.imageIds ?? []);
     const conv = conversationsSvc.getOrCreateForDocument(doc.campaignId, id);
-    return reply.code(201).send(conversationsSvc.addMessage(conv.id, parsed.data.role, parsed.data.content));
+    return reply.code(201).send(conversationsSvc.addMessage(conv.id, parsed.data.role, parsed.data.content, images.length ? { images } : undefined));
   });
 
   // Точечное обновление меты сообщения — переключение важности записи лога в режиме игры.

@@ -193,11 +193,11 @@ describe("DocumentAssistant карточки (smoke)", () => {
     expect(api.startAssistant).toHaveBeenCalledWith("d1", "Вопрос", expect.stringContaining("соавтор мастера"));
   });
 
-  it("карточка правки свёрнута для переименования, если новый документ уже есть", async () => {
+  it("не считает правку применённой только потому, что карточка с новым названием уже есть", async () => {
     renderAssistant({
       messages: [{ role: "assistant", content: `Правка.\n${fence}edit-doc\ntitle: Старый\nrename: Новый\n---\nтекст\n${fence}` }],
       documents: [{ title: "Новый", type: "npc" }],
     });
-    expect(await screen.findByText(/«Новый» обновлено/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Обновить «Новый»" })).toBeInTheDocument();
   });
 });

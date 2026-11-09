@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { blob, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const campaigns = sqliteTable("campaigns", {
   id: text("id").primaryKey(),
@@ -10,6 +10,8 @@ export const campaigns = sqliteTable("campaigns", {
   llmProvider: text("llm_provider").notNull().default("cli"),
   llmSettings: text("llm_settings").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull().default(""),
+  coverImageId: text("cover_image_id"),
 });
 
 export const documents = sqliteTable("documents", {
@@ -24,6 +26,29 @@ export const documents = sqliteTable("documents", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const images = sqliteTable("images", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  name: text("name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  dataUrl: text("data_url").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+// Производные можно удалить и построить заново; в перенос кампании они не входят.
+export const imageThumbnails = sqliteTable("image_thumbnails", {
+  imageId: text("image_id").notNull(),
+  size: integer("size").notNull(),
+  version: text("version").notNull(),
+  data: blob("data", { mode: "buffer" }).notNull(),
+  etag: text("etag").notNull(),
+}, (table) => ({ pk: primaryKey({ columns: [table.imageId, table.size, table.version] }) }));
+
+export const documentImages = sqliteTable("document_images", {
+  documentId: text("document_id").notNull(),
+  imageId: text("image_id").notNull(),
+}, (table) => ({ pk: primaryKey({ columns: [table.documentId, table.imageId] }) }));
 
 export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),

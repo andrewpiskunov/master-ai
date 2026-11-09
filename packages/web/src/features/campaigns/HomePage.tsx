@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, useId, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Plus, Sparkles, RefreshCw, MessageCircle, FileText, Cpu } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, RefreshCw, MessageCircle, FileText, Cpu, Search, ImagePlus, Clock3, Compass, X, ChevronDown } from "lucide-react";
 import type { Campaign, GlobalLlmUsageStats } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { fmtDuration, fmtTokens, plural } from "../../lib/format.js";
 import { useToast } from "../../ui/toast.js";
+import { CampaignCoverPicker } from "./CampaignCoverPicker.js";
+import { ThumbnailImage } from "../images/ThumbnailImage.js";
+import "./HomePage.css";
 
 function formatWhen(iso: string): string {
   const d = new Date(iso);
@@ -75,23 +78,61 @@ function WelcomeScreen({ onCreate, busy }: { onCreate: (name: string) => void; b
   );
 }
 
+function CampaignCover({ campaign }: { campaign: Campaign }) {
+  const [failedId, setFailedId] = useState<string | null>(null);
+  const artId = useId();
+  if (campaign.cover && failedId !== campaign.cover.id) {
+    return <ThumbnailImage className="library-cover-image" imageId={campaign.cover.id} size={512} alt={`Обложка кампании «${campaign.name}»`} onError={() => setFailedId(campaign.cover!.id)} />;
+  }
+  return <div className="library-cover-placeholder" aria-hidden="true">
+    <svg viewBox="0 0 640 360" fill="none" preserveAspectRatio="xMidYMid slice">
+      <defs><linearGradient id={artId} x1="320" y1="0" x2="320" y2="360" gradientUnits="userSpaceOnUse"><stop stopColor="#1d3040" /><stop offset="1" stopColor="#111b28" /></linearGradient></defs>
+      <path fill={`url(#${artId})`} d="M0 0h640v360H0z" />
+      <g stroke="#78959f" strokeWidth="1" opacity=".18"><circle cx="320" cy="170" r="128" /><circle cx="320" cy="170" r="108" strokeDasharray="2 8" /><path d="M320 25v290M175 170h290M217 67l206 206M217 273 423 67" /></g>
+      <circle cx="452" cy="89" r="24" fill="#b9a57b" opacity=".42" />
+      <path d="m0 257 94-89 59 47 94-117 92 109 59-62 83 75 70-49 89 98v91H0Z" fill="#263d47" />
+      <path d="m153 215 94-117 92 109-46-23-41-57-45 63Z" fill="#71908f" opacity=".34" />
+      <path d="m0 307 110-73 86 45 130-71 90 55 89-28 135 70v55H0Z" fill="#182d37" />
+      <path d="M0 337c104-42 166-3 252-26 117-31 215-28 388 26v23H0Z" fill="#10212d" />
+      <path d="m326 208-30 53 27 14-43 39 43-16 30-26-30-20 26-28" stroke="#b5a783" strokeWidth="2" opacity=".38" />
+      <g stroke="#c3b38e" opacity=".7"><path d="M320 139v25m0 12v25m-31-31h25m12 0h25" /><path d="m320 154 9 16-9 16-9-16Z" fill="#c3b38e" fillOpacity=".08" /></g>
+      <g fill="#a9c0c5" opacity=".5"><circle cx="124" cy="87" r="1.5" /><circle cx="188" cy="52" r="1" /><circle cx="388" cy="43" r="1.5" /><circle cx="510" cy="137" r="1" /></g>
+    </svg>
+    <span className="library-cover-caption">Новая глава впереди</span>
+  </div>;
+}
+
+type CampaignOrder = "activity" | "created" | "name";
+const UNSPECIFIED = "__unspecified";
+function activityDate(campaign: Campaign): string { return campaign.updatedAt || campaign.createdAt; }
+
 export function HomePage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const searchId = useId();
+  const systemId = useId();
+  const sortId = useId();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ideas, setIdeas] = useState<string[]>(() => pickIdeas());
   const [usage, setUsage] = useState<GlobalLlmUsageStats | null>(null);
+  const [query, setQuery] = useState("");
+  const [system, setSystem] = useState("all");
+  const [order, setOrder] = useState<CampaignOrder>("activity");
+  const [editingCover, setEditingCover] = useState<Campaign | null>(null);
 
   useEffect(() => {
+    let current = true;
     api.listCampaigns()
-      .then(setCampaigns)
-      .catch(() => showToast("Не удалось загрузить кампании"))
-      .finally(() => setLoaded(true));
-    api.llmUsageGlobal().then(setUsage).catch(() => {});
+      .then((result) => { if (current) setCampaigns(result); })
+      .catch(() => { if (current) { setLoadError(true); showToast("Не удалось загрузить кампании"); } })
+      .finally(() => { if (current) setLoaded(true); });
+    api.llmUsageGlobal().then((result) => { if (current) setUsage(result); }).catch(() => {});
+    return () => { current = false; };
   }, [showToast]);
 
   async function create(rawName: string) {
@@ -100,110 +141,68 @@ export function HomePage() {
     setBusy(true);
     try {
       const created = await api.createCampaign({ name: n });
-      // Новую кампанию открываем на «Обзоре» — там живёт онбординг с гайдом по шагам.
       navigate(`/campaigns/${created.id}`);
     } catch {
       showToast("Не удалось создать кампанию");
       setBusy(false);
     }
   }
+  function handleSubmit(e: FormEvent) { e.preventDefault(); void create(name); }
+  function resetControls() { setQuery(""); setSystem("all"); setOrder("activity"); }
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    create(name);
-  }
+  const systems = useMemo(() => Array.from(new Set(campaigns.map((campaign) => campaign.system?.trim()).filter((value): value is string => !!value))).sort((a, b) => a.localeCompare(b, "ru")), [campaigns]);
+  const visible = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase("ru");
+    return campaigns.filter((campaign) => {
+      const matchesSystem = system === "all" || (system === UNSPECIFIED ? !campaign.system?.trim() : campaign.system?.trim() === system);
+      return matchesSystem && (!needle || [campaign.name, campaign.description, campaign.system].some((value) => value?.toLocaleLowerCase("ru").includes(needle)));
+    }).sort((a, b) => order === "name"
+      ? a.name.localeCompare(b.name, "ru")
+      : (order === "created" ? b.createdAt.localeCompare(a.createdAt) : activityDate(b).localeCompare(activityDate(a))) || a.name.localeCompare(b.name, "ru"));
+  }, [campaigns, query, system, order]);
 
-  const sorted = useMemo(
-    () => [...campaigns].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [campaigns],
-  );
-
-  // Нет кампаний — экран приветствия с созданием первой.
-  if (loaded && campaigns.length === 0) {
+  if (loaded && !loadError && campaigns.length === 0) {
     return <main className="home"><WelcomeScreen onCreate={create} busy={busy} /></main>;
   }
 
-  return (
-    <main className="home">
-      <h1 className="page-title">Продолжить</h1>
+  return <main className="home campaign-library">
+    <header className="library-header">
+      <div><p className="library-eyebrow"><Compass size={14} strokeWidth={1.6} /> Мастерская миров</p><h1>Кампании</h1><p className="library-intro">Ваши истории, миры и приключения. Продолжим?</p></div>
+      {!creating && <button type="button" className="library-new" onClick={() => setCreating(true)}><Plus size={17} /> Новая кампания</button>}
+    </header>
 
-      <ul className="campaign-list">
-        {sorted.map((c) => (
-          <li key={c.id}>
-            <Link to={`/campaigns/${c.id}`} className="campaign-card">
-              <span className="campaign-card-body">
-                <span className="campaign-card-name">{c.name}</span>
-                <span className="campaign-card-meta">Обновлено {formatWhen(c.createdAt)}</span>
-              </span>
-              <span className="campaign-card-go" aria-hidden="true"><ArrowRight size={20} /></span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+    {creating && <form className="card create-form library-create" onSubmit={handleSubmit}>
+      <label htmlFor="campaign-name">Название кампании</label>
+      <input id="campaign-name" placeholder="Например, Тень над Глубоководьем" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      <div className="welcome-spark-head"><span className="welcome-spark-label"><Sparkles size={14} /> Нужна идея?</span><button type="button" className="welcome-refresh" onClick={() => setIdeas(pickIdeas())}><RefreshCw size={13} /> Обновить</button></div>
+      <div className="welcome-ideas">{ideas.map((idea) => <button key={idea} type="button" className="welcome-idea" onClick={() => setName(idea)}>{idea}</button>)}</div>
+      <div className="home-actions"><button type="submit" disabled={!name.trim() || busy}>{busy ? "Создаём…" : "Создать"}</button><button type="button" className="btn-ghost" disabled={busy} onClick={() => { setCreating(false); setName(""); }}>Отмена</button></div>
+    </form>}
 
-      <hr className="home-divider" />
+    <div className="library-toolbar">
+      <div className="library-search"><label className="sr-only" htmlFor={searchId}>Поиск кампаний</label><Search size={17} aria-hidden="true" /><input id={searchId} type="search" placeholder="Название, описание или система" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button type="button" className="btn-ghost" aria-label="Очистить поиск" onClick={() => setQuery("")}><X size={15} /></button>}</div>
+      <div className="library-filter"><label htmlFor={systemId}>Игровая система</label><select id={systemId} value={system} onChange={(event) => setSystem(event.target.value)}><option value="all">Все системы</option>{systems.map((value) => <option key={value} value={value}>{value}</option>)}<option value={UNSPECIFIED}>Без системы</option></select></div>
+      <div className="library-filter"><label htmlFor={sortId}>Порядок кампаний</label><select id={sortId} value={order} onChange={(event) => setOrder(event.target.value as CampaignOrder)}><option value="activity">По последней активности</option><option value="created">Сначала новые</option><option value="name">По названию: А–Я</option></select></div>
+    </div>
+    <div className="library-results"><span aria-live="polite">{loaded ? `${visible.length} ${plural(visible.length, ["кампания", "кампании", "кампаний"])}${query.trim() || system !== "all" ? ` из ${campaigns.length}` : ""}` : "Загружаем кампании…"}</span>{(query.trim() || system !== "all") && <button type="button" className="btn-ghost" onClick={resetControls}>Сбросить фильтры</button>}</div>
 
-      {creating ? (
-        <form className="card create-form" onSubmit={handleSubmit}>
-          <label htmlFor="campaign-name">Название кампании</label>
-          <input
-            id="campaign-name"
-            placeholder="Например, Тень над Глубоководьем"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-          <div className="welcome-spark-head">
-            <span className="welcome-spark-label"><Sparkles size={14} /> Нужна идея?</span>
-            <button type="button" className="welcome-refresh" onClick={() => setIdeas(pickIdeas())}>
-              <RefreshCw size={13} /> Обновить
-            </button>
-          </div>
-          <div className="welcome-ideas">
-            {ideas.map((idea) => (
-              <button key={idea} type="button" className="welcome-idea" onClick={() => setName(idea)}>{idea}</button>
-            ))}
-          </div>
-          <div className="home-actions">
-            <button type="submit" disabled={busy}>{busy ? "Создаём…" : "Создать"}</button>
-            <button type="button" className="btn-ghost" onClick={() => { setCreating(false); setName(""); }}>
-              Отмена
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button type="button" className="btn-ghost home-new" onClick={() => setCreating(true)}>
-          <Plus size={18} strokeWidth={2} /> Новая кампания
-        </button>
-      )}
+    {!loaded ? <div className="library-loading" role="status"><Compass size={28} strokeWidth={1.2} /><span>Открываем ваши миры…</span></div>
+      : loadError ? <div className="library-empty"><Compass size={30} strokeWidth={1.2} /><h2>Не получилось открыть каталог</h2><p>Обновите страницу, чтобы загрузить кампании снова.</p></div>
+      : visible.length === 0 ? <div className="library-empty"><Search size={30} strokeWidth={1.2} /><h2>Кампании не найдены</h2><p>Попробуйте другое название или выберите другую систему.</p></div>
+      : <ul className="library-grid" aria-label="Кампании">{visible.map((campaign) => <li key={campaign.id} className="library-card">
+        <Link to={`/campaigns/${campaign.id}`} className="library-card-link" aria-label={campaign.name}>
+          <div className="library-cover"><CampaignCover campaign={campaign} /><span className="library-system">{campaign.system?.trim() || "Без системы"}</span></div>
+          <div className="library-card-content"><h2>{campaign.name}</h2><p className={`library-description${campaign.description?.trim() ? "" : " is-empty"}`}>{campaign.description?.trim() || "У каждой истории есть начало. Какой будет следующая глава?"}</p><div className="library-card-footer"><span><Clock3 size={12} /> <time dateTime={activityDate(campaign)}>{formatWhen(activityDate(campaign))}</time></span><ArrowRight size={17} aria-hidden="true" /></div></div>
+        </Link>
+        <button type="button" className="library-cover-edit" aria-label={`Изменить обложку «${campaign.name}»`} title="Изменить обложку" onClick={() => setEditingCover(campaign)}><ImagePlus size={16} /></button>
+      </li>)}</ul>}
 
-      {usage && usage.total.requests > 0 && (
-        <section className="panel home-usage">
-          <h2 className="home-usage-head"><Cpu size={16} strokeWidth={1.9} /> Расход нейросети по всем кампаниям</h2>
-          <div className="usage-total">
-            <span className="usage-total-num">{usage.total.estimated ? "≈ " : ""}{fmtTokens(usage.total.promptTokens + usage.total.completionTokens)}</span>
-            <span className="usage-total-sub">
-              токенов за {fmtTokens(usage.total.requests)} {plural(usage.total.requests, ["запрос", "запроса", "запросов"])} ·
-              среднее время ответа {fmtDuration(usage.total.avgDurationMs)}
-            </span>
-          </div>
-          <table className="usage-table">
-            <thead>
-              <tr><th>Кампания</th><th>Запросы</th><th>Токены</th><th>Ср. время</th></tr>
-            </thead>
-            <tbody>
-              {usage.byCampaign.map((c) => (
-                <tr key={c.campaignId}>
-                  <td>{c.name}</td>
-                  <td>{fmtTokens(c.requests)}</td>
-                  <td>{c.estimated ? "≈ " : ""}{fmtTokens(c.promptTokens + c.completionTokens)}</td>
-                  <td>{fmtDuration(c.avgDurationMs)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-    </main>
-  );
+    {usage && usage.total.requests > 0 && <details className="library-usage">
+      <summary><span><Cpu size={15} /> Расход нейросети по всем кампаниям</span><ChevronDown size={16} /></summary>
+      <div className="library-usage-body"><div className="usage-total"><span className="usage-total-num">{usage.total.estimated ? "≈ " : ""}{fmtTokens(usage.total.promptTokens + usage.total.completionTokens)}</span><span className="usage-total-sub">токенов за {fmtTokens(usage.total.requests)} {plural(usage.total.requests, ["запрос", "запроса", "запросов"])} · среднее время ответа {fmtDuration(usage.total.avgDurationMs)}</span></div>
+        <div className="library-usage-scroll"><table className="usage-table"><thead><tr><th>Кампания</th><th>Запросы</th><th>Токены</th><th>Ср. время</th></tr></thead><tbody>{usage.byCampaign.map((campaign) => <tr key={campaign.campaignId}><td>{campaign.name}</td><td>{fmtTokens(campaign.requests)}</td><td>{campaign.estimated ? "≈ " : ""}{fmtTokens(campaign.promptTokens + campaign.completionTokens)}</td><td>{fmtDuration(campaign.avgDurationMs)}</td></tr>)}</tbody></table></div>
+      </div>
+    </details>}
+    {editingCover && <CampaignCoverPicker campaign={editingCover} onChange={(updated) => setCampaigns((current) => current.map((campaign) => campaign.id === updated.id ? updated : campaign))} onClose={() => setEditingCover(null)} />}
+  </main>;
 }

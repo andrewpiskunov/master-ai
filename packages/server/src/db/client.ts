@@ -3,6 +3,7 @@ import { join, dirname } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { repairImageNames } from "./image-names.js";
 
 const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), "../../drizzle");
 
@@ -14,5 +15,6 @@ export function createDb(path: string): {
   sqlite.pragma("journal_mode = WAL");
   const db = drizzle(sqlite);
   migrate(db, { migrationsFolder });
+  repairImageNames(db);
   return { db, sqlite };
 }

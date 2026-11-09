@@ -1,0 +1,8 @@
+.modal.game-edit-modal { width: min(860px, calc(100vw - 32px)); max-width: 860px; max-height: 85dvh; overflow-y: auto; }
+.game-edit-target { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 16px; }
+.game-edit-target a { color: var(--text-strong); font-weight: 600; overflow-wrap: anywhere; }
+.game-edit-rename { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.9rem; }
+.game-edit-rename > span { color: var(--muted); }
+.game-edit-modal .apply-preview { max-height: 46dvh; font-size: 0.85rem; }
+.game-edit-error { color: var(--danger, #fb7185); font-size: 0.85rem; line-height: 1.6; }
+@media (max-width: 620px) { .game-edit-modal .modal-actions { flex-wrap: wrap; } .game-edit-modal .modal-actions > button { flex: 1; } }

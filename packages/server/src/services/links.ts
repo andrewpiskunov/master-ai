@@ -7,6 +7,12 @@ import { links, documents } from "../db/schema.js";
 export class LinkService {
   constructor(private db: BetterSQLite3Database) {}
 
+  listByCampaign(campaignId: string): Link[] {
+    const ids = new Set(this.db.select({ id: documents.id }).from(documents).where(eq(documents.campaignId, campaignId)).all().map((d) => d.id));
+    return this.db.select().from(links).where(eq(links.campaignId, campaignId)).all()
+      .filter((link) => ids.has(link.fromDocId) && ids.has(link.toDocId));
+  }
+
   create(input: NewLink): Link {
     const row = { id: randomUUID(), ...input };
     this.db.insert(links).values(row).run();

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useImageDeletion } from "../images/image-deletions.js";
 import { useNavigate, useParams } from "react-router-dom";
-import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Pin, Eye, EyeOff, Monitor, Image } from "lucide-react";
 import { getDocumentType, type Document } from "@master-ai/shared";
 import { api } from "../../api/client.js";
 import { streamComplete } from "../../api/stream.js";
@@ -13,7 +14,12 @@ import { blockKey, entityBlocksPrompt, parseAssistant, type NewEntity } from "..
 import { CombatTracker, type CombatState } from "./CombatTracker.js";
 import { TypeTag, TypeBadge } from "../campaigns/shared.js";
 import { prepareMentions, matchMentions, type MentionItem } from "../../lib/mentions.js";
+import { documentHref, documentIdFromHref, isPlainLinkClick } from "../../lib/document-links.js";
 import { GameChat, GameLogPanel, useGameChat, type GameMsg } from "./GameChat.js";
+import { PlayImages } from "./PlayImages.js";
+import { ImagePreview } from "../images/ImageViewer.js";
+import { usePlayerScreen } from "./usePlayerScreen.js";
+import { useGameEntityEdits } from "./GameEntityEdits.js";
 
 // Делает названия упоминаемых документов кликабельными прямо в тексте сессии.
 function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
@@ -32,10 +38,11 @@ function linkifyMentions(container: HTMLElement, prepared: MentionItem[]) {
       if (s.start > last) frag.appendChild(document.createTextNode(text.slice(last, s.start)));
       const a = document.createElement("a");
       a.className = `mention mention-${s.type} play-link`;
-      a.dataset.docId = s.href ?? "";
+      if (s.href) a.href = s.href;
+      a.dataset.docId = documentIdFromHref(s.href) ?? "";
       // Несколько документов с одним названием: клик переключает их по кругу.
       if (s.hrefs && s.hrefs.length > 1) {
-        a.dataset.docIds = s.hrefs.join(",");
+        a.dataset.docIds = s.hrefs.map(documentIdFromHref).filter(Boolean).join(",");
         a.classList.add("mention-ambiguous");
         a.title = `Документов с этим названием: ${s.hrefs.length} — клик переключает`;
       }
@@ -101,7 +108,19 @@ export function PlaySession() {
   docRef.current = doc;
   const [docs, setDocs] = useState<Document[]>([]);
   const [campaignName, setCampaignName] = useState("");
-  const [tab, setTab] = useState<"scenario" | "docs" | "combat">("scenario");
+  const [tab, setTab] = useState<"scenario" | "docs" | "combat" | "images">("scenario");
+  const [imageTargetId, setImageTargetId] = useState<string | undefined>();
+  const [imagesRevision, setImagesRevision] = useState(0);
+  const imageRefreshVersion = useRef(0);
+  const imageScopeRef = useRef({ documentId, campaignId, active: true });
+  if (imageScopeRef.current.documentId !== documentId || imageScopeRef.current.campaignId !== campaignId) {
+    imageScopeRef.current.active = false;
+    imageScopeRef.current = { documentId, campaignId, active: true };
+  }
+  const imageScope = imageScopeRef.current;
+  useEffect(() => { imageScope.active = true; return () => { imageScope.active = false; }; }, [imageScope]);
+  const playerScreen = usePlayerScreen(documentId ?? "");
+  useImageDeletion(() => { void refreshImages(); });
   const contentRef = useRef<HTMLDivElement>(null);
   // История просмотрщика связанных документов.
   const [view, setView] = useState<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
@@ -111,18 +130,34 @@ export function PlaySession() {
   const [combatAiBusy, setCombatAiBusy] = useState(false);
   // Режим показа игрокам — прячет секции, помеченные «только мастер».
   const [playerView, setPlayerView] = useState(false);
+  const { requestEdit, dialog: editDialog } = useGameEntityEdits({ campaignId, sessionId: documentId, onSaved: (updated) => {
+    setDocs((current) => current.map((d) => d.id === updated.id ? updated : d));
+    if (docRef.current?.id === updated.id) { docRef.current = updated; setDoc(updated); }
+  } });
 
   useEffect(() => {
     if (!documentId) return;
+    let current = true;
+    setDoc(null);
+    setView({ stack: [], idx: -1 });
+    setProposed({});
+    setTab("scenario");
+    setImageTargetId(undefined);
     api.getDocument(documentId).then((d) => {
-      setDoc(d);
-    }).catch(() => showToast("Не удалось загрузить сессию"));
+      if (current) setDoc(d);
+    }).catch(() => { if (current) showToast("Не удалось загрузить сессию"); });
+    return () => { current = false; };
   }, [documentId, showToast]);
 
   useEffect(() => {
     if (!campaignId) return;
-    api.getCampaign(campaignId).then((c) => setCampaignName(c.name)).catch(() => {});
-    api.listCampaignDocuments(campaignId).then(setDocs).catch(() => {});
+    let current = true;
+    const version = ++imageRefreshVersion.current;
+    setDocs([]);
+    setCampaignName("");
+    api.getCampaign(campaignId).then((c) => { if (current) setCampaignName(c.name); }).catch(() => {});
+    api.listCampaignDocuments(campaignId).then((result) => { if (current && version === imageRefreshVersion.current) setDocs(result); }).catch(() => {});
+    return () => { current = false; };
   }, [campaignId]);
 
   // Единый писатель полей: мерджит с актуальным doc.fields и сохраняет целиком.
@@ -140,11 +175,46 @@ export function PlaySession() {
     }
   }, [documentId, showToast]);
 
+  const refreshImages = useCallback(async () => {
+    if (!imageScope.active || imageScopeRef.current !== imageScope) return;
+    const sessionId = documentId;
+    if (!campaignId || !sessionId || docRef.current?.id !== sessionId || docRef.current.campaignId !== campaignId) return;
+    const version = ++imageRefreshVersion.current;
+    setImagesRevision((value) => value + 1);
+    try {
+      const updated = await api.listCampaignDocuments(campaignId);
+      if (!imageScope.active || imageScopeRef.current !== imageScope || version !== imageRefreshVersion.current || docRef.current?.id !== sessionId || docRef.current.campaignId !== campaignId) return;
+      setDocs(updated);
+      const session = updated.find((item) => item.id === sessionId);
+      if (session) {
+        setDoc((current) => {
+          if (current?.id !== sessionId) return current;
+          const fields = { ...current.fields };
+          delete fields.avatarImageId;
+          if (typeof session.fields?.avatarImageId === "string") fields.avatarImageId = session.fields.avatarImageId;
+          const next = { ...current, fields, avatar: session.avatar };
+          docRef.current = next;
+          return next;
+        });
+      }
+    } catch { if (imageScope.active && imageScopeRef.current === imageScope && version === imageRefreshVersion.current) showToast("Не удалось обновить изображения сущностей"); }
+  }, [campaignId, documentId, imageScope, showToast]);
+
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") void refreshImages(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [refreshImages]);
+
   // Игровой чат с ИИ-мастером: состояние здесь, чтобы лог-панель строилась из тех же сообщений.
   const chat = useGameChat(documentId!, (content) => {
     openMentionedDocs(content);
     parseAssistant(content).newDocs.forEach((nd) => showProposedDoc(nd));
-  });
+  }, () => { void refreshImages(); });
 
   // Текстовое представление лога событий — для промпта ИИ-мастера и сбора боя.
   const gameLogText = (msgs: GameMsg[]) =>
@@ -177,7 +247,7 @@ export function PlaySession() {
       `## Скрытое для мастера\n- Перед сундуком растяжка: Восприятие СЛ 13, иначе дротики, 1d4 урона.\n- Скрип двери услышал охранник этажом выше — появится через 2 раунда.\n` +
       "```log\n" + `{"title": "Партия вскрыла дверь в подвал", "important": false}\n` + "```\n\n" +
       `Остальные сообщения — вопросы мастера тебе: отвечай обычным текстом и без log-блока. Но если в ответе есть текст, который мастер будет читать игрокам вслух (вступление, описание сцены, реплики NPC), — оформи его секцией «## Прочитай игрокам»; а всё, что игрокам знать рано (сюрпризы, скрытые механики, истинные планы NPC), — короткими пунктами в «## Скрытое для мастера». Порядок частей: сначала обычный текст мастеру, затем «Прочитай игрокам», затем «Скрытое для мастера». НЕ выдумывай свои заголовки вроде «Вступление (читать вслух)» — только эти две секции.\n\n` +
-      entityBlocksPrompt(docs.map((x) => ({ title: x.title, type: x.type })))
+      entityBlocksPrompt(docs.map((x) => ({ id: x.id, title: x.title, type: x.type })))
     );
   }
 
@@ -199,7 +269,7 @@ export function PlaySession() {
     void patchFields({ sectionVisibility: next });
   }
   const prepared = useMemo(
-    () => prepareMentions(docs.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type, href: d.id }))),
+    () => prepareMentions(docs.filter((d) => d.id !== documentId).map((d) => ({ title: d.title, type: d.type, href: documentHref(d.campaignId, d.id) }))),
     [docs, documentId],
   );
 
@@ -218,10 +288,22 @@ export function PlaySession() {
     });
   }
 
+  function followMention(event: ReactMouseEvent<HTMLElement>) {
+    if (!isPlainLinkClick(event)) return;
+    const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a.play-link");
+    if (!link?.dataset.docId) return;
+    event.preventDefault();
+    setTab("docs");
+    // Одноимённые документы: повторный клик открывает следующий по кругу.
+    const ids = link.dataset.docIds?.split(",") ?? [];
+    openDoc(ids.length > 1 ? ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length] : link.dataset.docId);
+  }
+
   // Открывает в просмотрщике документы кампании, упомянутые в реплике чата с ИИ-мастером.
   function openMentionedDocs(text: string) {
     for (const span of matchMentions(text, prepared)) {
-      if (span.href) openDoc(span.href);
+      const id = documentIdFromHref(span.href);
+      if (id) openDoc(id);
     }
   }
 
@@ -315,6 +397,19 @@ export function PlaySession() {
   const viewerId = view.idx >= 0 ? view.stack[view.idx] : null;
   const viewerDoc = (viewerId && docs.find((d) => d.id === viewerId)) || null;
   const viewerProposed = viewerId && !viewerDoc ? proposed[viewerId] ?? null : null;
+  const viewerHtml = useMemo(() => {
+    const container = document.createElement("div");
+    container.innerHTML = contentToHtml(viewerDoc?.contentJson);
+    const mentions = prepareMentions(docs.filter((d) => d.id !== viewerId).map((d) => ({ title: d.title, type: d.type, href: documentHref(d.campaignId, d.id) })));
+    linkifyMentions(container, mentions);
+    return container.innerHTML;
+  }, [viewerDoc, viewerId, docs]);
+
+  function openImages(id = viewerDoc?.id) {
+    setImageTargetId(id);
+    setTab("images");
+    void refreshImages();
+  }
 
   function exit() {
     navigate(`/campaigns/${campaignId}`, { replace: true });
@@ -341,7 +436,7 @@ export function PlaySession() {
     .map((d) => ({ id: d.id, title: d.title }));
   const npcs = docs.filter((d) => d.type === "npc").map((d) => ({ id: d.id, title: d.title }));
 
-  if (!doc) return <div className="play-mode"><p className="muted" style={{ padding: 24 }}>…</p></div>;
+  if (!doc || doc.id !== documentId || doc.campaignId !== campaignId) return <div className="play-mode"><p className="muted" style={{ padding: 24 }}>…</p></div>;
 
   return (
     <div className="play-mode">
@@ -352,6 +447,7 @@ export function PlaySession() {
         </div>
         <div className="play-head-right">
           <span className="play-badge">● PLAY MODE</span>
+          <button type="button" className={`btn-ghost play-player-screen${playerScreen.image && !playerScreen.error ? " has-image" : ""}`} onClick={playerScreen.open} title="Открыть отдельное окно для экрана игроков"><Monitor size={15} /> Экран игроков</button>
           <button type="button" className={`btn-ghost play-playerview${playerView ? " active" : ""}`} onClick={() => setPlayerView((v) => !v)} title="Показ игрокам: скрыть секции «только мастер»">
             {playerView ? <Eye size={15} /> : <EyeOff size={15} />} {playerView ? "Показ игрокам" : "Всё видно"}
           </button>
@@ -362,14 +458,17 @@ export function PlaySession() {
         </div>
       </header>
 
+      {playerScreen.error && tab !== "images" && <p className="play-player-error" role="alert">{playerScreen.error}</p>}
+
       <div className="play-body">
         <div className="play-center">
           <GameChat
             docId={documentId!}
+            campaignId={campaignId}
             chat={chat}
             pcs={pcs}
             npcs={npcs}
-            documents={docs.map((d) => ({ title: d.title, type: d.type }))}
+            documents={docs.map((d) => ({ id: d.id, title: d.title, type: d.type }))}
             buildSystem={buildGameSystem}
             playerView={playerView}
             currentText={pmText(doc.contentJson).trim()}
@@ -377,7 +476,8 @@ export function PlaySession() {
             docUpdatedAt={(doc.fields?.contentUpdatedAt as string | undefined) ?? doc.updatedAt}
             onApply={applyToSession}
             onCreateEntity={createGameEntity}
-            onEditEntity={() => { showToast("Изменяйте документы вне режима игры"); return false; }}
+            onEditEntity={requestEdit}
+            onImagesChange={() => { void refreshImages(); }}
             mentions={prepared}
             onMentionClick={(id) => { setTab("docs"); openDoc(id); }}
           />
@@ -389,27 +489,18 @@ export function PlaySession() {
           )}
 
           <div className="play-panel">
-            <div className="play-tabs2">
+            <div className="play-tabs2 play-session-tabs">
               <button type="button" className={tab === "scenario" ? "active" : ""} onClick={() => setTab("scenario")}>Сценарий</button>
               <button type="button" className={tab === "docs" ? "active" : ""} onClick={() => setTab("docs")}>Документы</button>
+              <button type="button" className={tab === "images" ? "active" : ""} onClick={() => { if (tab !== "images") openImages(); }}>Изображения</button>
               <button type="button" className={tab === "combat" ? "active" : ""} onClick={() => setTab("combat")}>Бой</button>
             </div>
-            {/* Все вкладки смонтированы всегда — переключение прячет, а не размонтирует. */}
+            {/* Сценарий, документы и бой сохраняют состояние; галерея загружается при открытии. */}
             <div
               className="play-content play-scenario"
               style={{ display: tab === "scenario" ? undefined : "none" }}
               ref={contentRef}
-              onClick={(e) => {
-                const a = (e.target as HTMLElement).closest("a.play-link") as HTMLElement | null;
-                if (!a?.dataset.docId) return;
-                e.preventDefault();
-                // Явный клик по упоминанию в сценарии переключает на вкладку «Документы», а тихие открытия из чата — нет.
-                setTab("docs");
-                // Одноимённые документы: повторный клик открывает следующий по кругу.
-                const ids = a.dataset.docIds ? a.dataset.docIds.split(",") : [];
-                if (ids.length > 1) openDoc(ids[(ids.indexOf(view.stack[view.idx]) + 1) % ids.length]);
-                else openDoc(a.dataset.docId);
-              }}
+              onClick={followMention}
             >
               {sections.length === 0 ? (
                 <p className="muted">Сессия пуста — заполните её на странице документа.</p>
@@ -438,8 +529,14 @@ export function PlaySession() {
               <div className="play-viewer-nav">
                 <button type="button" title="Назад" aria-label="Назад" disabled={view.idx <= 0} onClick={() => setView((v) => ({ ...v, idx: v.idx - 1 }))}><ArrowLeft size={15} /></button>
                 <button type="button" title="Вперёд" aria-label="Вперёд" disabled={view.idx >= view.stack.length - 1} onClick={() => setView((v) => ({ ...v, idx: v.idx + 1 }))}><ArrowRight size={15} /></button>
-                {viewerDoc && <span className="play-viewer-title">{viewerDoc.title}</span>}
+                {viewerDoc && <div className="play-viewer-identity">
+                  {viewerDoc.avatar
+                    ? <ImagePreview key={`${viewerDoc.id}:${viewerDoc.avatar.id}`} images={[viewerDoc.avatar]} thumbnailSize={128} className="play-viewer-avatar" label={`Открыть аватар ${viewerDoc.title}`} />
+                    : <span className="play-viewer-avatar play-viewer-avatar-placeholder"><TypeBadge type={viewerDoc.type} size={24} /></span>}
+                  <span className="play-viewer-title" title={viewerDoc.title}>{viewerDoc.title}</span>
+                </div>}
                 {viewerProposed && <span className="play-viewer-title">{viewerProposed.title} <span className="play-proposed-tag">предлагается создать</span></span>}
+                {viewerDoc && <button type="button" className="play-viewer-images" aria-label={`Изображения: ${viewerDoc.title}`} title="Открыть изображения сущности" onClick={() => openImages(viewerDoc.id)}><Image size={14} /></button>}
                 {viewerDoc && (
                   <button
                     type="button"
@@ -464,9 +561,9 @@ export function PlaySession() {
                   ))}
                 </div>
               )}
-              <div className="play-viewer-body">
+              <div className="play-viewer-body" onClick={followMention}>
                 {viewerDoc ? (
-                  <div className="md" dangerouslySetInnerHTML={{ __html: contentToHtml(viewerDoc.contentJson) }} />
+                  <div className="md" dangerouslySetInnerHTML={{ __html: viewerHtml }} />
                 ) : viewerProposed ? (
                   <div className="play-proposed">
                     <div className="play-proposed-head"><TypeTag type={viewerProposed.type} /></div>
@@ -477,6 +574,8 @@ export function PlaySession() {
                 )}
               </div>
             </div>
+
+            {tab === "images" && <PlayImages campaignId={campaignId!} documents={docs} session={doc} initialDocumentId={imageTargetId} playerScreen={playerScreen} refreshKey={imagesRevision} onRefreshEntities={refreshImages} />}
 
             <div className="play-combat-wrap" style={{ display: tab === "combat" ? undefined : "none" }}>
               <CombatTracker
@@ -490,6 +589,7 @@ export function PlaySession() {
           </div>
         </aside>
       </div>
+      {editDialog}
     </div>
   );
 }

@@ -10,6 +10,7 @@ export interface AssistantJobStatus {
 interface Job extends AssistantJobStatus {
   stopped: boolean;
   abort?: AbortController;
+  done?: Promise<void>;
 }
 
 const CLEANUP_MS = 60_000;
@@ -34,14 +35,21 @@ export class AssistantJobService {
     return true;
   }
 
+  // Остановка сервера ждёт выхода провайдеров и удаления временных изображений.
+  async stopAll(): Promise<void> {
+    const jobs = [...this.jobs.entries()];
+    for (const [id, job] of jobs) if (job.running) this.stop(id);
+    await Promise.all(jobs.map(([, job]) => job.done));
+  }
+
   // Запускает генерацию в фоне; onFinish получает накопленный текст (в том числе
   // частичный при остановке). Одна задача на документ; повторный старт — false.
   // abort — контроллер, чей signal передан провайдеру: stop() обрывает генерацию через него.
-  start(docId: string, stream: AsyncIterable<string>, onFinish: (text: string) => void, abort?: AbortController): boolean {
+  start(docId: string, stream: AsyncIterable<string>, onFinish: (text: string) => void | Promise<void>, abort?: AbortController): boolean {
     if (this.jobs.get(docId)?.running) return false;
     const job: Job = { running: true, partial: "", error: null, stopped: false, abort };
     this.jobs.set(docId, job);
-    void (async () => {
+    job.done = (async () => {
       try {
         for await (const chunk of stream) {
           job.partial += chunk;
@@ -51,10 +59,14 @@ export class AssistantJobService {
         // Обрыв потока после stop — штатная остановка, а не ошибка.
         if (!job.stopped) job.error = e instanceof Error ? e.message : String(e);
       } finally {
-        job.running = false;
         try {
-          if (job.partial.trim()) onFinish(job.partial);
+          // Сохранение может включать асинхронный импорт изображений. Пока оно
+          // не завершено, клиент не должен считать ответ готовым или начать второй.
+          if (job.partial.trim()) await onFinish(job.partial);
+        } catch (error) {
+          if (!job.stopped) job.error = error instanceof Error ? error.message : String(error);
         } finally {
+          job.running = false;
           // держим финальный статус ещё немного, чтобы клиент успел его забрать
           const t = setTimeout(() => { if (!this.jobs.get(docId)?.running) this.jobs.delete(docId); }, CLEANUP_MS);
           t.unref?.();

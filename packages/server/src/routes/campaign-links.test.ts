@@ -1,0 +1,22 @@
+import { afterEach, expect, it } from "vitest";
+import { createDb } from "../db/client.js";
+import { buildApp } from "../app.js";
+import { CampaignService } from "../services/campaigns.js";
+import { DocumentService } from "../services/documents.js";
+import { LinkService } from "../services/links.js";
+const opened: { app: ReturnType<typeof buildApp>; sqlite: ReturnType<typeof createDb>["sqlite"] }[] = [];
+afterEach(async () => { for (const f of opened.splice(0)) { await f.app.close(); f.sqlite.close(); } });
+it("lists only links between existing documents owned by the requested campaign", async () => {
+  const { db, sqlite } = createDb(":memory:");
+  const app = buildApp({ db, llm: { async *complete() { yield ""; } } }); opened.push({ app, sqlite });
+  const campaigns = new CampaignService(db), documents = new DocumentService(db), links = new LinkService(db);
+  const c = campaigns.create({ name: "Карта" }), other = campaigns.create({ name: "Другая" });
+  const a = documents.create({ campaignId: c.id, title: "Барон", type: "npc" }), b = documents.create({ campaignId: c.id, title: "Причал", type: "location" });
+  const foreign = documents.create({ campaignId: other.id, title: "Чужой", type: "npc" });
+  const valid = links.create({ campaignId: c.id, fromDocId: a.id, toDocId: b.id, kind: "владеет" });
+  links.create({ campaignId: c.id, fromDocId: a.id, toDocId: foreign.id, kind: "foreign" });
+  links.create({ campaignId: other.id, fromDocId: a.id, toDocId: b.id, kind: "wrong campaign" });
+  links.create({ campaignId: c.id, fromDocId: a.id, toDocId: "absent", kind: "dangling" });
+  const res = await app.inject(`/api/campaigns/${c.id}/links`);
+  expect(res.statusCode).toBe(200); expect(res.json()).toEqual([valid]);
+});

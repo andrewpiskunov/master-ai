@@ -17,6 +17,8 @@ import type {
   GameLogEntry,
   LlmUsageStats,
   GlobalLlmUsageStats,
+  LlmRuntimeConfig,
+  ImageAttachment,
 } from "@master-ai/shared";
 
 export class ApiError extends Error {
@@ -46,9 +48,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-type DocumentPatch = Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">>;
+type DocumentPatch = Partial<Pick<Document, "type" | "title" | "status" | "contentJson" | "fields">> & { expectedUpdatedAt?: string };
 
 export const api = {
+  llmConfig: () => request<LlmRuntimeConfig>("/api/llm/config"),
   listDocumentTypes: () => request<DocumentTypeDef[]>("/api/document-types"),
   listCampaigns: () => request<Campaign[]>("/api/campaigns"),
   createCampaign: (input: NewCampaign) =>
@@ -64,6 +67,30 @@ export const api = {
     request<Document[]>(`/api/campaigns/${campaignId}/documents`),
   createDocument: (input: NewDocument) =>
     request<Document>("/api/documents", { method: "POST", body: JSON.stringify(input) }),
+  uploadImage: (campaignId: string, image: { name: string; dataUrl: string }) =>
+    request<ImageAttachment>(`/api/campaigns/${campaignId}/images`, { method: "POST", body: JSON.stringify(image) }),
+  campaignImages: (campaignId: string) => request<ImageAttachment[]>(`/api/campaigns/${campaignId}/images`),
+  deleteImage: (id: string) => request<{ deleted: boolean }>(`/api/images/${id}`, { method: "DELETE" }),
+  setCampaignCover: (campaignId: string, imageId: string | null) =>
+    request<Campaign>(`/api/campaigns/${campaignId}/cover`, { method: "PUT", body: JSON.stringify({ imageId }) }),
+  setDocumentAvatar: (docId: string, imageId: string | null) =>
+    request<Document>(`/api/documents/${docId}/avatar`, { method: "PUT", body: JSON.stringify({ imageId }) }),
+  documentImages: (docId: string) => request<ImageAttachment[]>(`/api/documents/${docId}/images`),
+  attachDocumentImage: (docId: string, imageId: string) =>
+    request<ImageAttachment[]>(`/api/documents/${docId}/images`, { method: "POST", body: JSON.stringify({ imageId }) }),
+  detachDocumentImage: (docId: string, imageId: string) =>
+    request<ImageAttachment[]>(`/api/documents/${docId}/images/${imageId}`, { method: "DELETE" }),
+  startImageGeneration: (docId: string, prompt: string) =>
+    request<{ started: boolean }>(`/api/documents/${docId}/image-generation`, { method: "POST", body: JSON.stringify({ prompt }) }),
+  imageGenerationStatus: (docId: string) =>
+    request<{ running: boolean; error: string | null; image?: ImageAttachment }>(`/api/documents/${docId}/image-generation`),
+  stopImageGeneration: async (docId: string) => {
+    const res = await fetch(`/api/documents/${docId}/image-generation/stop`, { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new ApiError(res.status, body.error || res.statusText);
+    }
+  },
   getDocument: (id: string) => request<Document>(`/api/documents/${id}`),
   deleteDocument: (id: string) =>
     fetch(`/api/documents/${id}`, { method: "DELETE" }).then((res) => {
@@ -74,10 +101,12 @@ export const api = {
   brainstorm: (campaignId: string, message: string) =>
     request<BrainstormResponse>(`/api/campaigns/${campaignId}/brainstorm`, { method: "POST", body: JSON.stringify({ message }) }),
   // Серверная фоновая генерация мастерской: старт / статус.
-  startBrainstorm: (campaignId: string, message: string) =>
-    request<{ started: boolean }>(`/api/campaigns/${campaignId}/brainstorm/start`, { method: "POST", body: JSON.stringify({ message }) }),
+  startBrainstorm: (campaignId: string, message: string, images?: ImageAttachment[]) =>
+    request<{ started: boolean }>(`/api/campaigns/${campaignId}/brainstorm/start`, { method: "POST", body: JSON.stringify({ message, ...(images?.length ? { imageIds: images.map((i) => i.id) } : {}) }) }),
   brainstormStatus: (campaignId: string) =>
     request<{ running: boolean; partial: string; error: string | null }>(`/api/campaigns/${campaignId}/brainstorm/status`),
+  startWorkshopTopic: (campaignId: string) =>
+    request<ConversationMessage>(`/api/campaigns/${campaignId}/brainstorm/new-topic`, { method: "POST" }),
   listProposals: (campaignId: string, status?: string) =>
     request<Proposal[]>(`/api/campaigns/${campaignId}/proposals${status ? `?status=${status}` : ""}`),
   approveProposal: (id: string) =>
@@ -97,10 +126,10 @@ export const api = {
     }),
   // Серверная генерация помощника документа: старт / статус / остановка.
   // opts.mode="game" + opts.meta — игровой чат режима игры (актор действия).
-  startAssistant: (docId: string, message: string, system?: string, opts?: { mode?: "game"; meta?: MessageMeta }) =>
+  startAssistant: (docId: string, message: string, system?: string, opts?: { mode?: "game"; meta?: MessageMeta; images?: ImageAttachment[] }) =>
     request<{ started: boolean }>(`/api/documents/${docId}/assistant`, {
       method: "POST",
-      body: JSON.stringify({ message, system, ...opts }),
+      body: JSON.stringify({ message, system, ...(opts?.mode ? { mode: opts.mode } : {}), ...(opts?.meta ? { meta: opts.meta } : {}), ...(opts?.images?.length ? { imageIds: opts.images.map((i) => i.id) } : {}) }),
     }),
   assistantStatus: (docId: string) =>
     request<{ running: boolean; partial: string; error: string | null }>(`/api/documents/${docId}/assistant`),
@@ -131,6 +160,7 @@ export const api = {
     request<SearchHit[]>(`/api/campaigns/${campaignId}/search?q=${encodeURIComponent(q)}`),
   createLink: (input: NewLink) =>
     request<Link>(`/api/campaigns/${input.campaignId}/links`, { method: "POST", body: JSON.stringify(input) }),
+  listCampaignLinks: (campaignId: string) => request<Link[]>(`/api/campaigns/${campaignId}/links`),
   listDocumentLinks: (docId: string) =>
     request<DocumentLinks>(`/api/documents/${docId}/links`),
   deleteLink: (id: string) =>

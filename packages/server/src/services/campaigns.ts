@@ -1,20 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import type { Campaign, CampaignPatch, NewCampaign } from "@master-ai/shared";
-import { campaigns, documents, links, proposals, conversations, messages } from "../db/schema.js";
+import type { Campaign, CampaignPatch, ImageAttachment, NewCampaign } from "@master-ai/shared";
+import { campaigns, documents, images, links, proposals, conversations, messages } from "../db/schema.js";
 
 type CampaignRow = typeof campaigns.$inferSelect;
 
 // llm_settings хранится JSON-строкой — наружу отдаём распарсенный объект.
-function toCampaign(row: CampaignRow): Campaign {
-  return { ...row, llmSettings: JSON.parse(row.llmSettings) } as Campaign;
+function toCampaign(row: CampaignRow, cover: ImageAttachment | null = null, updatedAt = row.updatedAt): Campaign {
+  const { coverImageId: _coverImageId, ...campaign } = row;
+  return { ...campaign, cover, updatedAt, llmSettings: JSON.parse(row.llmSettings) } as Campaign;
 }
 
 export class CampaignService {
   constructor(private db: BetterSQLite3Database) {}
 
   create(input: NewCampaign): Campaign {
+    const now = new Date().toISOString();
     const row: CampaignRow = {
       id: randomUUID(),
       name: input.name,
@@ -23,19 +25,38 @@ export class CampaignService {
       realism: input.realism ?? "balanced",
       llmProvider: "cli",
       llmSettings: "{}",
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
+      coverImageId: null,
     };
     this.db.insert(campaigns).values(row).run();
     return toCampaign(row);
   }
 
   list(): Campaign[] {
-    return (this.db.select().from(campaigns).all() as CampaignRow[]).map(toCampaign);
+    return this.read();
   }
 
   get(id: string): Campaign | undefined {
-    const row = this.db.select().from(campaigns).where(eq(campaigns.id, id)).get() as CampaignRow | undefined;
-    return row ? toCampaign(row) : undefined;
+    return this.read(id)[0];
+  }
+
+  // Обложка — только явный выбор мастера. Список получает метаданные медиа и
+  // максимальную дату документов одним запросом, без чтения их текста или байтов.
+  private read(id?: string): Campaign[] {
+    const activity = this.db.select({
+      campaignId: documents.campaignId,
+      updatedAt: sql<string>`max(${documents.updatedAt})`.as("latest_document_update"),
+    }).from(documents).groupBy(documents.campaignId).as("document_activity");
+    const rows = this.db.select({
+      campaign: campaigns,
+      cover: { id: images.id, name: images.name, mimeType: images.mimeType },
+      updatedAt: sql<string>`max(${campaigns.updatedAt}, coalesce(${activity.updatedAt}, ${campaigns.updatedAt}))`,
+    }).from(campaigns)
+      .leftJoin(images, and(eq(images.id, campaigns.coverImageId), eq(images.campaignId, campaigns.id)))
+      .leftJoin(activity, eq(activity.campaignId, campaigns.id))
+      .where(id === undefined ? undefined : eq(campaigns.id, id)).all();
+    return rows.map((row) => toCampaign(row.campaign, row.cover as ImageAttachment | null, row.updatedAt));
   }
 
   update(id: string, patch: CampaignPatch): Campaign | undefined {
@@ -48,6 +69,7 @@ export class CampaignService {
     if (patch.llmProvider !== undefined) updates.llmProvider = patch.llmProvider;
     if (patch.llmSettings !== undefined) updates.llmSettings = JSON.stringify(patch.llmSettings);
     if (Object.keys(updates).length) {
+      updates.updatedAt = new Date().toISOString();
       this.db.update(campaigns).set(updates).where(eq(campaigns.id, id)).run();
     }
     return this.get(id);
@@ -70,6 +92,8 @@ export class CampaignService {
       this.db.delete(conversations).where(eq(conversations.campaignId, id)).run();
       this.db.delete(proposals).where(eq(proposals.campaignId, id)).run();
       this.db.delete(links).where(eq(links.campaignId, id)).run();
+      this.db.run(sql`DELETE FROM document_images WHERE document_id IN (SELECT id FROM documents WHERE campaign_id = ${id}) OR image_id IN (SELECT id FROM images WHERE campaign_id = ${id})`);
+      this.db.delete(images).where(eq(images.campaignId, id)).run();
       this.db.delete(documents).where(eq(documents.campaignId, id)).run();
       this.db.run(sql`DELETE FROM documents_fts WHERE campaign_id = ${id}`);
       this.db.delete(campaigns).where(eq(campaigns.id, id)).run();

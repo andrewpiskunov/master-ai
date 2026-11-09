@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ImageAttachmentSchema } from "./images.js";
 
 export const RealismSchema = z.enum(["stylized", "balanced", "realistic"]);
 export type Realism = z.infer<typeof RealismSchema>;
@@ -24,6 +25,8 @@ export const CampaignSchema = z.object({
   llmProvider: LlmProviderSchema,
   llmSettings: LlmSettingsSchema,
   createdAt: z.string(),
+  updatedAt: z.string().optional(),
+  cover: ImageAttachmentSchema.nullable().optional(),
 });
 export type Campaign = z.infer<typeof CampaignSchema>;
 

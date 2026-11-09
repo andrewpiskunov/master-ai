@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ImageAttachmentSchema } from "./images.js";
 
 export const DocumentSchema = z.object({
   id: z.string(),
@@ -8,6 +9,7 @@ export const DocumentSchema = z.object({
   status: z.string().nullable(),
   contentJson: z.unknown(),
   fields: z.record(z.unknown()),
+  avatar: ImageAttachmentSchema.nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

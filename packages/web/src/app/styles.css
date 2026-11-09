@@ -1033,6 +1033,7 @@ form button { align-self: flex-start; }
 .usage-table td:not(:first-child), .usage-table th:not(:first-child) { text-align: right; white-space: nowrap; }
 
 /* ---------- Markdown ---------- */
+.md { min-width: 0; }
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
 .md p { margin: 0 0 0.6em; }
@@ -1044,6 +1045,20 @@ form button { align-self: flex-start; }
 .md code { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
 .md blockquote { margin: 0.6em 0; padding-left: 12px; border-left: 3px solid var(--border); color: var(--muted); }
 .md a { color: var(--accent-hover); }
+.md-table-scroll {
+  max-width: 100%; overflow-x: auto; margin: 0.85em 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.md-table-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.md table { width: 100%; min-width: 26rem; border-collapse: separate; border-spacing: 0; font-size: 0.92em; line-height: 1.55; }
+.md th, .md td { min-width: 8rem; padding: 10px 14px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.md th { color: var(--text-strong); background: var(--surface-3); font-weight: 600; border-bottom: 1px solid var(--border); }
+.md th:not(:last-child), .md td:not(:last-child) { border-right: 1px solid var(--border-soft); }
+.md tbody tr:not(:last-child) td { border-bottom: 1px solid var(--border-soft); }
+.md tbody tr:nth-child(even) { background: rgba(148, 163, 184, 0.035); }
+.md td:first-child { color: var(--text-strong); font-weight: 500; }
 
 /* ---------- Страница документа ---------- */
 .doc-head {
@@ -1313,13 +1328,6 @@ a.mention:hover { filter: brightness(1.12); }
 .cmd-item-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmd-item-hint { flex: none; font-size: 0.75rem; color: var(--muted); }
 
-/* Карта связей */
-.linkmap-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); margin-top: 8px; }
-.linkmap { display: block; max-width: none; }
-.linkmap-node { cursor: pointer; }
-.linkmap-node circle { transition: r 0.1s; }
-.linkmap-node:hover circle { r: 9; }
-.linkmap-node:hover text { fill: var(--text-strong); font-weight: 600; }
 @media (max-width: 980px) {
   .doc-assistant .doc-chat { flex: none; height: 360px; }
 }
@@ -1383,19 +1391,6 @@ a.mention:hover { filter: brightness(1.12); }
 }
 .brief-nudge:hover { color: var(--text); border-color: var(--accent); }
 
-/* Легенда-фильтр карты связей */
-.linkmap-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.linkmap-chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-  color: var(--text); font-size: 0.8rem;
-}
-.linkmap-chip:hover { border-color: var(--accent); }
-.linkmap-chip.off { opacity: 0.45; }
-.linkmap-chip.off .linkmap-dot { background: var(--muted) !important; }
-.linkmap-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.linkmap-chip-count { color: var(--muted); }
-
 /* Экран «Кампания не найдена» */
 .campaign-missing { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 60vh; text-align: center; }
 .campaign-missing .btn-ghost { padding: 8px 16px; border-radius: var(--radius-sm); text-decoration: none; }
@@ -1436,4 +1431,75 @@ a.mention:hover { filter: brightness(1.12); }
   .print-page { background: #fff; }
   .print-doc { max-width: none; margin: 0; padding: 0; }
   .print-section + .print-section { margin-top: 0; }
+}
+
+/* Изображения: небольшие референсы в чате и отдельная галерея сущности. */
+.image-attachments { flex: none; min-width: 0; }
+.image-attach-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; }
+.image-attach-button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; font-size: 0.76rem; }
+.image-paste-hint { color: var(--muted); font-size: 0.7rem; }
+.image-draft, .entity-image-gallery { list-style: none; margin: 0 0 9px; padding: 0; }
+.image-draft { display: flex; flex-wrap: wrap; gap: 7px; max-height: 190px; overflow: auto; }
+.image-draft li { width: 76px; position: relative; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface-2); }
+.image-draft img, .image-reading { display: block; width: 100%; height: 58px; object-fit: cover; }
+.image-reading { display: grid; place-items: center; color: var(--muted); font-size: 0.75rem; }
+.image-draft-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 5px; font-size: 0.67rem; color: var(--muted); }
+.image-remove { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 23px; height: 23px; padding: 0; color: var(--text); background: rgb(11 14 20 / 85%); border: 1px solid var(--border); border-radius: 6px; }
+.image-error { margin: 7px 0; color: #fca5a5; font-size: 0.8rem; overflow-wrap: anywhere; }
+.image-notice { margin: 7px 0; color: #86efac; font-size: 0.8rem; }
+.message-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.message-images a { display: block; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.message-images img { display: block; width: 128px; height: 96px; object-fit: cover; transition: filter 150ms; }
+.message-images a:hover img { filter: brightness(1.12); }
+.workshop-message-images { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 8px; }
+.workshop-message-image { width: 128px; min-width: 0; }
+.workshop-message-image .message-images { margin: 0; }
+.workshop-message-image > button { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-top: 4px; padding: 5px 3px; font-size: 0.7rem; }
+.workshop-image-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; list-style: none; margin: 12px 0 0; padding: 0; }
+.workshop-image-result { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.workshop-image-preview { flex: none; display: block; overflow: hidden; border-radius: 5px; }
+.workshop-image-preview img { display: block; width: 60px; height: 64px; object-fit: cover; transition: filter 150ms; }
+.workshop-image-preview:hover img { filter: brightness(1.12); }
+.workshop-image-result-body { min-width: 0; overflow-wrap: anywhere; }
+.workshop-image-result-body > a { font-size: 0.82rem; font-weight: 600; }
+.workshop-image-status { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; color: #86efac; font-size: 0.7rem; }
+.workshop-image-result-error .workshop-image-status { color: #fca5a5; }
+.workshop-image-result .image-error { margin: 4px 0 0; font-size: 0.73rem; }
+.modal-image-target { max-width: 440px; }
+.workshop-image-source { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.workshop-image-source img { width: 72px; height: 72px; object-fit: cover; border: 1px solid var(--border); border-radius: 8px; }
+.workshop-image-source span { min-width: 0; overflow-wrap: anywhere; color: var(--muted); font-size: 0.82rem; }
+.modal-image-target label { display: block; margin-bottom: 7px; font-size: 0.82rem; }
+.modal-image-target select { width: 100%; min-width: 0; font-size: 0.82rem; }
+.modal-image-target .muted { font-size: 0.8rem; }
+.modal-image-target .modal-actions { flex-wrap: wrap; }
+.doc-assistant > .image-attachments { padding-top: 6px; }
+.game-chat > .image-attachments { padding: 6px 14px 0; }
+.document-images { min-height: 0; overflow-y: auto; padding-top: 12px; }
+.entity-image-heading { display: flex; align-items: baseline; justify-content: space-between; }
+.entity-image-heading h3 { margin: 0; }
+.image-empty { font-size: 0.82rem; }
+.entity-image-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+.entity-image-gallery li { min-width: 0; border: 1px solid var(--border); background: var(--surface-2); border-radius: 9px; overflow: hidden; }
+.entity-image-gallery a { display: block; }
+.entity-image-gallery img { width: 100%; height: 125px; object-fit: cover; display: block; }
+.entity-image-gallery li > div { display: flex; align-items: center; gap: 3px; padding: 3px 5px 3px 8px; }
+.entity-image-gallery li span { flex: 1; min-width: 0; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.entity-image-gallery li button { display: flex; padding: 4px; }
+.image-paste-target { padding: 12px 10px; margin: 12px 0 8px; border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-size: 0.76rem; text-align: center; cursor: text; }
+.image-paste-target:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+.entity-image-attach { width: 100%; margin-top: 8px; font-size: 0.8rem; }
+.image-generation { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
+.image-generation label { font-size: 0.8rem; font-weight: 600; }
+.image-generation textarea { display: block; width: 100%; resize: vertical; min-height: 80px; max-height: 300px; margin-top: 6px; font-size: 0.8rem; }
+.image-generation-hint { margin: 6px 0 10px; font-size: 0.73rem; }
+.image-generation > button, .image-generation-actions button { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+.image-generation-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.image-generation-actions > span { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); }
+.doc-side .panel-tabs { flex-wrap: wrap; }
+.doc-side .panel-tabs button { flex-basis: calc(50% - 4px); }
+@media (max-width: 480px) {
+  .image-paste-hint { font-size: 0.66rem; }
+  .message-images img { width: 105px; height: 80px; }
+  .workshop-message-image { width: 105px; }
 }

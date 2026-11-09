@@ -1,0 +1,15 @@
+.workshop-image-caption {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin-bottom: 4px;
+  color: var(--text-strong);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.workshop-image-result .workshop-image-result-body > a { font-size: 0.73rem; }
+.image-target-avatar { display: flex; align-items: center; gap: 8px; margin: 12px 0; color: var(--text); font-size: .8rem; }
+.image-target-avatar input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }

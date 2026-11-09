@@ -1,0 +1,63 @@
+/* This route fills the space below the app header. Only its two columns scroll. */
+.workspace:has(.workshop-view) {
+  height: calc(100dvh - var(--header-h) - 1px);
+  align-items: stretch;
+  overflow: hidden;
+}
+.workspace:has(.workshop-view) > .sidebar { height: 100%; }
+.workspace-main:has(.workshop-view) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 24px;
+  overflow: hidden;
+}
+.workshop-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.workshop-view > .view-head, .workshop-view > .brief-nudge { flex: none; }
+.workshop-view .ws-grid { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+.workshop-view .ws-chat-col { min-height: 0; }
+.workshop-view .workshop { flex: 1; min-height: 0; }
+.workshop-view .workshop > :not(.chat) { flex-shrink: 0; }
+.workshop-view .ws-chat-col .workshop .chat {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+.workshop-view .image-attachments { max-height: clamp(36px, calc(var(--workshop-height, 600px) * 0.25), 180px); overflow-y: auto; }
+.workshop-view .chat-form textarea { max-height: clamp(44px, calc(var(--workshop-height, 600px) * 0.25), 200px); }
+.workshop-view .ws-aside { min-height: 0; overflow: hidden; }
+.workshop-materials { display: flex; flex-direction: column; gap: 18px; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+.workshop-materials > * { flex: none; }
+.workshop-materials-toggle { display: none; }
+.workshop-bar { gap: 8px; flex-wrap: wrap; }
+.new-topic-btn { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-size: 0.78rem; }
+.workshop-topic-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 12px; color: var(--muted); font-size: 0.75rem; }
+.workshop-topic-divider::before, .workshop-topic-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.workshop-topic-empty { margin: 0; padding: 8px 12px 18px; }
+
+@media (max-width: 900px) {
+  .workspace:has(.workshop-view) > .sidebar { height: auto; flex: none; }
+  .workspace-main:has(.workshop-view) { padding: 12px 16px 16px; }
+  .workshop-view .view-head { margin-bottom: 0; }
+  .workshop-view .view-sub { display: none; }
+  .workshop-view .brief-nudge { margin-bottom: 0; padding: 6px 9px; font-size: 0.75rem; }
+  .workshop-view .brief-nudge span { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .workshop-view .ws-grid { display: flex; flex-direction: column; gap: 8px; }
+  .workshop-view .ws-chat-col { flex: 1; }
+  .workshop-view .workshop { padding: 12px; gap: 10px; }
+  .workshop-view .ws-aside { flex: none; max-height: 35%; gap: 8px; }
+  .workshop-materials-toggle { display: flex; flex: none; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; font-size: 0.78rem; }
+  .workshop-materials-toggle > svg:last-child { margin-left: auto; }
+  .workshop-materials-toggle[aria-expanded="true"] > svg:last-child { transform: rotate(180deg); }
+  .workshop-view .workshop-materials { display: none; gap: 10px; }
+  .workshop-view .ws-aside.is-open { display: flex; flex-shrink: 1; }
+  .workshop-view .ws-aside.is-open .workshop-materials { display: flex; }
+}
+
+@media (max-width: 900px) and (max-height: 700px) {
+  .workspace:has(.workshop-view) > .sidebar .ws-campaign,
+  .workspace:has(.workshop-view) > .sidebar .ws-search { display: none; }
+}

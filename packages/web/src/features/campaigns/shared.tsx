@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { DOCUMENT_TYPES, getDocumentType, getDisposition, hasDisposition, statusLabel, statusColor, type Campaign, type Document } from "@master-ai/shared";
 import { pmText } from "../../lib/prosemirror-text.js";
+import { ThumbnailImage } from "../images/ThumbnailImage.js";
+import "../images/EntityAvatars.css";
 
 // Деление типов документов на разделы — как в Campaign Arks.
 export const KNOWLEDGE_TYPES = ["pc", "npc", "location", "faction", "lore", "reference", "note"];
@@ -146,13 +148,19 @@ function DocChips({ doc }: { doc: Document }) {
   );
 }
 
+function CardAvatar({ doc, size }: { doc: Document; size: number }) {
+  return doc.avatar
+    ? <ThumbnailImage className="entity-card-avatar" imageId={doc.avatar.id} size={128} alt="" style={{ width: size, height: size }} />
+    : <TypeBadge type={doc.type} size={size} />;
+}
+
 export function DocCard({ doc, variant = "row" }: { doc: Document; variant?: "row" | "tile" }) {
   const t = getDocumentType(doc.type);
   const snippet = docSnippet(doc.contentJson);
   if (variant === "tile") {
     return (
       <Link to={`/campaigns/${doc.campaignId}/documents/${doc.id}`} className="doc-tile">
-        <TypeBadge type={doc.type} size={40} />
+        <CardAvatar doc={doc} size={64} />
         <span className="doc-tile-title">{doc.title}</span>
         {snippet && <span className="doc-tile-snippet">{snippet}</span>}
         <DocChips doc={doc} />
@@ -161,7 +169,7 @@ export function DocCard({ doc, variant = "row" }: { doc: Document; variant?: "ro
   }
   return (
     <Link to={`/campaigns/${doc.campaignId}/documents/${doc.id}`} className="doc-card">
-      <TypeBadge type={doc.type} size={32} />
+      <CardAvatar doc={doc} size={40} />
       <span className="doc-card-body">
         <span className="doc-card-title">{doc.title}</span>
         {snippet

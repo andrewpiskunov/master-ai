@@ -14,6 +14,7 @@ import { TypeBadge } from "./shared.js";
 import { WorkshopChatProvider } from "../assistant/WorkshopChatContext.js";
 import { CommandPalette } from "./CommandPalette.js";
 import { useBookmarks } from "../../hooks/useBookmarks.js";
+import { useImageDeletion } from "../images/image-deletions.js";
 
 export function CampaignWorkspace() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -59,6 +60,7 @@ export function CampaignWorkspace() {
       else showToast("Не удалось загрузить кампанию");
     });
   }, [campaignId, showToast]);
+  useImageDeletion(() => { reloadCampaign(); });
 
   useEffect(() => {
     reloadCampaign();
